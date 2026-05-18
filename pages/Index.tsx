@@ -132,34 +132,43 @@ const Index = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="widget-sculpted-3d p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                <div className="widget-sculpted-3d p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
                     <div className="relative z-10">
-                        <div className="icon-cart-v3 mb-5"><span className="material-icons-round icon-cart-v3-symbol">shopping_cart</span></div>
-                        <p className="text-sm text-gray-400 font-light mb-1">Comenzi Totale</p>
-                        <h3 className="text-5xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(totalComenzi.toLocaleString())}</h3>
+                        <div className="icon-cart-v3 mb-4"><span className="material-icons-round icon-cart-v3-symbol">shopping_cart</span></div>
+                        <p className="text-xs text-gray-400 font-light mb-1">Comenzi Totale</p>
+                        <h3 className="text-4xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(totalComenzi.toLocaleString())}</h3>
                     </div>
                 </div>
-                <div className="widget-sculpted-3d p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                <div className="widget-sculpted-3d p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
                     <div className="relative z-10">
-                        <div className="icon-cart-v3 mb-5"><span className="material-icons-round icon-symbol-blue">check_circle</span></div>
-                        <p className="text-sm text-gray-400 font-light mb-1">Coșuri Recuperate</p>
-                        <h3 className="text-5xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(cosuriRecuperate.toLocaleString())}</h3>
+                        <div className="icon-cart-v3 mb-4"><span className="material-icons-round icon-symbol-blue">check_circle</span></div>
+                        <p className="text-xs text-gray-400 font-light mb-1">Coșuri Recuperate</p>
+                        <h3 className="text-4xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(cosuriRecuperate.toLocaleString())}</h3>
                     </div>
                 </div>
-                <div className="widget-sculpted-3d p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                <div className="widget-sculpted-3d p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
                     <div className="relative z-10">
-                        <div className="icon-cart-v3 mb-5"><span className="material-icons-round icon-symbol-emerald">verified</span></div>
-                        <p className="text-sm text-gray-400 font-light mb-1">Comenzi Confirmate</p>
-                        <h3 className="text-5xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(comenziConfirmate.toLocaleString())}</h3>
+                        <div className="icon-cart-v3 mb-4"><span className="material-icons-round icon-symbol-emerald">verified</span></div>
+                        <p className="text-xs text-gray-400 font-light mb-1">Comenzi Confirmate</p>
+                        <h3 className="text-4xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(comenziConfirmate.toLocaleString())}</h3>
                     </div>
                 </div>
-                <div className="widget-sculpted-3d p-6 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#001f3f] to-[#006bb3] text-white group hover:-translate-y-1 transition-transform">
+                <div className="widget-sculpted-3d p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#001f3f] to-[#006bb3] text-white group hover:-translate-y-1 transition-transform">
                     <div className="relative z-10 h-full flex flex-col justify-between">
                         <div className="icon-cart-v3"><span className="material-icons-round icon-symbol-laser-blue">payments</span></div>
-                        <div className="mt-4">
-                            <p className="text-sm text-cyan-200 font-light mb-1">Vânzări Generate</p>
-                            <h3 className="text-4xl font-light mt-1 font-num glow-text">{displayValue(metricsLoading && !latestMetrics ? '...' : `${vanzariGenerate.toLocaleString()} RON`)}</h3>
+                        <div className="mt-3">
+                            <p className="text-xs text-cyan-200 font-light mb-1">Vânzări Generate</p>
+                            <h3 className="text-3xl font-light mt-1 font-num glow-text">{displayValue(metricsLoading && !latestMetrics ? '...' : `${vanzariGenerate.toLocaleString()} RON`)}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div className="widget-sculpted-3d p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#0d2d1a] to-[#1a5c34] text-white group hover:-translate-y-1 transition-transform">
+                    <div className="relative z-10 h-full flex flex-col justify-between">
+                        <div className="icon-cart-v3"><span className="material-icons-round icon-symbol-emerald">trending_up</span></div>
+                        <div className="mt-3">
+                            <p className="text-xs text-emerald-200 font-light mb-1">Vânzări Upsell</p>
+                            <h3 className="text-3xl font-light mt-1 font-num glow-text">0 RON</h3>
                         </div>
                     </div>
                 </div>

@@ -7,6 +7,7 @@ const ControlRobotPage = () => {
     const userStores = profile?.stores || [];
     const [selectedBrand, setSelectedBrand] = useState<string>('');
     const [orderNumber, setOrderNumber] = useState('');
+    const [tipComanda, setTipComanda] = useState<'draft' | 'comanda'>('comanda');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [isLoadingCall, setIsLoadingCall] = useState(false);
     const [isLoadingActivate, setIsLoadingActivate] = useState(false);
@@ -23,7 +24,7 @@ const ControlRobotPage = () => {
 
     const handleCallAction = async () => {
         if (!orderNumber || !selectedBrand) {
-            alert("Te rugăm să selectezi un magazin și să introduci numărul comenzii.");
+            alert("Te rugăm să selectezi un magazin, tipul comenzii și să introduci numărul comenzii.");
             return;
         }
 
@@ -37,11 +38,13 @@ const ControlRobotPage = () => {
                 body: JSON.stringify({
                     shop: selectedBrand,
                     order_number: orderNumber,
+                    tip_comanda: tipComanda,
                     action: 'call'
                 }),
             });
             alert("Comanda de apelare a fost trimisă cu succes!");
             setOrderNumber('');
+            setTipComanda('comanda');
         } catch (error) {
             console.error("Eroare la trimiterea comenzii:", error);
             alert("A apărut o eroare la trimiterea comenzii.");
@@ -167,25 +170,52 @@ const ControlRobotPage = () => {
                         Atentie, trebuie sa introduci o comanda cu tag-ul 'n-a raspuns', altfel clientul va fi sunat de mai multe ori
                     </p>
 
-                    <div className="max-w-md flex gap-4">
-                        <input
-                            type="text"
-                            value={orderNumber}
-                            onChange={(e) => setOrderNumber(e.target.value)}
-                            placeholder="numar comanda, de exemplu 4545"
-                            className="flex-1 px-4 py-3 rounded-xl bg-background-light dark:bg-[#0a0b14] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-light"
-                        />
-                        <button
-                            onClick={handleCallAction}
-                            disabled={isLoadingCall}
-                            className={`btn-3d-primary px-6 py-3 rounded-xl text-white font-medium text-sm tracking-wide flex items-center gap-2 transition-all ${isLoadingCall ? 'opacity-70 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}`}
-                        >
-                            {isLoadingCall ? (
-                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                            ) : (
-                                "Apeleaza"
-                            )}
-                        </button>
+                    <div className="max-w-2xl flex flex-col gap-4">
+                        <div className="flex gap-4 items-center">
+                            <label className="text-sm text-gray-500 dark:text-gray-400 font-light whitespace-nowrap">Tip comanda</label>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setTipComanda('comanda')}
+                                    className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                                        tipComanda === 'comanda'
+                                            ? 'bg-primary text-white border-primary shadow-md'
+                                            : 'bg-transparent text-gray-600 dark:text-gray-300 border-gray-300 dark:border-white/10 hover:border-primary/50'
+                                    }`}
+                                >
+                                    Comanda
+                                </button>
+                                <button
+                                    onClick={() => setTipComanda('draft')}
+                                    className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                                        tipComanda === 'draft'
+                                            ? 'bg-primary text-white border-primary shadow-md'
+                                            : 'bg-transparent text-gray-600 dark:text-gray-300 border-gray-300 dark:border-white/10 hover:border-primary/50'
+                                    }`}
+                                >
+                                    Draft
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex gap-4">
+                            <input
+                                type="text"
+                                value={orderNumber}
+                                onChange={(e) => setOrderNumber(e.target.value)}
+                                placeholder="numar comanda, de exemplu 4545"
+                                className="flex-1 px-4 py-3 rounded-xl bg-background-light dark:bg-[#0a0b14] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-light"
+                            />
+                            <button
+                                onClick={handleCallAction}
+                                disabled={isLoadingCall}
+                                className={`btn-3d-primary px-6 py-3 rounded-xl text-white font-medium text-sm tracking-wide flex items-center gap-2 transition-all ${isLoadingCall ? 'opacity-70 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}`}
+                            >
+                                {isLoadingCall ? (
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                ) : (
+                                    "Apeleaza"
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
