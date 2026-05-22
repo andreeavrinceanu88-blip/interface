@@ -11,9 +11,15 @@ const ControlRobotPage = () => {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [isLoadingCall, setIsLoadingCall] = useState(false);
     const [isLoadingActivate, setIsLoadingActivate] = useState(false);
-    const [isRobotStopped, setIsRobotStopped] = useState(false);
-    const [isDraftsStopped, setIsDraftsStopped] = useState(false);
-    const [isComenziStopped, setIsComenziStopped] = useState(false);
+    const [isRobotStopped, setIsRobotStopped] = useState(() =>
+        JSON.parse(localStorage.getItem('callControl_stop_all') ?? 'false')
+    );
+    const [isDraftsStopped, setIsDraftsStopped] = useState(() =>
+        JSON.parse(localStorage.getItem('callControl_stop_drafts') ?? 'false')
+    );
+    const [isComenziStopped, setIsComenziStopped] = useState(() =>
+        JSON.parse(localStorage.getItem('callControl_stop_comenzi') ?? 'false')
+    );
     const [callingStartTime, setCallingStartTime] = useState('08:00');
     const [callingEndTime, setCallingEndTime] = useState('22:30');
     const [productId, setProductId] = useState('');
@@ -144,25 +150,76 @@ const ControlRobotPage = () => {
         }
     };
 
-    const handleFullStopToggle = () => {
-        const message = isRobotStopped
-            ? "Ești sigur că vrei să repornești robotul?"
-            : "Ești sigur că vrei să oprești complet robotul?";
-        if (window.confirm(message)) setIsRobotStopped(!isRobotStopped);
+    const handleFullStopToggle = async () => {
+        const newValue = !isRobotStopped;
+        const message = newValue
+            ? "Ești sigur că vrei să oprești complet robotul?"
+            : "Ești sigur că vrei să repornești robotul?";
+        if (!window.confirm(message)) return;
+        try {
+            await fetch('https://n8n.voisero.info/webhook/ai-bot-call-control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shop: selectedBrand,
+                    action: 'stop_all',
+                    stopped: newValue,
+                }),
+            });
+            setIsRobotStopped(newValue);
+            localStorage.setItem('callControl_stop_all', JSON.stringify(newValue));
+        } catch (error) {
+            console.error('Eroare la trimiterea comenzii:', error);
+            alert('A apărut o eroare. Starea robotului nu a fost modificată.');
+        }
     };
 
-    const handleDraftsStopToggle = () => {
-        const message = isDraftsStopped
-            ? "Ești sigur că vrei să repornești apelurile pentru drafturi?"
-            : "Ești sigur că vrei să oprești apelurile pentru drafturi?";
-        if (window.confirm(message)) setIsDraftsStopped(!isDraftsStopped);
+    const handleDraftsStopToggle = async () => {
+        const newValue = !isDraftsStopped;
+        const message = newValue
+            ? "Ești sigur că vrei să oprești apelurile pentru drafturi?"
+            : "Ești sigur că vrei să repornești apelurile pentru drafturi?";
+        if (!window.confirm(message)) return;
+        try {
+            await fetch('https://n8n.voisero.info/webhook/ai-bot-call-control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shop: selectedBrand,
+                    action: 'stop_drafts',
+                    stopped: newValue,
+                }),
+            });
+            setIsDraftsStopped(newValue);
+            localStorage.setItem('callControl_stop_drafts', JSON.stringify(newValue));
+        } catch (error) {
+            console.error('Eroare la trimiterea comenzii:', error);
+            alert('A apărut o eroare. Starea nu a fost modificată.');
+        }
     };
 
-    const handleComenziStopToggle = () => {
-        const message = isComenziStopped
-            ? "Ești sigur că vrei să repornești apelurile pentru comenzi?"
-            : "Ești sigur că vrei să oprești apelurile pentru comenzi?";
-        if (window.confirm(message)) setIsComenziStopped(!isComenziStopped);
+    const handleComenziStopToggle = async () => {
+        const newValue = !isComenziStopped;
+        const message = newValue
+            ? "Ești sigur că vrei să oprești apelurile pentru comenzi?"
+            : "Ești sigur că vrei să repornești apelurile pentru comenzi?";
+        if (!window.confirm(message)) return;
+        try {
+            await fetch('https://n8n.voisero.info/webhook/ai-bot-call-control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shop: selectedBrand,
+                    action: 'stop_comenzi',
+                    stopped: newValue,
+                }),
+            });
+            setIsComenziStopped(newValue);
+            localStorage.setItem('callControl_stop_comenzi', JSON.stringify(newValue));
+        } catch (error) {
+            console.error('Eroare la trimiterea comenzii:', error);
+            alert('A apărut o eroare. Starea nu a fost modificată.');
+        }
     };
 
     return (
