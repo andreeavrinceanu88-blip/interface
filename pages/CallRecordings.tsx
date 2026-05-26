@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useCallRecordingsOptimized, CallRecording } from '../hooks/useCallRecordings';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { useSearchParams } from 'react-router-dom';
 
 export default function CallRecordings() {
     const { profile, loading: authLoading } = useAuth();
@@ -33,6 +34,30 @@ export default function CallRecordings() {
     const [page, setPage] = useState(1);
     const pageSize = 10;
     const [selectedRecording, setSelectedRecording] = useState<CallRecording | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const recordingIdFromUrl = searchParams.get('recordingId');
+
+    const handleCloseModal = React.useCallback(() => {
+        setSearchParams(prev => {
+            const params = new URLSearchParams(prev);
+            params.delete('recordingId');
+            params.delete('date');
+            return params;
+        });
+    }, [setSearchParams]);
+
+    const handleOpenModal = React.useCallback((rec: CallRecording) => {
+        setSelectedRecording(rec);
+        setSearchParams(prev => {
+            const params = new URLSearchParams(prev);
+            params.set('recordingId', String(rec.id));
+            const dateStr = rec.created_at
+                ? new Date(rec.created_at).toISOString().split('T')[0]
+                : '';
+            if (dateStr) params.set('date', dateStr);
+            return params;
+        });
+    }, [setSearchParams]);
 
     // --- Export Modal State ---
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -158,11 +183,11 @@ export default function CallRecordings() {
     // Close modal on Escape key
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setSelectedRecording(null);
+            if (e.key === 'Escape') handleCloseModal();
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [handleCloseModal]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -184,6 +209,34 @@ export default function CallRecordings() {
         activeSearch,
         statusFilter
     );
+
+    // Sync URL with selectedRecording state
+    useEffect(() => {
+        if (recordingIdFromUrl) {
+            if (!selectedRecording || String(selectedRecording.id) !== recordingIdFromUrl) {
+                const found = recordings.find(r => String(r.id) === recordingIdFromUrl);
+                if (found) {
+                    setSelectedRecording(found);
+                } else {
+                    supabase.from('call_recordings').select('*').eq('id', recordingIdFromUrl).single()
+                        .then(({ data }) => {
+                            if (data) {
+                                setSelectedRecording(data as CallRecording);
+                            } else {
+                                handleCloseModal();
+                            }
+                        })
+                        .catch(() => {
+                            handleCloseModal();
+                        });
+                }
+            }
+        } else {
+            if (selectedRecording) {
+                setSelectedRecording(null);
+            }
+        }
+    }, [recordingIdFromUrl, recordings, selectedRecording, handleCloseModal]);
 
     const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -407,7 +460,7 @@ export default function CallRecordings() {
                                             })()}
                                         </td>
                                         <td className="py-4 px-6 text-right">
-                                            <button onClick={() => setSelectedRecording(rec)} className="w-8 h-8 btn-3d-secondary rounded-lg inline-flex items-center justify-center hover:text-white transition-colors">
+                                            <button onClick={() => handleOpenModal(rec)} className="w-8 h-8 btn-3d-secondary rounded-lg inline-flex items-center justify-center hover:text-white transition-colors">
                                                 <span className="material-icons-round text-lg">visibility</span>
                                             </button>
                                         </td>
@@ -442,7 +495,7 @@ export default function CallRecordings() {
                     {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-                        onClick={() => setSelectedRecording(null)}
+                        onClick={handleCloseModal}
                     ></div>
 
                     {/* Modal Content */}
@@ -459,7 +512,7 @@ export default function CallRecordings() {
                                 )}
                             </h3>
                             <button
-                                onClick={() => setSelectedRecording(null)}
+                                onClick={handleCloseModal}
                                 className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
                             >
                                 <span className="material-icons-round">close</span>
@@ -539,7 +592,7 @@ export default function CallRecordings() {
                                 <span className="material-icons-round text-xs">shield</span> SECURED BY NANOASSIST AI
                             </p>
                             <button
-                                onClick={() => setSelectedRecording(null)}
+                                onClick={handleCloseModal}
                                 className="btn-3d-secondary px-8 py-2.5 rounded-xl text-sm font-medium hover:text-white"
                             >
                                 ÎNCHIDE
