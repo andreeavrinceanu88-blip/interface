@@ -292,7 +292,7 @@ export default function CallRecordings() {
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && setActiveSearch(searchInput)}
-                        placeholder="Cauta dupa ID comanda sau telefon..."
+                        placeholder="Cauta dupa ID comanda, telefon sau cuvant din transcriere..."
                         className="w-full pl-10 pr-24 py-3 bg-[#13141a] border border-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 text-gray-200"
                     />
                     <button onClick={() => setActiveSearch(searchInput)} className="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-surface-dark-lighter border border-white/5 text-gray-400 hover:text-white text-xs font-medium rounded-lg transition-colors">Caută</button>

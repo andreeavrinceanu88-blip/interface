@@ -13,6 +13,7 @@ import StatisticiAdrese from "./pages/StatisticiAdrese";
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import OnboardingPage from "./pages/OnboardingPage";
+import VerificareApeluri from "./pages/VerificareApeluri";
 
 export default function App() {
     const { session, loading: authLoading } = useAuth();
@@ -54,6 +55,7 @@ export default function App() {
                                     <Route path="/script-vanzare" element={<ScriptVanzare />} />
                                     <Route path="/statistici-adrese" element={<StatisticiAdrese />} />
                                     <Route path="/setup" element={<OnboardingPage />} />
+                                    <Route path="/verificare-apeluri" element={<VerificareApeluri />} />
                                     <Route path="*" element={<PlaceholderPage />} />
                                 </Routes>
                             </div>
@@ -280,6 +282,7 @@ function Sidebar() {
                         <li><SidebarLink to="/whatsapp" icon={whatsappIcon} label="Whatsapp" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/call-recordings" icon="keyboard_voice" label="Înregistrări Apeluri" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/control-robot" icon="settings_remote" label="Control Robot" collapsed={collapsed} /></li>
+                        <li><SidebarLink to="/verificare-apeluri" icon="fact_check" label="Verificare apeluri" collapsed={collapsed} /></li>
                     </ul>
                 </div>
             </nav>

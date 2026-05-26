@@ -59,8 +59,13 @@ async function fetchRecordingsByDateRange(
 
     if (searchQuery && searchQuery.trim() !== '') {
       const term = searchQuery.trim();
-      console.log(`🔍 [Recordings] Applying search filter for term: "${term}"`);
-      query = query.or(`client_personal_id.ilike.%${term}%,phone_number.ilike.%${term}%`);
+      const isLettersOnly = /^[^\d]+$/.test(term);
+      console.log(`🔍 [Recordings] Applying search filter for term: "${term}" (letters-only: ${isLettersOnly})`);
+      if (isLettersOnly) {
+        query = query.or(`client_personal_id.ilike.%${term}%,phone_number.ilike.%${term}%,recording_transcript.ilike.%${term}%`);
+      } else {
+        query = query.or(`client_personal_id.ilike.%${term}%,phone_number.ilike.%${term}%`);
+      }
     } else {
       query = query.gte('created_at', startTimestamp)
         .lte('created_at', endTimestamp);
