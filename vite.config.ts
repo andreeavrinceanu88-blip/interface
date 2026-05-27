@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import https from 'https';
 import type { IncomingMessage, ServerResponse } from 'http';
+import url from 'url';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -75,6 +76,44 @@ export default defineConfig(({ mode }) => {
                 if (body.length > 0) proxyReq.write(body);
                 proxyReq.end();
               });
+            });
+          },
+        },
+        {
+          name: 'telnyx-proxy',
+          configureServer(server) {
+            server.middlewares.use('/telnyx-proxy', (req: IncomingMessage, res: ServerResponse) => {
+              const parsedUrl = url.parse(req.url || '/', true);
+              const queryString = parsedUrl.search || '';
+              const targetPath = `/v2/detail_records${queryString}`;
+
+              const options: https.RequestOptions = {
+                hostname: 'api.telnyx.com',
+                path: targetPath,
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${env.TELNYX_API_KEY}`,
+                  'Accept': 'application/json',
+                },
+              };
+
+              const proxyReq = https.request(options, (proxyRes) => {
+                res.writeHead(proxyRes.statusCode || 502, {
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*',
+                });
+                proxyRes.pipe(res, { end: true });
+              });
+
+              proxyReq.on('error', (err: Error) => {
+                console.error('[telnyx-proxy] Error:', err.message);
+                if (!res.headersSent) {
+                  res.writeHead(502, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: err.message }));
+                }
+              });
+
+              proxyReq.end();
             });
           },
         },

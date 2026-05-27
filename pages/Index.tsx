@@ -205,25 +205,33 @@ const Index = () => {
                         </ResponsiveContainer>
                     </div>
                 </div>
-                <div className="lg:col-span-1 card-depth p-6 rounded-2xl flex flex-col justify-between">
-                    <h3 className="text-xl font-light dark:text-white">Conversie Drafturi</h3>
-                    <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart><Pie data={draftData} innerRadius={50} outerRadius={62} dataKey="value" stroke="none">{draftData.map((_, index) => <Cell key={`cell-${index}`} fill={draftColors[index]} />)}</Pie></PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex items-center justify-center flex-col z-20">
-                            <span className="text-2xl font-light dark:text-white font-num glow-text">{displayValue(draftConversionRate.toFixed(2))}%</span>
+                <div className="lg:col-span-1 card-depth p-6 rounded-2xl flex flex-col">
+                    <h3 className="text-xl font-light dark:text-white mb-4">Conversie Drafturi</h3>
+                    <div className="flex-1 flex items-center justify-center">
+                        <div className="relative w-48 h-48 flex items-center justify-center">
+                            <div style={{ filter: 'drop-shadow(0 0 10px #10b981) drop-shadow(0 0 22px rgba(16,185,129,0.45))' }} className="absolute inset-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart><Pie data={draftData} innerRadius={66} outerRadius={82} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>{draftData.map((_, index) => <Cell key={`cell-${index}`} fill={draftColors[index]} />)}</Pie></PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center flex-col z-20">
+                                <span className="text-3xl font-light dark:text-white font-num" style={{ textShadow: '0 0 16px rgba(16,185,129,0.7)' }}>{displayValue(draftConversionRate.toFixed(2))}%</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div className="lg:col-span-1 card-depth p-6 rounded-2xl flex flex-col justify-between">
-                    <h3 className="text-xl font-light dark:text-white">Conversie Upsell</h3>
-                    <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart><Pie data={conversionData} innerRadius={50} outerRadius={62} dataKey="value" stroke="none">{conversionData.map((_, index) => <Cell key={`cell-${index}`} fill={conversionColors[index]} />)}</Pie></PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex items-center justify-center flex-col z-20">
-                            <span className="text-2xl font-light dark:text-white font-num glow-text">{displayValue(conversionRate.toFixed(2))}%</span>
+                <div className="lg:col-span-1 card-depth p-6 rounded-2xl flex flex-col">
+                    <h3 className="text-xl font-light dark:text-white mb-4">Conversie Upsell</h3>
+                    <div className="flex-1 flex items-center justify-center">
+                        <div className="relative w-48 h-48 flex items-center justify-center">
+                            <div style={{ filter: 'drop-shadow(0 0 10px #00d2ff) drop-shadow(0 0 22px rgba(0,210,255,0.45))' }} className="absolute inset-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart><Pie data={conversionData} innerRadius={66} outerRadius={82} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>{conversionData.map((_, index) => <Cell key={`cell-${index}`} fill={conversionColors[index]} />)}</Pie></PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center flex-col z-20">
+                                <span className="text-3xl font-light dark:text-white font-num" style={{ textShadow: '0 0 16px rgba(0,210,255,0.7)' }}>{displayValue(conversionRate.toFixed(2))}%</span>
+                            </div>
                         </div>
                     </div>
                 </div>
