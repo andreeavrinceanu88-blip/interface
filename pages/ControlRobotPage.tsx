@@ -11,6 +11,7 @@ const ControlRobotPage = () => {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [isLoadingCall, setIsLoadingCall] = useState(false);
     const [isLoadingActivate, setIsLoadingActivate] = useState(false);
+    const [sentOrders, setSentOrders] = useState<{ orderNumber: string; tipComanda: string; shop: string; time: string }[]>([]);
     const [isRobotStopped, setIsRobotStopped] = useState(() =>
         JSON.parse(localStorage.getItem('callControl_stop_all') ?? 'false')
     );
@@ -53,6 +54,12 @@ const ControlRobotPage = () => {
                 }),
             });
             alert("Comanda de apelare a fost trimisă cu succes!");
+            setSentOrders(prev => [{
+                orderNumber,
+                tipComanda,
+                shop: selectedBrand,
+                time: new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            }, ...prev]);
             setOrderNumber('');
             setTipComanda('comanda');
         } catch (error) {
@@ -241,7 +248,9 @@ const ControlRobotPage = () => {
                         Pentru orice comanda/draft fara tag ce trebuie sunata
                     </p>
 
-                    <div className="max-w-2xl flex flex-col gap-4">
+                    <div className="flex gap-6 items-start">
+                        {/* ── Left: form ── */}
+                        <div className="flex-1 min-w-0 flex flex-col gap-4">
                         <div className="flex gap-4 items-center">
                             <label className="text-sm text-gray-500 dark:text-gray-400 font-light whitespace-nowrap">Tip comanda</label>
                             <div className="flex gap-2">
@@ -272,6 +281,7 @@ const ControlRobotPage = () => {
                                 type="text"
                                 value={orderNumber}
                                 onChange={(e) => setOrderNumber(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleCallAction()}
                                 placeholder="numar comanda, de exemplu 4545"
                                 className="flex-1 px-4 py-3 rounded-xl bg-background-light dark:bg-[#0a0b14] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-light"
                             />
@@ -286,6 +296,36 @@ const ControlRobotPage = () => {
                                     "Apeleaza"
                                 )}
                             </button>
+                        </div>
+                        </div>
+
+                        {/* ── Right: sent orders sidebar ── */}
+                        <div className="w-64 flex-shrink-0 flex flex-col gap-2">
+                            <div className="flex items-center justify-between mb-1">
+                                <p className="text-xs text-gray-500 uppercase tracking-widest font-medium">Trimise în sesiune</p>
+                                {sentOrders.length > 0 && (
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">{sentOrders.length}</span>
+                                )}
+                            </div>
+                            <div className="h-40 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                                {sentOrders.length === 0 ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <p className="text-xs text-gray-600 italic text-center">Nicio comandă trimisă încă</p>
+                                    </div>
+                                ) : (
+                                    sentOrders.map((o, i) => (
+                                        <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-black/30 border border-white/5">
+                                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                                o.tipComanda === 'draft' ? 'bg-blue-400' : 'bg-emerald-400'
+                                            }`} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-num text-white truncate">#{o.orderNumber}</p>
+                                                <p className="text-[10px] text-gray-500">{o.tipComanda} · {o.time}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

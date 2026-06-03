@@ -26,9 +26,16 @@ interface TelnyxResponse {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function formatPhone(raw: string): string {
-    const cleaned = raw.trim().replace(/\s+/g, '');
+    const cleaned = raw.trim().replace(/\s+/g, '').replace(/-/g, '');
     if (!cleaned) return '';
-    return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
+    // Already international
+    if (cleaned.startsWith('+')) return cleaned;
+    // Romanian local format: 07xxx or 08xxx → +407xxx
+    if (/^0[0-9]/.test(cleaned)) return `+40${cleaned.slice(1)}`;
+    // Starts with country code without +, e.g. 407xxx
+    if (cleaned.startsWith('40')) return `+${cleaned}`;
+    // Fallback: just prepend +
+    return `+${cleaned}`;
 }
 
 function formatDuration(secs: number | null): string {
@@ -98,6 +105,7 @@ export default function VerificareApeluri() {
         setRecords(null);
         setSearched(phone);
         setExpandedId(null);
+        setPage(1);
 
         try {
             const encodedPhone = encodeURIComponent(phone);
@@ -106,7 +114,7 @@ export default function VerificareApeluri() {
             const startISO = encodeURIComponent(`${startDate}T00:00:00Z`);
             const endISO   = encodeURIComponent(`${endDate}T23:59:59Z`);
 
-            const url = `/telnyx-proxy?filter[record_type]=call-control&filter[cld]=${encodedPhone}&filter[started_at][gte]=${startISO}&filter[finished_at][lte]=${endISO}&page[size]=50`;
+            const url = `/telnyx-proxy?filter[record_type]=call-control&filter[cld]=${encodedPhone}&filter[started_at][gte]=${startISO}&filter[finished_at][lte]=${endISO}&page[size]=100`;
 
             const res = await fetch(url);
             if (!res.ok) {
@@ -126,8 +134,13 @@ export default function VerificareApeluri() {
         if (e.key === 'Enter') handleSearch();
     }
 
+    const [page, setPage] = useState(1);
+    const pageSize = 10;
+
     const hasResults = records !== null;
     const count = records?.length ?? 0;
+    const totalPages = Math.ceil(count / pageSize);
+    const pageRecords = records?.slice((page - 1) * pageSize, page * pageSize) ?? [];
 
     return (
         <div className="space-y-6">
@@ -233,7 +246,7 @@ export default function VerificareApeluri() {
                             <span className="font-mono text-primary">{searched}</span>
                         </p>
                         {count > 0 && (
-                            <span className="text-[11px] text-gray-600 italic">Cele mai recente primele</span>
+                            <span className="text-[11px] text-gray-600 italic">Afișare {Math.min((page - 1) * pageSize + 1, count)}–{Math.min(page * pageSize, count)} din {count}</span>
                         )}
                     </div>
 
@@ -246,7 +259,7 @@ export default function VerificareApeluri() {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            {records!.map((rec) => {
+                            {pageRecords.map((rec) => {
                                 const isExpanded = expandedId === rec.id;
                                 return (
                                     <div
@@ -366,6 +379,34 @@ export default function VerificareApeluri() {
                                 );
                             })}
                         </div>
+
+                        {/* Pagination bar */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-between items-center px-1 pt-2">
+                                <p className="text-xs text-gray-500 italic font-light">
+                                    Pagina {page} din {totalPages} &nbsp;&middot;&nbsp; {count} înregistrări totale
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => { setPage(p => Math.max(1, p - 1)); setExpandedId(null); }}
+                                        disabled={page === 1}
+                                        className="w-9 h-9 btn-3d-secondary rounded-xl disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
+                                    >
+                                        <span className="material-icons-round">chevron_left</span>
+                                    </button>
+                                    <div className="px-4 flex items-center text-xs text-gray-400 font-num bg-white/5 rounded-xl border border-white/5">
+                                        {page} / {totalPages}
+                                    </div>
+                                    <button
+                                        onClick={() => { setPage(p => Math.min(totalPages, p + 1)); setExpandedId(null); }}
+                                        disabled={page >= totalPages}
+                                        className="w-9 h-9 btn-3d-secondary rounded-xl disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
+                                    >
+                                        <span className="material-icons-round">chevron_right</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     )}
                 </div>
             )}

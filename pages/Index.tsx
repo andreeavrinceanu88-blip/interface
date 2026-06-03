@@ -80,6 +80,7 @@ const Index = () => {
     const cosuriRecuperate = latestMetrics?.cosuri_recuperate || 0;
     const comenziConfirmate = latestMetrics?.comenzi_confirmate || 0; 
     const vanzariGenerate = latestMetrics?.vanzari_generate || 0;
+    const vanzariUpsell = latestMetrics?.vanzari_upsell || 0;
 
     const displayValue = (val: number | string) => isInitialLoading ? '...' : val;
 
@@ -172,7 +173,7 @@ const Index = () => {
                         <div className="icon-cart-v3"><span className="material-icons-round icon-symbol-emerald">trending_up</span></div>
                         <div className="mt-3">
                             <p className="text-xs text-emerald-200 font-light mb-1">Vânzări Upsell</p>
-                            <h3 className="text-3xl font-light mt-1 font-num glow-text">0 RON</h3>
+                            <h3 className="text-3xl font-light mt-1 font-num glow-text">{displayValue(metricsLoading && !latestMetrics ? '...' : `${vanzariUpsell.toLocaleString()} RON`)}</h3>
                         </div>
                     </div>
                 </div>

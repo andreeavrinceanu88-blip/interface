@@ -16,6 +16,7 @@ export interface CallMetrics {
   cosuri_abandonate: number;
   cosuri_recuperate: number;
   vanzari_generate: number;
+  vanzari_upsell: number;
   comenzi_confirmate: number;
   store_name?: string;
   nume_admin?: string;
