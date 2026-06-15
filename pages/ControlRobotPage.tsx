@@ -107,7 +107,7 @@ const ControlRobotPage = () => {
 
         setIsLoadingStopProduct(true);
         try {
-            await fetch('https://n8n.voisero.info/webhook/product-control-vt', {
+            await fetch('https://n8n.whimlets.com/webhook/product-control-vt', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -136,7 +136,7 @@ const ControlRobotPage = () => {
 
         setIsLoadingStartProduct(true);
         try {
-            await fetch('https://n8n.voisero.info/webhook/product-control-vt', {
+            await fetch('https://n8n.whimlets.com/webhook/product-control-vt', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -164,7 +164,7 @@ const ControlRobotPage = () => {
             : "Ești sigur că vrei să repornești robotul?";
         if (!window.confirm(message)) return;
         try {
-            await fetch('https://n8n.voisero.info/webhook/ai-bot-call-control', {
+            await fetch('https://n8n.whimlets.com/webhook/ai-bot-call-control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -188,7 +188,7 @@ const ControlRobotPage = () => {
             : "Ești sigur că vrei să repornești apelurile pentru drafturi?";
         if (!window.confirm(message)) return;
         try {
-            await fetch('https://n8n.voisero.info/webhook/ai-bot-call-control', {
+            await fetch('https://n8n.whimlets.com/webhook/ai-bot-call-control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -212,7 +212,7 @@ const ControlRobotPage = () => {
             : "Ești sigur că vrei să repornești apelurile pentru comenzi?";
         if (!window.confirm(message)) return;
         try {
-            await fetch('https://n8n.voisero.info/webhook/ai-bot-call-control', {
+            await fetch('https://n8n.whimlets.com/webhook/ai-bot-call-control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
