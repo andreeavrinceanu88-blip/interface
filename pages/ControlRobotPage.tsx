@@ -342,6 +342,7 @@ const ControlRobotPage = () => {
                             type="text"
                             value={phoneNumber}
                             onChange={(e) => setPhoneNumber(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleActivateAction()}
                             placeholder="0733333333"
                             className="flex-1 px-4 py-3 rounded-xl bg-background-light dark:bg-[#0a0b14] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-light"
                         />
@@ -477,6 +478,7 @@ const ControlRobotPage = () => {
                             type="text"
                             value={productId}
                             onChange={(e) => setProductId(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleStopProductAction()}
                             placeholder="ID Produs Shopify"
                             className="flex-1 px-4 py-3 rounded-xl bg-background-light dark:bg-[#0a0b14] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-light"
                         />
