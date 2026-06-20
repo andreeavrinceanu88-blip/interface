@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../lib/supabaseClient';
+import { supabaseAdmin } from '../lib/supabaseClient';
 
 export type ChartPeriod = 'day' | 'week' | 'month';
 
@@ -34,14 +34,14 @@ async function fetchChartData(userId: string, storeName: string, period: ChartPe
 
   const startIso = startDate.toISOString();
 
-  const { data: recordings, error: recError } = await supabase
+  const { data: recordings, error: recError } = await supabaseAdmin
     .from('call_recordings')
     .select('created_at')
     .eq('user_id', userId)
     .eq('store_name', storeName)
     .gte('created_at', startIso);
 
-  const { data: metrics, error: metError } = await supabase
+  const { data: metrics, error: metError } = await supabaseAdmin
     .from('call_metrics')
     .select('created_at, comenzi_confirmate, cosuri_abandonate, vanzari_generate')
     .eq('user_id', userId)

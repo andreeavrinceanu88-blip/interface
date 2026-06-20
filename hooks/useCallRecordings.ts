@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 
 export interface CallRecording {
   id: number;
@@ -51,7 +51,7 @@ async function fetchRecordingsByDateRange(
   const to = from + pageSize - 1;
 
   try {
-    let query = supabase
+    let query = supabaseAdmin
       .from('call_recordings')
       .select('id,user_id,created_at,duration_seconds,recording_url,phone_number,direction,store_name,client_personal_id,recording_transcript,status,type', { count: 'exact' })
       .eq('user_id', cleanUserId)
@@ -141,7 +141,7 @@ export const useCallRecordingsOptimized = (
       }, 500);
     };
 
-    const channel = supabase
+    const channel = supabaseAdmin
       .channel(`call_recordings_range_${userId}`)
       .on(
         'postgres_changes',

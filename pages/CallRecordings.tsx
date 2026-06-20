@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCallRecordingsOptimized, CallRecording } from '../hooks/useCallRecordings';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { useSearchParams } from 'react-router-dom';
 
 export default function CallRecordings() {
@@ -101,7 +101,7 @@ export default function CallRecordings() {
             let allRows: CallRecording[] = [];
 
             for (const store of exportStores) {
-                let query = supabase
+                let query = supabaseAdmin
                     .from('call_recordings')
                     .select('id,user_id,created_at,duration_seconds,recording_url,phone_number,direction,store_name,client_personal_id,recording_transcript,status,type')
                     .eq('user_id', userId)
@@ -218,7 +218,7 @@ export default function CallRecordings() {
                 if (found) {
                     setSelectedRecording(found);
                 } else {
-                    supabase.from('call_recordings').select('*').eq('id', recordingIdFromUrl).single()
+                    supabaseAdmin.from('call_recordings').select('*').eq('id', recordingIdFromUrl).single()
                         .then(({ data }) => {
                             if (data) {
                                 setSelectedRecording(data as CallRecording);

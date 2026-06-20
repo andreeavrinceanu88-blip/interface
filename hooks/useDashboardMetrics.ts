@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../lib/supabaseClient';
+import { supabaseAdmin } from '../lib/supabaseClient';
 import { queryKeys } from '../lib/queryClient';
 
 export interface CallMetrics {
@@ -31,7 +31,7 @@ async function fetchLatestMetrics(userId: string, storeName: string): Promise<Ca
   try {
       console.log('📈 [Metrics] Querying call_metrics for:', { user_id: userId, store_name: storeName });
       
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('call_metrics')
         .select('*')
         .eq('user_id', userId)
@@ -61,7 +61,7 @@ async function fetchMetricsHistory(userId: string, storeName: string, days: numb
   if (!userId || !storeName) return [];
   try {
       console.log(`📊 [Metrics] Fetching history for Store: ${storeName}`);
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('call_metrics')
         .select('*')
         .eq('user_id', userId)
