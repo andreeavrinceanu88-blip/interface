@@ -1,7 +1,7 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabaseAdmin } from '../lib/supabaseClient';
 
 export const getProfile = async (userId: string) => {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('id', userId)
@@ -14,7 +14,7 @@ export const getProfile = async (userId: string) => {
 };
 
 export const getProfileByEmail = async (email: string) => {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('email', email)
