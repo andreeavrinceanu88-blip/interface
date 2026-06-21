@@ -40,7 +40,7 @@ export default function ScriptVanzare() {
     useEffect(() => {
         if (!selectedBrand) return;
         setLoading(true);
-        fetch('https://n8n.voisero.info/webhook/products-list-vt', {
+        fetch('https://n8n.whimlets.com/webhook/products-list-vt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ brand: selectedBrand }),
