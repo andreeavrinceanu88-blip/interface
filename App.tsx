@@ -14,6 +14,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import OnboardingPage from "./pages/OnboardingPage";
 import VerificareApeluri from "./pages/VerificareApeluri";
+import Drafturi from "./pages/Drafturi";
 
 export default function App() {
     const { session, loading: authLoading } = useAuth();
@@ -55,6 +56,7 @@ export default function App() {
                                     <Route path="/script-vanzare" element={<ScriptVanzare />} />
                                     <Route path="/statistici-adrese" element={<StatisticiAdrese />} />
                                     <Route path="/setup" element={<OnboardingPage />} />
+                                    <Route path="/drafturi" element={<Drafturi />} />
                                     <Route path="/verificare-apeluri" element={<VerificareApeluri />} />
                                     <Route path="*" element={<PlaceholderPage />} />
                                 </Routes>
@@ -273,6 +275,7 @@ function Sidebar() {
                         <li><SidebarLink to="/processed-orders" icon="shopping_cart" label="Comenzi procesate" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/customers" icon="people" label="Clienți" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/script-vanzare" icon="description" label="Script vanzare" collapsed={collapsed} /></li>
+                        <li><SidebarLink to="/drafturi" icon="shopping_basket" label="Drafturi" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/setup" icon="add_circle" label="Adaugă magazin" collapsed={collapsed} /></li>
                     </ul>
                 </div>
