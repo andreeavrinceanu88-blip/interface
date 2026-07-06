@@ -69,10 +69,17 @@ const Drafturi = () => {
                 <div className="lg:w-1/3 card-depth p-6 rounded-2xl flex flex-col items-center justify-center h-full">
                     <div className="w-full max-w-[280px] flex flex-col items-center">
                         {/* Display */}
-                        <div className="w-full bg-[#13151d] border border-white/10 rounded-2xl p-4 mb-8 min-h-[72px] flex items-center justify-center relative">
-                            <span className="text-3xl font-light text-white tracking-widest font-num">{phoneNumber || ' '}</span>
+                        <div className="w-full mb-8 min-h-[72px] flex items-center justify-center relative">
+                            <input
+                                type="text"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                className="w-full bg-transparent border-none outline-none text-center text-3xl font-light text-white tracking-widest font-num"
+                                placeholder=" "
+                                autoFocus
+                            />
                             {phoneNumber && (
-                                <button onClick={handleDelete} className="absolute right-4 text-gray-500 hover:text-white transition-colors">
+                                <button onClick={handleDelete} className="absolute right-0 text-gray-500 hover:text-white transition-colors">
                                     <span className="material-icons-round">backspace</span>
                                 </button>
                             )}
