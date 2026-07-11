@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CallStatus = 'ON' | 'OFF';
@@ -79,6 +79,7 @@ const Drafturi = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [tabCounts, setTabCounts] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [noteText, setNoteText] = useState('');
     const [savingNote, setSavingNote] = useState(false);
@@ -140,11 +141,13 @@ const Drafturi = () => {
 
     // ── Load orders
     const loadOrders = useCallback(async () => {
-        if (!selectedBrand) return;
+        if (!selectedBrand) { console.log('[Orders] no brand yet, skipping'); return; }
         setLoading(true);
+        setError(null);
         try {
             const endOfDay = endDate + 'T23:59:59';
-            const { data, error } = await supabase
+            console.log('[Orders] querying store:', selectedBrand, 'from', startDate, 'to', endDate);
+            const { data, error: qErr } = await supabaseAdmin
                 .from('orders')
                 .select('*')
                 .ilike('store_name', selectedBrand)
@@ -152,16 +155,18 @@ const Drafturi = () => {
                 .lte('created_at', endOfDay)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (qErr) throw qErr;
             const all: Order[] = data || [];
+            console.log('[Orders] fetched', all.length, 'rows');
             setOrders(all);
 
             // Compute tab counts
             const counts: Record<string, number> = {};
             TABS.forEach(t => { counts[t.id] = all.filter(o => o.status === t.id).length; });
             setTabCounts(counts);
-        } catch (err) {
-            console.error('Failed to load orders:', err);
+        } catch (err: any) {
+            console.error('[Orders] error:', err);
+            setError(err?.message || 'Eroare la încărcarea comenzilor');
         } finally {
             setLoading(false);
         }
@@ -197,8 +202,8 @@ const Drafturi = () => {
     // ── Update status
     const updateStatus = async (orderId: number, newStatus: string) => {
         setUpdatingStatus(true);
-        const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
-        if (!error) {
+        const { error: uErr } = await supabaseAdmin.from('orders').update({ status: newStatus }).eq('id', orderId);
+        if (!uErr) {
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
             showToast(STATUS_LABELS[newStatus]);
             // Auto-select next in same tab
@@ -215,9 +220,9 @@ const Drafturi = () => {
     const saveNote = async () => {
         if (!selectedOrder) return;
         setSavingNote(true);
-        const { error } = await supabase.from('orders').update({ notes: noteText }).eq('id', selectedOrder.id);
-        if (!error) { setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, notes: noteText } : o)); showToast('Notiță salvată'); }
-        else showToast('Eroare la salvare');
+        const { error: nErr } = await supabaseAdmin.from('orders').update({ notes: noteText }).eq('id', selectedOrder.id);
+        if (!nErr) { setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, notes: noteText } : o)); showToast('Notiță salvată'); }
+        else { console.error('[SaveNote] error:', nErr); setError('Eroare la salvarea notiței'); showToast('Eroare la salvare'); }
         setSavingNote(false);
     };
 
@@ -341,6 +346,12 @@ const Drafturi = () => {
                             Array.from({ length: 5 }).map((_, i) => (
                                 <div key={i} className="h-20 bg-white/3 rounded-xl animate-pulse" />
                             ))
+                        ) : error ? (
+                            <div className="flex flex-col items-center justify-center h-full text-red-400 py-16 gap-3 text-center px-4">
+                                <span className="material-icons-round text-4xl">error_outline</span>
+                                <span className="text-sm">{error}</span>
+                                <button onClick={loadOrders} className="text-xs underline text-gray-400 hover:text-white">Reîncearcă</button>
+                            </div>
                         ) : filteredOrders.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-gray-600 py-16 gap-3">
                                 <span className="material-icons-round text-4xl">inbox</span>
