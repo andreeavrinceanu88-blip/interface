@@ -228,7 +228,6 @@ const Drafturi = () => {
             <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
                 {/* Left Column: Draft Orders */}
                 <div className="lg:w-2/3 card-depth p-6 rounded-2xl flex flex-col h-full overflow-hidden">
-                    <h3 className="text-xl font-light text-white mb-4 tracking-tight">Comenzi Draft</h3>
                     <div className="overflow-y-auto pr-2 scrollbar-hide flex-1">
                         <div className="space-y-3">
                             {filteredDrafts.length === 0 ? (
