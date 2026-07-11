@@ -159,9 +159,6 @@ const Drafturi = () => {
             
             {/* Top Bar: Title & Filters */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-                <div className="xl:min-w-[200px]">
-                    {/* Title and subtitle removed as requested */}
-                </div>
 
                 <div className="flex-1 max-w-lg w-full relative group">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons-round text-gray-500">search</span>
