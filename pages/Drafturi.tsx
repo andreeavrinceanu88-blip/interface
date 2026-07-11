@@ -108,7 +108,7 @@ const Drafturi = () => {
 
         if (callState === 'idle') {
             if (!clientRef.current) {
-                alert("Conexiunea la serverul de apeluri nu a reușit. Verifică credențialele Telnyx în .env.");
+                alert("Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.");
                 return;
             }
             
@@ -195,17 +195,17 @@ const Drafturi = () => {
                 {/* Telnyx Status */}
                 {isConnecting && (
                     <div className="flex items-center gap-2 text-xs text-gray-500 bg-black/20 px-3 py-1.5 rounded-full h-[42px] shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> Conectare Telnyx...
+                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> Conectare telefonie...
                     </div>
                 )}
                 {!isConnecting && !clientRef.current && (
                     <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 px-3 py-1.5 rounded-full h-[42px] shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-red-500"></span> Telnyx Inactiv
+                        <span className="w-2 h-2 rounded-full bg-red-500"></span> Telefonie inactivă
                     </div>
                 )}
                 {!isConnecting && clientRef.current && (
                     <div className="flex items-center gap-2 text-xs text-green-400 bg-green-500/10 px-3 py-1.5 rounded-full h-[42px] shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Telnyx Activ
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Telefonie activă
                     </div>
                 )}
 
