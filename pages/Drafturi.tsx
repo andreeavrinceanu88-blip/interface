@@ -305,7 +305,7 @@ const Drafturi = () => {
                         )}
 
                         {/* Keypad Grid */}
-                        <div className={`grid grid-cols-3 gap-4 w-full mb-8 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                        <div className={`grid grid-cols-3 gap-4 w-full mb-4 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                             {[
                                 { key: '1', sub: '' }, { key: '2', sub: 'ABC' }, { key: '3', sub: 'DEF' },
                                 { key: '4', sub: 'GHI' }, { key: '5', sub: 'JKL' }, { key: '6', sub: 'MNO' },
