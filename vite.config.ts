@@ -125,6 +125,12 @@ export default defineConfig(({ mode }) => {
         'global': 'globalThis',
         'process.env.NODE_ENV': JSON.stringify(mode),
       },
+      build: {
+        rollupOptions: {
+          // Externalize @telnyx/webrtc — it will load from the ESM import map at runtime
+          external: ['@telnyx/webrtc'],
+        },
+      },
       optimizeDeps: {
         include: ['@telnyx/webrtc'],
       },
