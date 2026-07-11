@@ -161,33 +161,35 @@ const Drafturi = () => {
             {/* Top Bar: Title & Filters */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                 
-                {/* View Mode Selector */}
-                <div className="flex bg-[#13141a] border border-white/5 rounded-xl p-1 shadow-inner h-[42px]">
-                    <button 
-                        onClick={() => setViewMode('drafturi')}
-                        className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${viewMode === 'drafturi' ? 'bg-primary/20 text-primary shadow-[0_0_10px_rgba(0,210,255,0.2)]' : 'text-gray-400 hover:text-gray-200'}`}
-                    >
-                        Drafturi
-                    </button>
-                    <button 
-                        onClick={() => setViewMode('comenzi')}
-                        className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${viewMode === 'comenzi' ? 'bg-primary/20 text-primary shadow-[0_0_10px_rgba(0,210,255,0.2)]' : 'text-gray-400 hover:text-gray-200'}`}
-                    >
-                        Comenzi
-                    </button>
-                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+                    {/* View Mode Selector */}
+                    <div className="flex bg-[#13141a] border border-white/5 rounded-xl p-1 shadow-inner h-[42px] shrink-0">
+                        <button 
+                            onClick={() => setViewMode('drafturi')}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${viewMode === 'drafturi' ? 'bg-primary/20 text-primary shadow-[0_0_10px_rgba(0,210,255,0.2)]' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Drafturi
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('comenzi')}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${viewMode === 'comenzi' ? 'bg-primary/20 text-primary shadow-[0_0_10px_rgba(0,210,255,0.2)]' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Comenzi
+                        </button>
+                    </div>
 
-                <div className="flex-1 max-w-lg w-full relative group">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons-round text-gray-500">search</span>
-                    <input
-                        type="text"
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && setActiveSearch(searchInput)}
-                        placeholder="Caută draft..."
-                        className="w-full pl-10 pr-24 py-3 bg-[#13141a] border border-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 text-gray-200"
-                    />
-                    <button onClick={() => setActiveSearch(searchInput)} className="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-surface-dark-lighter border border-white/5 text-gray-400 hover:text-white text-xs font-medium rounded-lg transition-colors">Caută</button>
+                    <div className="max-w-lg w-full relative group">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons-round text-gray-500">search</span>
+                        <input
+                            type="text"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && setActiveSearch(searchInput)}
+                            placeholder="Caută draft..."
+                            className="w-full pl-10 pr-24 py-3 bg-[#13141a] border border-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 text-gray-200"
+                        />
+                        <button onClick={() => setActiveSearch(searchInput)} className="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-surface-dark-lighter border border-white/5 text-gray-400 hover:text-white text-xs font-medium rounded-lg transition-colors">Caută</button>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center justify-end">
