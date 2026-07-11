@@ -192,6 +192,23 @@ const Drafturi = () => {
                     </div>
                 </div>
 
+                {/* Telnyx Status */}
+                {isConnecting && (
+                    <div className="flex items-center gap-2 text-xs text-gray-500 bg-black/20 px-3 py-1.5 rounded-full h-[42px] shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> Conectare Telnyx...
+                    </div>
+                )}
+                {!isConnecting && !clientRef.current && (
+                    <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 px-3 py-1.5 rounded-full h-[42px] shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-red-500"></span> Telnyx Inactiv
+                    </div>
+                )}
+                {!isConnecting && clientRef.current && (
+                    <div className="flex items-center gap-2 text-xs text-green-400 bg-green-500/10 px-3 py-1.5 rounded-full h-[42px] shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Telnyx Activ
+                    </div>
+                )}
+
                 <div className="flex flex-wrap gap-3 items-center justify-end">
                     <div className="flex items-center gap-2 bg-[#13141a] p-1 rounded-xl border border-white/5 shadow-inner">
                         <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-gray-200 text-sm border-none focus:ring-0 cursor-pointer outline-none" />
@@ -268,17 +285,6 @@ const Drafturi = () => {
 
                 {/* Right Column: Cell Phone Keypad */}
                 <div className="lg:w-[350px] w-full card-depth p-6 rounded-2xl flex flex-col items-center justify-center h-full relative shrink-0">
-                    {isConnecting && (
-                        <div className="absolute top-4 right-4 flex items-center gap-2 text-xs text-gray-500 bg-black/20 px-3 py-1.5 rounded-full">
-                            <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> Conectare Telnyx...
-                        </div>
-                    )}
-                    {!isConnecting && !clientRef.current && (
-                        <div className="absolute top-4 right-4 flex items-center gap-2 text-xs text-red-400 bg-red-500/10 px-3 py-1.5 rounded-full">
-                            <span className="w-2 h-2 rounded-full bg-red-500"></span> Telnyx Inactiv
-                        </div>
-                    )}
-                    
                     <div className="w-full max-w-[280px] flex flex-col items-center">
                         {/* Display */}
                         <div className="w-full mb-8 min-h-[72px] flex items-center justify-center relative">
