@@ -160,8 +160,7 @@ const Drafturi = () => {
             {/* Top Bar: Title & Filters */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                 <div className="xl:min-w-[200px]">
-                    <h1 className="text-3xl font-light text-white mb-2 tracking-tight">Drafturi</h1>
-                    <p className="text-gray-400 font-light text-sm">Gestionați coșurile abandonate și inițiați apeluri.</p>
+                    {/* Title and subtitle removed as requested */}
                 </div>
 
                 <div className="flex-1 max-w-lg w-full relative group">
