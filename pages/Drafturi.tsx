@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type CallStatus = 'neapelat' | 'nu-raspunde' | 'de-revenit' | 'confirmat' | 'anulat';
+type CallStatus = 'ON' | 'OFF';
 
 interface Order {
     id: number;
@@ -12,7 +12,7 @@ interface Order {
     phone_number: string;
     store_name: string;
     value: number;
-    status: CallStatus;
+    status: string;
     created_at: string;
     produse: string;
     adresa: string;
@@ -23,39 +23,32 @@ interface Order {
     tags: string;
     type: string;
     health: string;
-    historic: string;
+    istoric: string;
     client_personal_id: string;
 }
 
-const TABS: { id: CallStatus; label: string }[] = [
-    { id: 'neapelat', label: 'Neapelat' },
-    { id: 'nu-raspunde', label: 'Nu răspunde' },
-    { id: 'de-revenit', label: 'De revenit' },
-    { id: 'confirmat', label: 'Confirmate' },
-    { id: 'anulat', label: 'Anulate' },
+const TABS: { id: string; label: string }[] = [
+    { id: 'ON',  label: 'De sunat' },
+    { id: 'OFF', label: 'Procesate' },
 ];
 
-const STATUS_STYLES: Record<CallStatus, string> = {
-    'neapelat':     'bg-pink-500/15 text-pink-300 border border-pink-500/20',
-    'nu-raspunde':  'bg-amber-500/15 text-amber-300 border border-amber-500/20',
-    'de-revenit':   'bg-blue-500/15 text-blue-300 border border-blue-500/20',
-    'confirmat':    'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20',
-    'anulat':       'bg-red-500/15 text-red-300 border border-red-500/20',
+const STATUS_STYLES: Record<string, string> = {
+    'ON':  'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20',
+    'OFF': 'bg-gray-500/15 text-gray-400 border border-gray-500/20',
 };
 
-const STATUS_LABELS: Record<CallStatus, string> = {
-    'neapelat': 'Neapelat',
-    'nu-raspunde': 'Nu răspunde',
-    'de-revenit': 'De revenit',
-    'confirmat': 'Confirmat',
-    'anulat': 'Anulat',
+const STATUS_LABELS: Record<string, string> = {
+    'ON':  'De sunat',
+    'OFF': 'Procesat',
 };
 
 const QUICK_ACTIONS = [
-    { id: 'confirmat',    label: 'Confirmă comanda', style: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20', isStatus: true, icon: 'check_circle' },
-    { id: 'nu-raspunde', label: 'Nu răspunde',       style: 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20',         isStatus: true, icon: 'phone_disabled' },
-    { id: 'de-revenit',  label: 'Sună mai târziu',  style: 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20',             isStatus: true, icon: 'schedule' },
-    { id: 'anulat',      label: 'Anulează comanda', style: 'bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20',                  isStatus: true, icon: 'cancel' },
+    { id: 'confirmat',   label: 'Confirmă comanda',  style: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20', icon: 'check_circle' },
+    { id: 'nu-raspunde', label: 'Nu răspunde',        style: 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20',         icon: 'phone_disabled' },
+    { id: 'de-revenit',  label: 'Sună mai târziu',   style: 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20',             icon: 'schedule' },
+    { id: 'anulat',      label: 'Anulează comanda',  style: 'bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20',                  icon: 'cancel' },
+    { id: 'OFF',         label: 'Marchează procesat', style: 'bg-gray-500/10 border-gray-500/30 text-gray-300 hover:bg-gray-500/20',              icon: 'task_alt' },
+    { id: 'ON',          label: 'Resetează (De sunat)', style: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20',           icon: 'refresh' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -76,7 +69,7 @@ const Drafturi = () => {
     const [viewMode, setViewMode] = useState<'drafturi' | 'comenzi'>('drafturi');
     const [selectedBrand, setSelectedBrand] = useState<string>('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<CallStatus>('neapelat');
+    const [activeTab, setActiveTab] = useState<string>('ON');
     const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split('T')[0]; });
     const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [searchInput, setSearchInput] = useState('');
@@ -154,7 +147,7 @@ const Drafturi = () => {
             const { data, error } = await supabase
                 .from('orders')
                 .select('*')
-                .eq('store_name', selectedBrand)
+                .ilike('store_name', selectedBrand)
                 .gte('created_at', startDate + 'T00:00:00')
                 .lte('created_at', endOfDay)
                 .order('created_at', { ascending: false });
@@ -202,7 +195,7 @@ const Drafturi = () => {
     }, [selectedId]);
 
     // ── Update status
-    const updateStatus = async (orderId: number, newStatus: CallStatus) => {
+    const updateStatus = async (orderId: number, newStatus: string) => {
         setUpdatingStatus(true);
         const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
         if (!error) {
@@ -362,7 +355,7 @@ const Drafturi = () => {
                                 >
                                     <div className="flex justify-between items-start mb-1">
                                         <span className="text-[11px] text-gray-500 font-mono">{order.order_id || `#${order.id}`}</span>
-                                        {order.status === 'neapelat' && <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 uppercase tracking-wide">NOU</span>}
+                                        {order.status === 'ON' && <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 uppercase tracking-wide">NOU</span>}
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <div>
