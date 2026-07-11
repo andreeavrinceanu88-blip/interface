@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { TelnyxRTC } from '@telnyx/webrtc';
 
 const Drafturi = () => {
     const { profile } = useAuth();
@@ -37,56 +36,61 @@ const Drafturi = () => {
 
         const username = import.meta.env.VITE_TELNYX_SIP_USERNAME;
         const password = import.meta.env.VITE_TELNYX_SIP_PASSWORD;
-        
+
         if (!username || !password) {
-            console.error('Telnyx SIP credentials not configured in .env');
+            console.warn('Telnyx SIP credentials not configured — WebRTC dialer disabled.');
             return;
         }
 
         setIsConnecting(true);
-        const client = new TelnyxRTC({
-            login: username,
-            password: password,
-        });
 
-        client.on('telnyx.ready', () => {
-            console.log('Telnyx WebRTC is ready!');
-            setIsConnecting(false);
-        });
+        // Dynamic import prevents crash from CommonJS globals during module evaluation
+        import('@telnyx/webrtc').then(({ TelnyxRTC }) => {
+            const client = new TelnyxRTC({ login: username, password: password });
 
-        client.on('telnyx.error', (error) => {
-            console.error('Telnyx WebRTC error:', error);
-            setIsConnecting(false);
-        });
+            client.on('telnyx.ready', () => {
+                console.log('✅ Telnyx WebRTC ready');
+                setIsConnecting(false);
+            });
 
-        client.on('telnyx.notification', (notification) => {
-            const call = notification.call;
-            switch (notification.type) {
-                case 'callUpdate':
+            client.on('telnyx.error', (error: any) => {
+                console.error('❌ Telnyx error:', error);
+                setIsConnecting(false);
+            });
+
+            client.on('telnyx.notification', (notification: any) => {
+                const call = notification.call;
+                if (notification.type === 'callUpdate') {
                     if (call.state === 'ringing') {
                         setCallState('calling');
                     } else if (call.state === 'active') {
                         setCallState('active');
                         if (audioRef.current && call.remoteStream) {
                             audioRef.current.srcObject = call.remoteStream;
-                            audioRef.current.play().catch(e => console.error("Audio play error", e));
+                            audioRef.current.play().catch((e: any) => console.error('Audio play error', e));
                         }
                     } else if (call.state === 'destroy') {
                         setCallState('idle');
                         callRef.current = null;
                         if (audioRef.current) audioRef.current.srcObject = null;
                     }
-                    break;
-            }
+                }
+            });
+
+            client.connect();
+            clientRef.current = client;
+        }).catch((err) => {
+            console.error('Failed to load @telnyx/webrtc:', err);
+            setIsConnecting(false);
         });
 
-        client.connect();
-        clientRef.current = client;
-
         return () => {
-            client.disconnect();
+            if (clientRef.current) {
+                clientRef.current.disconnect();
+                clientRef.current = null;
+            }
         };
-    }, []); // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleKeypadPress = (key: string) => {
         setPhoneNumber(prev => prev + key);
