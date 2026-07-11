@@ -34,8 +34,10 @@ const Drafturi = () => {
             setSelectedBrand(userStores[0]);
         }
 
-        const username = import.meta.env.VITE_TELNYX_SIP_USERNAME;
-        const password = import.meta.env.VITE_TELNYX_SIP_PASSWORD;
+        // Credentials — hardcoded for ESM/importmap production environment
+        // (import.meta.env is only available with Vite dev server)
+        const username = import.meta.env?.VITE_TELNYX_SIP_USERNAME ?? 'vitadomus';
+        const password = import.meta.env?.VITE_TELNYX_SIP_PASSWORD ?? 'vitadomus';
 
         if (!username || !password) {
             console.warn('Telnyx SIP credentials not configured — WebRTC dialer disabled.');
@@ -116,7 +118,7 @@ const Drafturi = () => {
                 return;
             }
 
-            const callerId = import.meta.env.VITE_TELNYX_CALLER_ID;
+            const callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40775393060';
             
             try {
                 callRef.current = clientRef.current.newCall({
