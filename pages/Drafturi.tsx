@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const Drafturi = () => {
     const { profile } = useAuth();
-    const userStores = profile?.stores ? profile.stores.split(',').map(s => s.trim()) : [];
+    const userStores = profile?.stores || [];
 
     // UI Filters
     const [selectedBrand, setSelectedBrand] = useState<string>('');
