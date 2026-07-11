@@ -155,7 +155,7 @@ const Drafturi = () => {
     );
 
     return (
-        <div className="flex flex-col h-full space-y-6">
+        <div className="flex flex-col h-full space-y-3">
             <audio ref={audioRef} style={{ display: 'none' }} />
             
             {/* Top Bar: Title & Filters */}
