@@ -227,7 +227,7 @@ const Drafturi = () => {
 
             <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
                 {/* Left Column: Draft Orders */}
-                <div className="lg:w-2/3 card-depth p-6 rounded-2xl flex flex-col h-full overflow-hidden">
+                <div className="flex-1 card-depth p-6 rounded-2xl flex flex-col h-full overflow-hidden">
                     <div className="overflow-y-auto pr-2 scrollbar-hide flex-1">
                         <div className="space-y-3">
                             {filteredDrafts.length === 0 ? (
@@ -267,7 +267,7 @@ const Drafturi = () => {
                 </div>
 
                 {/* Right Column: Cell Phone Keypad */}
-                <div className="lg:w-1/3 card-depth p-6 rounded-2xl flex flex-col items-center justify-center h-full relative">
+                <div className="lg:w-[350px] w-full card-depth p-6 rounded-2xl flex flex-col items-center justify-center h-full relative shrink-0">
                     {isConnecting && (
                         <div className="absolute top-4 right-4 flex items-center gap-2 text-xs text-gray-500 bg-black/20 px-3 py-1.5 rounded-full">
                             <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> Conectare Telnyx...
