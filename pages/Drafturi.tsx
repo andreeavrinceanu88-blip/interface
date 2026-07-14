@@ -156,7 +156,10 @@ const Drafturi = () => {
                 .order('created_at', { ascending: false });
 
             if (qErr) throw qErr;
-            const all: Order[] = data || [];
+            const all: Order[] = (data || []).map(o => ({
+                ...o,
+                status: o.status || 'ON'
+            }));
             console.log('[Orders] fetched', all.length, 'rows');
             setOrders(all);
 
