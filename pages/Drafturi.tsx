@@ -183,7 +183,7 @@ const Drafturi = () => {
         ? tabOrders.filter(o =>
             o.name?.toLowerCase().includes(activeSearch.toLowerCase()) ||
             o.phone_number?.includes(activeSearch) ||
-            o.order_id?.includes(activeSearch)
+            o.client_personal_id?.includes(activeSearch)
         )
         : tabOrders;
 
@@ -368,7 +368,7 @@ const Drafturi = () => {
                                     className={`w-full text-left p-3.5 rounded-xl border transition-all ${selectedId === order.id ? 'border-primary/50 bg-primary/5 shadow-[inset_3px_0_0_rgba(0,210,255,0.6)]' : 'border-white/5 bg-white/2 hover:border-white/10 hover:bg-white/4'}`}
                                 >
                                     <div className="flex justify-between items-start mb-1">
-                                        <span className="text-[11px] text-gray-500 font-mono">{order.order_id || `#${order.id}`}</span>
+                                        <span className="text-[11px] text-gray-500 font-mono">{order.client_personal_id || `#${order.id}`}</span>
                                         {order.status === 'ON' && <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 uppercase tracking-wide">NOU</span>}
                                     </div>
                                     <div className="flex justify-between items-center">
@@ -407,7 +407,7 @@ const Drafturi = () => {
                                 <div className="card-depth rounded-2xl p-5">
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-3">
-                                            <h2 className="text-lg font-semibold text-white">Comanda {selectedOrder.order_id || `#${selectedOrder.id}`}</h2>
+                                            <h2 className="text-lg font-semibold text-white">Comanda {selectedOrder.client_personal_id || `#${selectedOrder.id}`}</h2>
                                             <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
                                         </div>
                                         {selectedOrder.type && <span className="text-xs text-gray-500 bg-white/5 px-2.5 py-1 rounded-lg">{selectedOrder.type}</span>}
@@ -527,10 +527,10 @@ const Drafturi = () => {
                                     <div className="card-depth rounded-2xl p-5">
                                         <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><span className="material-icons-round text-base text-gray-400">record_voice_over</span>Script recomandat</h3>
                                         <div className="relative bg-primary/5 border border-primary/10 rounded-xl p-4 text-sm text-gray-300 leading-relaxed">
-                                            <button onClick={() => { navigator.clipboard?.writeText(`Bună ziua! Vă sunăm de la ${selectedOrder.store_name || 'magazin'} pentru confirmarea comenzii ${selectedOrder.order_id || `#${selectedOrder.id}`} pentru ${selectedOrder.produse || '[PRODUS]'}. Livrarea se face prin curier, plata ramburs. Adresa de livrare este ${selectedOrder.adresa || '[ADRESĂ]'}. Este totul în regulă?`); showToast('Script copiat!'); }} className="absolute top-3 right-3 text-gray-500 hover:text-white transition-colors">
+                                            <button onClick={() => { navigator.clipboard?.writeText(`Bună ziua! Vă sunăm de la ${selectedOrder.store_name || 'magazin'} pentru confirmarea comenzii ${selectedOrder.client_personal_id || `#${selectedOrder.id}`} pentru ${selectedOrder.produse || '[PRODUS]'}. Livrarea se face prin curier, plata ramburs. Adresa de livrare este ${selectedOrder.adresa || '[ADRESĂ]'}. Este totul în regulă?`); showToast('Script copiat!'); }} className="absolute top-3 right-3 text-gray-500 hover:text-white transition-colors">
                                                 <span className="material-icons-round" style={{fontSize:'16px'}}>content_copy</span>
                                             </button>
-                                            Bună ziua! Vă sunăm de la <b className="text-white">{selectedOrder.store_name}</b> pentru confirmarea comenzii <b className="text-white">{selectedOrder.order_id || `#${selectedOrder.id}`}</b> pentru <b className="text-white">{selectedOrder.produse || '[PRODUS]'}</b>. Livrarea se face prin curier, plata ramburs. Adresa de livrare este <b className="text-white">{selectedOrder.adresa || '[ADRESĂ]'}</b>. Este totul în regulă?
+                                            Bună ziua! Vă sunăm de la <b className="text-white">{selectedOrder.store_name}</b> pentru confirmarea comenzii <b className="text-white">{selectedOrder.client_personal_id || `#${selectedOrder.id}`}</b> pentru <b className="text-white">{selectedOrder.produse || '[PRODUS]'}</b>. Livrarea se face prin curier, plata ramburs. Adresa de livrare este <b className="text-white">{selectedOrder.adresa || '[ADRESĂ]'}</b>. Este totul în regulă?
                                         </div>
                                     </div>
                                 </div>
