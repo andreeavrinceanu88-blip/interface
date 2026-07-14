@@ -29,17 +29,29 @@ interface Order {
 
 const TABS: { id: string; label: string }[] = [
     { id: 'ON',  label: 'De sunat' },
-    { id: 'OFF', label: 'Procesate' },
+    { id: 'nu-raspunde', label: 'Nu răspunde' },
+    { id: 'de-revenit', label: 'De revenit' },
+    { id: 'confirmat', label: 'Confirmate' },
+    { id: 'anulat', label: 'Anulate' },
+    { id: 'OFF', label: 'Altele (OFF)' },
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-    'ON':  'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20',
+    'ON':  'bg-pink-500/15 text-pink-300 border border-pink-500/20',
     'OFF': 'bg-gray-500/15 text-gray-400 border border-gray-500/20',
+    'nu-raspunde': 'bg-amber-500/15 text-amber-300 border border-amber-500/20',
+    'de-revenit': 'bg-blue-500/15 text-blue-300 border border-blue-500/20',
+    'confirmat': 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20',
+    'anulat': 'bg-red-500/15 text-red-300 border border-red-500/20',
 };
 
 const STATUS_LABELS: Record<string, string> = {
     'ON':  'De sunat',
-    'OFF': 'Procesat',
+    'OFF': 'Altele (OFF)',
+    'nu-raspunde': 'Nu răspunde',
+    'de-revenit': 'De revenit',
+    'confirmat': 'Confirmat',
+    'anulat': 'Anulat',
 };
 
 const QUICK_ACTIONS = [
