@@ -77,7 +77,6 @@ const Drafturi = () => {
 
     // ── Data
     const [orders, setOrders] = useState<Order[]>([]);
-    const [tabCounts, setTabCounts] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -163,10 +162,6 @@ const Drafturi = () => {
             console.log('[Orders] fetched', all.length, 'rows');
             setOrders(all);
 
-            // Compute tab counts
-            const counts: Record<string, number> = {};
-            TABS.forEach(t => { counts[t.id] = all.filter(o => o.status === t.id).length; });
-            setTabCounts(counts);
         } catch (err: any) {
             console.error('[Orders] error:', err);
             setError(err?.message || 'Eroare la încărcarea comenzilor');
@@ -178,7 +173,8 @@ const Drafturi = () => {
     useEffect(() => { loadOrders(); }, [loadOrders]);
 
     // ── Filtered list for current tab + search
-    const tabOrders = orders.filter(o => o.status === activeTab);
+    const typeFilteredOrders = orders.filter(o => viewMode === 'drafturi' ? o.type === 'draft' : o.type !== 'draft');
+    const tabOrders = typeFilteredOrders.filter(o => o.status === activeTab);
     const filteredOrders = activeSearch
         ? tabOrders.filter(o =>
             o.name?.toLowerCase().includes(activeSearch.toLowerCase()) ||
@@ -337,7 +333,7 @@ const Drafturi = () => {
                             >
                                 {tab.label}
                                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${activeTab === tab.id ? 'bg-primary/20 text-primary' : 'bg-white/5 text-gray-500'}`}>
-                                    {tabCounts[tab.id] ?? 0}
+                                    {typeFilteredOrders.filter(o => o.status === tab.id).length}
                                 </span>
                             </button>
                         ))}
