@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
+import { syncOrderStatusWithShopify } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CallStatus = 'ON' | 'OFF';
@@ -208,13 +209,26 @@ const Drafturi = () => {
         if (selectedOrder) setNoteText(selectedOrder.notes || '');
     }, [selectedId]);
 
-    // ── Update status
     const updateStatus = async (orderId: number, newStatus: string) => {
         setUpdatingStatus(true);
         const { error: uErr } = await supabaseAdmin.from('orders').update({ status: newStatus }).eq('id', orderId);
         if (!uErr) {
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
             showToast(STATUS_LABELS[newStatus]);
+
+            // Sync with Shopify
+            const orderToSync = orders.find(o => o.id === orderId);
+            if (orderToSync) {
+                const shopifyId = orderToSync.client_personal_id || orderToSync.id.toString();
+                // We call it in the background to not block the UI completely, 
+                // but we can await it if we want to show a toast.
+                syncOrderStatusWithShopify(shopifyId, newStatus, orderToSync.notes || undefined)
+                    .then(success => {
+                        if (success) console.log('Shopify sync success');
+                        else console.error('Shopify sync failed');
+                    });
+            }
+
             // Auto-select next in same tab
             const remaining = tabOrders.filter(o => o.id !== orderId);
             if (remaining.length > 0) { setSelectedId(remaining[0].id); setNoteText(remaining[0].notes || ''); }
