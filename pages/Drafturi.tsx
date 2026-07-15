@@ -220,9 +220,10 @@ const Drafturi = () => {
             const orderToSync = orders.find(o => o.id === orderId);
             if (orderToSync) {
                 const shopifyId = orderToSync.client_personal_id || orderToSync.id.toString();
+                const storeName = orderToSync.store_name || selectedBrand || 'Tamtrend';
                 // We call it in the background to not block the UI completely, 
                 // but we can await it if we want to show a toast.
-                syncOrderStatusWithShopify(shopifyId, newStatus, orderToSync.notes || undefined)
+                syncOrderStatusWithShopify(storeName, shopifyId, newStatus, orderToSync.notes || undefined)
                     .then(success => {
                         if (success) console.log('Shopify sync success');
                         else console.error('Shopify sync failed');

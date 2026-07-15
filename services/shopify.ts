@@ -1,33 +1,57 @@
-const SHOPIFY_URL = 'https://k7agxh-7y.myshopify.com';
-const CLIENT_ID = import.meta.env.VITE_SHOPIFY_CLIENT_ID;
-const CLIENT_SECRET = import.meta.env.VITE_SHOPIFY_CLIENT_SECRET;
 const API_VERSION = '2026-01';
 
-async function getAccessToken() {
-    const res = await fetch(`${SHOPIFY_URL}/admin/oauth/access_token`, {
+interface ShopifyConfig {
+    url: string;
+    clientId: string;
+    clientSecret: string;
+}
+
+const getStoreConfig = (storeName: string): ShopifyConfig => {
+    const normalized = storeName.toLowerCase().trim();
+    if (normalized === 'vitadomus') {
+        return {
+            url: import.meta.env.VITE_VITADOMUS_SHOPIFY_URL,
+            clientId: import.meta.env.VITE_VITADOMUS_SHOPIFY_CLIENT_ID,
+            clientSecret: import.meta.env.VITE_VITADOMUS_SHOPIFY_CLIENT_SECRET,
+        };
+    }
+    // Default to Tamtrend
+    return {
+        url: import.meta.env.VITE_TAMTREND_SHOPIFY_URL || 'https://k7agxh-7y.myshopify.com',
+        clientId: import.meta.env.VITE_TAMTREND_SHOPIFY_CLIENT_ID,
+        clientSecret: import.meta.env.VITE_TAMTREND_SHOPIFY_CLIENT_SECRET,
+    };
+};
+
+async function getAccessToken(config: ShopifyConfig) {
+    if (!config.clientId || !config.clientSecret) {
+        throw new Error(`Shopify credentials missing for URL: ${config.url}`);
+    }
+    const res = await fetch(`${config.url}/admin/oauth/access_token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
+            client_id: config.clientId,
+            client_secret: config.clientSecret,
             grant_type: 'client_credentials'
         })
     });
     const data = await res.json();
     if (!data.access_token) {
-        throw new Error('Failed to obtain Shopify access token');
+        throw new Error(`Failed to obtain Shopify access token for ${config.url}`);
     }
     return data.access_token;
 }
 
-export async function syncOrderStatusWithShopify(draftOrderId: string, status: string, additionalNote?: string) {
+export async function syncOrderStatusWithShopify(storeName: string, draftOrderId: string, status: string, additionalNote?: string) {
     try {
-        const token = await getAccessToken();
+        const config = getStoreConfig(storeName);
+        const token = await getAccessToken(config);
         const headers = {
             'Content-Type': 'application/json',
             'X-Shopify-Access-Token': token,
         };
-        const graphqlUrl = `${SHOPIFY_URL}/admin/api/${API_VERSION}/graphql.json`;
+        const graphqlUrl = `${config.url}/admin/api/${API_VERSION}/graphql.json`;
 
         // Format ID
         const gid = draftOrderId.includes('gid://') ? draftOrderId : `gid://shopify/DraftOrder/${draftOrderId}`;
