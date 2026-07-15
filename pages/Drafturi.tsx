@@ -37,16 +37,16 @@ const TABS: { id: string; label: string }[] = [
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-    'ON':  'bg-pink-500/15 text-pink-300 border border-pink-500/20',
-    'OFF': 'bg-gray-500/15 text-gray-400 border border-gray-500/20',
-    'nu-raspunde': 'bg-amber-500/15 text-amber-300 border border-amber-500/20',
-    'de-revenit': 'bg-blue-500/15 text-blue-300 border border-blue-500/20',
-    'confirmat': 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20',
-    'anulat': 'bg-red-500/15 text-red-300 border border-red-500/20',
+    'ON':  'bg-pink-100 text-pink-700 border border-pink-200',
+    'OFF': 'bg-gray-100 text-gray-700 border border-gray-200',
+    'nu-raspunde': 'bg-amber-100 text-amber-700 border border-amber-200',
+    'de-revenit': 'bg-blue-100 text-blue-700 border border-blue-200',
+    'confirmat': 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+    'anulat': 'bg-red-100 text-red-700 border border-red-200',
 };
 
 const STATUS_LABELS: Record<string, string> = {
-    'ON':  'De sunat',
+    'ON':  'Neapelat',
     'OFF': 'Altele (OFF)',
     'nu-raspunde': 'Nu răspunde',
     'de-revenit': 'De revenit',
@@ -55,12 +55,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const QUICK_ACTIONS = [
-    { id: 'confirmat',   label: 'Confirmă comanda',  style: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20', icon: 'check_circle' },
-    { id: 'nu-raspunde', label: 'Nu răspunde',        style: 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20',         icon: 'phone_disabled' },
-    { id: 'de-revenit',  label: 'Sună mai târziu',   style: 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20',             icon: 'schedule' },
-    { id: 'anulat',      label: 'Anulează comanda',  style: 'bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20',                  icon: 'cancel' },
-    { id: 'OFF',         label: 'Marchează procesat', style: 'bg-gray-500/10 border-gray-500/30 text-gray-300 hover:bg-gray-500/20',              icon: 'task_alt' },
-    { id: 'ON',          label: 'Resetează (De sunat)', style: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20',           icon: 'refresh' },
+    { id: 'confirmat',   label: 'Confirmă',          style: 'bg-[#F0FDF4] border-emerald-200 text-emerald-700 hover:bg-emerald-100', icon: 'check' },
+    { id: 'nu-raspunde', label: 'Nu răspunde',        style: 'bg-[#FFFBEB] border-amber-200 text-amber-700 hover:bg-amber-100',         icon: 'phone_missed' },
+    { id: 'de-revenit',  label: 'Sună mai târziu',   style: 'bg-[#EFF6FF] border-blue-200 text-blue-700 hover:bg-blue-100',             icon: 'schedule' },
+    { id: 'anulat',      label: 'Anulează',          style: 'bg-[#FEF2F2] border-red-200 text-red-700 hover:bg-red-100',                  icon: 'close' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -261,59 +259,37 @@ const Drafturi = () => {
 
     // ── Render
     return (
-        <div className="flex flex-col h-full space-y-3">
+        <div className="flex flex-col h-full overflow-hidden bg-[#F9FAFB] text-gray-900 rounded-tl-3xl shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-t border-gray-200 absolute inset-0 pt-6 px-6">
             <audio ref={audioRef} style={{ display: 'none' }} />
 
             {/* Toast */}
             {toast && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#1e1f2b] border border-white/10 text-white text-sm px-5 py-3 rounded-xl shadow-2xl animate-fade-in">
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm px-5 py-3 rounded-xl shadow-2xl animate-fade-in">
                     {toast}
                 </div>
             )}
 
             {/* ── Top Bar ─────────────────────────────────────────────────── */}
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-1">
-                    {/* View toggle */}
-                    <div className="flex bg-[#13141a] border border-white/5 rounded-xl p-1 shadow-inner h-[40px] shrink-0">
-                        <button onClick={() => setViewMode('drafturi')} className={`px-4 py-1 text-sm font-medium rounded-lg transition-all ${viewMode === 'drafturi' ? 'bg-primary/20 text-primary' : 'text-gray-400 hover:text-gray-200'}`}>Drafturi</button>
-                        <button onClick={() => setViewMode('comenzi')} className={`px-4 py-1 text-sm font-medium rounded-lg transition-all ${viewMode === 'comenzi' ? 'bg-primary/20 text-primary' : 'text-gray-400 hover:text-gray-200'}`}>Comenzi</button>
-                    </div>
-
-                    {/* Search */}
-                    <div className="max-w-sm w-full relative group">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons-round text-gray-500" style={{fontSize:'18px'}}>search</span>
-                        <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && setActiveSearch(searchInput)} placeholder="Caută comandă..." className="w-full pl-9 pr-20 py-2.5 bg-[#13141a] border border-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 text-gray-200" />
-                        <button onClick={() => setActiveSearch(searchInput)} className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-surface-dark-lighter border border-white/5 text-gray-400 hover:text-white text-xs font-medium rounded-lg transition-colors">Caută</button>
-                    </div>
-
-                    {/* Status indicator */}
-                    {isConnecting && <div className="flex items-center gap-2 text-xs text-gray-500 bg-black/20 px-3 py-1.5 rounded-full h-[40px] shrink-0"><span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>Conectare telefonie...</div>}
-                    {!isConnecting && !clientRef.current && <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 px-3 py-1.5 rounded-full h-[40px] shrink-0"><span className="w-2 h-2 rounded-full bg-red-500"></span>Telefonie inactivă</div>}
-                    {!isConnecting && clientRef.current && <div className="flex items-center gap-2 text-xs text-green-400 bg-green-500/10 px-3 py-1.5 rounded-full h-[40px] shrink-0"><span className="w-2 h-2 rounded-full bg-green-500"></span>Telefonie activă</div>}
-                </div>
-
-                <div className="flex flex-wrap gap-3 items-center justify-end">
-                    {/* Date range */}
-                    <div className="flex items-center gap-2 bg-[#13141a] px-3 py-1.5 rounded-xl border border-white/5 h-[40px]">
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-gray-200 text-sm border-none focus:ring-0 cursor-pointer outline-none" />
-                        <span className="text-gray-600">–</span>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-gray-200 text-sm border-none focus:ring-0 cursor-pointer outline-none" />
-                    </div>
-
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0">
+                <div className="flex items-center gap-4 flex-1">
+                    <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
+                        Comenzi de sunat 
+                        <span className="bg-indigo-100 text-indigo-700 text-sm font-bold px-2.5 py-0.5 rounded-full">{orders.length}</span>
+                    </h1>
+                    
                     {/* Brand dropdown */}
-                    <div className="relative">
-                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="btn-3d-secondary px-4 py-2 rounded-xl text-sm min-w-[140px] flex justify-between items-center h-[40px] hover:text-white transition-all">
-                            <span>{selectedBrand || 'Selectează'}</span>
-                            <span className={`material-icons-round text-base transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
+                    <div className="relative ml-4">
+                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm min-w-[140px] flex justify-between items-center h-[40px] text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
+                            <span className="font-medium">{selectedBrand || 'Selectează'}</span>
+                            <span className={`material-icons-round text-base text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
                         </button>
                         {isDropdownOpen && (
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                                <div className="absolute right-0 top-full mt-2 w-full rounded-xl bg-[#13141a] border border-white/5 shadow-xl z-50 overflow-hidden">
+                                <div className="absolute left-0 top-full mt-2 w-full rounded-xl bg-white border border-gray-200 shadow-xl z-50 overflow-hidden">
                                     {userStores.map(store => (
-                                        <button key={store} onClick={() => { setSelectedBrand(store); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-3 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${selectedBrand === store ? 'bg-primary' : 'bg-transparent border border-gray-600'}`} />
+                                        <button key={store} onClick={() => { setSelectedBrand(store); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 transition-colors flex items-center gap-2">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${selectedBrand === store ? 'bg-indigo-600' : 'bg-transparent border border-gray-300'}`} />
                                             {store}
                                         </button>
                                     ))}
@@ -321,191 +297,257 @@ const Drafturi = () => {
                             </>
                         )}
                     </div>
+                    
+                    {/* Operators mock */}
+                    <button className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm flex items-center gap-2 h-[40px] text-gray-700 hover:bg-gray-50 shadow-sm hidden sm:flex">
+                        <span>Toți operatorii</span>
+                        <span className="material-icons-round text-base text-gray-400">arrow_drop_down</span>
+                    </button>
+                    
+                    {/* Priority mock */}
+                    <button className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm flex items-center gap-2 h-[40px] text-gray-700 hover:bg-gray-50 shadow-sm hidden md:flex">
+                        <span>Sortează: Prioritate</span>
+                        <span className="material-icons-round text-base text-gray-400">arrow_drop_down</span>
+                    </button>
+                    
+                    {/* Filters mock */}
+                    <button className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm flex items-center gap-2 h-[40px] text-gray-700 hover:bg-gray-50 shadow-sm hidden md:flex">
+                        <span className="material-icons-round text-base text-indigo-500">filter_list</span>
+                        Filtre
+                    </button>
+                </div>
+
+                <div className="flex flex-wrap gap-4 items-center justify-end">
+                    {/* Status indicator */}
+                    <div className="flex items-center gap-3 mr-4">
+                        {!isConnecting && clientRef.current ? (
+                            <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Online
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2 text-xs font-medium text-red-700 bg-red-50 px-3 py-1.5 rounded-full border border-red-200">
+                                <span className="w-2 h-2 rounded-full bg-red-500"></span> Offline
+                            </div>
+                        )}
+                    </div>
 
                     {/* Dialer toggle */}
-                    <button onClick={() => setDialerOpen(!dialerOpen)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all h-[40px] ${dialerOpen ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300' : 'bg-[#13141a] border-white/5 text-gray-400 hover:text-white'}`}>
-                        <span className="material-icons-round text-base">dialpad</span>
+                    <button onClick={() => setDialerOpen(!dialerOpen)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all h-[42px] shadow-sm ${dialerOpen ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-[#5B4FDB] text-white hover:bg-indigo-700'}`}>
+                        <span className="material-icons-round text-lg">dialpad</span>
                         Dialer
                     </button>
                 </div>
             </div>
 
             {/* ── Main Content ─────────────────────────────────────────────── */}
-            <div className="flex gap-4 flex-1 min-h-0">
+            <div className="flex gap-6 flex-1 min-h-0 pb-6">
 
                 {/* ── Left: List ────────────────────────────────────────────── */}
-                <div className="w-[400px] shrink-0 flex flex-col card-depth rounded-2xl overflow-hidden">
+                <div className="w-[420px] shrink-0 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     {/* Tabs */}
-                    <div className="flex border-b border-white/5 bg-[#0d0e13] overflow-x-auto scrollbar-hide">
-                        {TABS.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => { setActiveTab(tab.id); setActiveSearch(''); setSearchInput(''); }}
-                                className={`flex items-center gap-1.5 px-3 py-3 text-xs font-medium whitespace-nowrap transition-all border-b-2 shrink-0 ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
-                            >
-                                {tab.label}
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${activeTab === tab.id ? 'bg-primary/20 text-primary' : 'bg-white/5 text-gray-500'}`}>
-                                    {typeFilteredOrders.filter(o => o.status === tab.id).length}
-                                </span>
-                            </button>
-                        ))}
+                    <div className="flex border-b border-gray-200 bg-white overflow-x-auto scrollbar-hide px-2">
+                        {TABS.map(tab => {
+                            const count = typeFilteredOrders.filter(o => o.status === tab.id).length;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => { setActiveTab(tab.id); setActiveSearch(''); setSearchInput(''); }}
+                                    className={`flex items-center gap-2 px-4 py-4 text-sm font-semibold whitespace-nowrap transition-all border-b-2 shrink-0 ${activeTab === tab.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                                >
+                                    {tab.label}
+                                    {count > 0 && (
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${activeTab === tab.id ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+                                            {count}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Search */}
+                    <div className="p-3 border-b border-gray-100 bg-gray-50">
+                         <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons-round text-gray-400" style={{fontSize:'18px'}}>search</span>
+                            <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && setActiveSearch(searchInput)} placeholder="Caută..." className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-gray-900" />
+                        </div>
                     </div>
 
                     {/* List */}
-                    <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-hide">
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-[#F9FAFB]">
                         {loading ? (
                             Array.from({ length: 5 }).map((_, i) => (
-                                <div key={i} className="h-20 bg-white/3 rounded-xl animate-pulse" />
+                                <div key={i} className="h-24 bg-white rounded-xl border border-gray-200 animate-pulse" />
                             ))
                         ) : error ? (
-                            <div className="flex flex-col items-center justify-center h-full text-red-400 py-16 gap-3 text-center px-4">
+                            <div className="flex flex-col items-center justify-center h-full text-red-500 py-16 gap-3 text-center px-4">
                                 <span className="material-icons-round text-4xl">error_outline</span>
-                                <span className="text-sm">{error}</span>
-                                <button onClick={loadOrders} className="text-xs underline text-gray-400 hover:text-white">Reîncearcă</button>
+                                <span className="text-sm font-medium">{error}</span>
+                                <button onClick={loadOrders} className="text-sm font-bold text-indigo-600 hover:underline">Reîncearcă</button>
                             </div>
                         ) : filteredOrders.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-gray-600 py-16 gap-3">
+                            <div className="flex flex-col items-center justify-center h-full text-gray-400 py-16 gap-3">
                                 <span className="material-icons-round text-4xl">inbox</span>
-                                <span className="text-sm">Nicio comandă în această categorie.</span>
+                                <span className="text-sm">Nicio comandă aici.</span>
                             </div>
                         ) : (
                             filteredOrders.map(order => (
                                 <button
                                     key={order.id}
                                     onClick={() => { setSelectedId(order.id); setNoteText(order.notes || ''); }}
-                                    className={`w-full text-left p-3.5 rounded-xl border transition-all ${selectedId === order.id ? 'border-primary/50 bg-primary/5 shadow-[inset_3px_0_0_rgba(0,210,255,0.6)]' : 'border-white/5 bg-white/2 hover:border-white/10 hover:bg-white/4'}`}
+                                    className={`w-full text-left p-4 rounded-xl border-2 transition-all shadow-sm relative ${selectedId === order.id ? 'border-indigo-400 bg-indigo-50/30' : 'border-transparent bg-white hover:border-gray-300'}`}
                                 >
-                                    <div className="flex justify-between items-start mb-1">
-                                        <span className="text-[11px] text-gray-500 font-mono">{order.client_personal_id || `#${order.id}`}</span>
-                                        {order.status === 'ON' && <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 uppercase tracking-wide">NOU</span>}
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="text-xs font-semibold text-gray-400">#{order.id} <span className="font-normal ml-1 text-gray-400">{fmtDate(order.created_at).split(',')[0]}</span></span>
+                                        {order.status === 'ON' && <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-[#FFF8D6] text-amber-700 tracking-wide">NOU</span>}
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <p className="text-sm font-semibold text-white leading-tight">{order.name || '—'}</p>
-                                            <p className="text-xs text-gray-500 mt-0.5">{order.phone_number || '—'}</p>
-                                        </div>
-                                        <span className="text-sm font-bold text-white">{money(order.value)}</span>
+                                    <div className="flex justify-between items-center mb-1.5">
+                                        <p className="text-base font-bold text-gray-900 leading-tight truncate pr-2">{order.name || 'Client Nou'}</p>
+                                        <span className="text-base font-bold text-gray-900 shrink-0">{money(order.value)}</span>
                                     </div>
-                                    {order.produse && <p className="text-xs text-cyan-400/80 mt-1.5 truncate">{order.produse}</p>}
-                                    <p className="text-[10px] text-gray-600 mt-1">{fmtDate(order.created_at)}</p>
+                                    <p className="text-sm text-gray-500 font-medium mb-1">{order.phone_number || '—'}</p>
+                                    {order.produse && <p className="text-sm text-indigo-600 font-medium truncate">{order.produse}</p>}
                                 </button>
                             ))
                         )}
                     </div>
-
-                    {/* Footer */}
-                    <div className="px-4 py-2 border-t border-white/5 text-xs text-gray-600">
-                        {filteredOrders.length} comenzi afișate
-                    </div>
                 </div>
 
                 {/* ── Right: Detail + Dialer ─────────────────────────────── */}
-                <div className="flex-1 flex gap-4 min-h-0 min-w-0">
+                <div className="flex-1 flex gap-6 min-h-0 min-w-0">
 
                     {/* Order Detail */}
-                    <div className="flex-1 overflow-y-auto scrollbar-hide space-y-4 min-w-0">
+                    <div className="flex-1 overflow-y-auto scrollbar-hide min-w-0 pr-2">
                         {!selectedOrder ? (
-                            <div className="card-depth rounded-2xl h-full flex flex-col items-center justify-center text-gray-600 gap-3">
-                                <span className="material-icons-round text-5xl">touch_app</span>
-                                <p className="text-sm">Selectează o comandă din stânga.</p>
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 h-full flex flex-col items-center justify-center text-gray-400 gap-4">
+                                <span className="material-icons-round text-6xl text-gray-300">ads_click</span>
+                                <p className="text-lg font-medium text-gray-500">Selectează o comandă pentru detalii.</p>
                             </div>
                         ) : (
-                            <>
-                                {/* Header */}
-                                <div className="card-depth rounded-2xl p-5">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <h2 className="text-lg font-semibold text-white">Comanda {selectedOrder.client_personal_id || `#${selectedOrder.id}`}</h2>
-                                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
-                                        </div>
-                                        {selectedOrder.type && <span className="text-xs text-gray-500 bg-white/5 px-2.5 py-1 rounded-lg">{selectedOrder.type}</span>}
+                            <div className="space-y-6 pb-10">
+                                {/* Header / Title */}
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <h2 className="text-2xl font-bold text-gray-900">Comanda {selectedOrder.client_personal_id || `#${selectedOrder.id}`}</h2>
+                                        <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
                                     </div>
-
-                                    {/* Action buttons */}
-                                    <div className="flex gap-3">
-                                        <button onClick={() => callClient(selectedOrder.phone_number)} className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                                            <span className="material-icons-round">call</span>
-                                            Sună client
-                                        </button>
-                                        <button className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 text-gray-300 font-medium py-3 px-5 rounded-xl transition-all">
-                                            <span className="material-icons-round text-green-400">chat</span>
-                                            WhatsApp
-                                        </button>
-                                        <button className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/5 text-gray-300 font-medium py-3 px-5 rounded-xl transition-all">
-                                            <span className="material-icons-round">history</span>
-                                            Istoric
+                                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+                                        Sursă: <span className="text-gray-900">Facebook Ads</span>
+                                        <button className="ml-2 w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 transition-colors">
+                                            <span className="material-icons-round">close</span>
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* Client + Order Info */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    {/* Client */}
-                                    <div className="card-depth rounded-2xl p-5">
-                                        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2"><span className="material-icons-round text-base text-gray-400">person</span>Date client</h3>
-                                        <div className="space-y-3">
+                                {/* Main Action buttons */}
+                                <div className="flex gap-4">
+                                    <button onClick={() => callClient(selectedOrder.phone_number)} className="flex-1 flex items-center justify-center gap-2 bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_4px_14px_rgba(34,197,94,0.39)] text-[15px]">
+                                        <span className="material-icons-round text-xl">call</span>
+                                        Suna client
+                                    </button>
+                                    <button className="flex-1 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-semibold py-3.5 rounded-xl transition-all shadow-sm text-[15px]">
+                                        <span className="material-icons-round text-[#25D366]">chat</span>
+                                        WhatsApp
+                                    </button>
+                                    <button className="flex-1 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-semibold py-3.5 rounded-xl transition-all shadow-sm text-[15px]">
+                                        <span className="material-icons-round">history</span>
+                                        Istoric apeluri
+                                    </button>
+                                </div>
+
+                                {/* Info Grids */}
+                                <div className="grid grid-cols-2 gap-6">
+                                    {/* Client Details */}
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative">
+                                        <button className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
+                                            <span className="material-icons-round text-[16px]">edit</span> Editează
+                                        </button>
+                                        <h3 className="text-base font-bold text-gray-900 mb-6">Date client</h3>
+                                        
+                                        <div className="space-y-4">
                                             <Field label="Nume" value={selectedOrder.name} />
                                             <div>
-                                                <p className="text-[11px] text-gray-500 mb-1">Telefon</p>
+                                                <p className="text-[12px] text-gray-500 font-medium mb-1">Telefon</p>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-sm text-white font-medium">{selectedOrder.phone_number || '—'}</span>
+                                                    <span className="text-base text-gray-900 font-bold">{selectedOrder.phone_number || '—'}</span>
                                                     {selectedOrder.phone_number && (
-                                                        <button onClick={() => { navigator.clipboard?.writeText(selectedOrder.phone_number); showToast('Copiat!'); }} className="text-gray-500 hover:text-white transition-colors">
-                                                            <span className="material-icons-round" style={{fontSize:'15px'}}>content_copy</span>
+                                                        <button onClick={() => { navigator.clipboard?.writeText(selectedOrder.phone_number); showToast('Copiat!'); }} className="text-gray-400 hover:text-gray-700 transition-colors">
+                                                            <span className="material-icons-round text-[16px]">content_copy</span>
                                                         </button>
                                                     )}
                                                 </div>
                                             </div>
-                                            <Field label="Adresă" value={selectedOrder.adresa} />
-                                            {selectedOrder.cerere_adresa && <Field label="Cerere adresă" value={selectedOrder.cerere_adresa} highlight />}
+                                            <Field label="Email" value="client@email.com" />
+                                            <div>
+                                                <p className="text-[12px] text-gray-500 font-medium mb-1">Adresă livrare</p>
+                                                <p className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-line">{selectedOrder.adresa || '—'}</p>
+                                                <p className="text-emerald-600 text-xs font-semibold mt-2 flex items-center gap-1">
+                                                    <span className="material-icons-round text-[14px]">check</span> Adresă completă
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    {/* Order details */}
-                                    <div className="card-depth rounded-2xl p-5">
-                                        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2"><span className="material-icons-round text-base text-gray-400">receipt_long</span>Detalii comandă</h3>
-                                        <div className="space-y-2">
-                                            <DL label="Status" value={<span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>} />
-                                            <DL label="Creat la" value={fmtDate(selectedOrder.created_at)} />
-                                            <DL label="Total comandă" value={<span className="text-cyan-400 font-bold">{money(selectedOrder.value)}</span>} />
-                                            {selectedOrder.health && <DL label="Health" value={selectedOrder.health} />}
-                                            {selectedOrder.tags && <DL label="Tags" value={selectedOrder.tags} />}
+                                    {/* Order Details */}
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative">
+                                        <button className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
+                                            <span className="material-icons-round text-[16px]">edit</span> Editează
+                                        </button>
+                                        <h3 className="text-base font-bold text-gray-900 mb-6">Detalii comandă</h3>
+                                        
+                                        <div className="space-y-4">
+                                            <DL label="Status" value={<span className={`text-[11px] font-bold px-2 py-0.5 rounded ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>} />
+                                            <DL label="Creată" value={fmtDate(selectedOrder.created_at)} />
+                                            <DL label="Metodă plată" value="Ramburs" />
+                                            <DL label="Metodă livrare" value="Curier rapid" />
+                                            
+                                            <div className="pt-4 mt-2 border-t border-gray-100 space-y-3">
+                                                <DL label="Valoare produse" value={money(selectedOrder.value)} />
+                                                <DL label="Transport" value="0,00 lei" />
+                                                <DL label={<span className="font-bold text-gray-900 text-sm">Total comandă</span>} value={<span className="font-bold text-indigo-600 text-base">{money(selectedOrder.value)}</span>} />
+                                            </div>
+
+                                            {selectedOrder.cerere && (
+                                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                                    <p className="text-[12px] text-gray-500 font-medium mb-1">Notițe client</p>
+                                                    <p className="text-sm text-gray-900">{selectedOrder.cerere}</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Products + Quick Actions */}
-                                <div className="grid grid-cols-2 gap-4">
+                                {/* Products + Actions Row */}
+                                <div className="grid grid-cols-2 gap-6">
                                     {/* Products */}
-                                    <div className="card-depth rounded-2xl p-5">
-                                        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2"><span className="material-icons-round text-base text-gray-400">shopping_cart</span>Produse comandate</h3>
-                                        <div className="bg-white/3 rounded-xl p-3 text-sm text-gray-300 whitespace-pre-wrap leading-relaxed min-h-[60px]">
-                                            {selectedOrder.produse || <span className="text-gray-600 italic">Niciun produs specificat</span>}
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative">
+                                        <button className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
+                                            <span className="material-icons-round text-[16px]">edit</span> Editează produse
+                                        </button>
+                                        <h3 className="text-base font-bold text-gray-900 mb-6">Produse comandate</h3>
+                                        
+                                        <div className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                            {selectedOrder.produse || <span className="text-gray-400 italic">Niciun produs specificat</span>}
                                         </div>
+                                        
                                         {selectedOrder.cerere_upsell && (
-                                            <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
-                                                <p className="text-[11px] text-amber-400 font-semibold mb-1">Cerere upsell</p>
-                                                <p className="text-sm text-amber-300">{selectedOrder.cerere_upsell}</p>
-                                            </div>
-                                        )}
-                                        {selectedOrder.cerere && (
-                                            <div className="mt-3 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-                                                <p className="text-[11px] text-blue-400 font-semibold mb-1">Cerere client</p>
-                                                <p className="text-sm text-blue-300">{selectedOrder.cerere}</p>
+                                            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                                <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-1">Oportunitate Upsell</p>
+                                                <p className="text-sm font-medium text-amber-900">{selectedOrder.cerere_upsell}</p>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* Quick actions */}
-                                    <div className="card-depth rounded-2xl p-5">
-                                        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2"><span className="material-icons-round text-base text-gray-400">bolt</span>Acțiuni rapide</h3>
-                                        <div className="grid grid-cols-2 gap-2">
+                                    {/* Actions */}
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                        <h3 className="text-base font-bold text-gray-900 mb-6">Acțiuni rapide</h3>
+                                        <div className="grid grid-cols-2 gap-3">
                                             {QUICK_ACTIONS.map(action => (
                                                 <button
                                                     key={action.id}
                                                     onClick={() => updateStatus(selectedOrder.id, action.id as CallStatus)}
                                                     disabled={updatingStatus || selectedOrder.status === action.id}
-                                                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${action.style} ${selectedOrder.status === action.id ? 'ring-2 ring-current ring-offset-1 ring-offset-transparent' : ''}`}
+                                                    className={`flex items-center justify-center gap-2 p-3.5 rounded-xl border-2 text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${action.style} ${selectedOrder.status === action.id ? 'ring-2 ring-current ring-offset-2' : 'border-transparent'}`}
                                                 >
                                                     <span className="material-icons-round text-lg">{action.icon}</span>
                                                     {action.label}
@@ -514,61 +556,41 @@ const Drafturi = () => {
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* Notes + Script */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    {/* Notes */}
-                                    <div className="card-depth rounded-2xl p-5">
-                                        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><span className="material-icons-round text-base text-gray-400">edit_note</span>Notițe apel</h3>
-                                        <textarea
-                                            value={noteText}
-                                            onChange={e => setNoteText(e.target.value)}
-                                            placeholder="Adaugă o notiță despre apel..."
-                                            className="w-full min-h-[100px] bg-white/3 border border-white/5 rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50"
-                                        />
-                                        <button onClick={saveNote} disabled={savingNote} className="mt-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary text-sm font-medium rounded-lg transition-all disabled:opacity-50">
-                                            {savingNote ? 'Se salvează...' : 'Salvează notița'}
-                                        </button>
-                                    </div>
-
-                                    {/* Script */}
-                                    <div className="card-depth rounded-2xl p-5">
-                                        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><span className="material-icons-round text-base text-gray-400">record_voice_over</span>Script recomandat</h3>
-                                        <div className="relative bg-primary/5 border border-primary/10 rounded-xl p-4 text-sm text-gray-300 leading-relaxed">
-                                            <button onClick={() => { navigator.clipboard?.writeText(`Bună ziua! Vă sunăm de la ${selectedOrder.store_name || 'magazin'} pentru confirmarea comenzii ${selectedOrder.client_personal_id || `#${selectedOrder.id}`} pentru ${selectedOrder.produse || '[PRODUS]'}. Livrarea se face prin curier, plata ramburs. Adresa de livrare este ${selectedOrder.adresa || '[ADRESĂ]'}. Este totul în regulă?`); showToast('Script copiat!'); }} className="absolute top-3 right-3 text-gray-500 hover:text-white transition-colors">
-                                                <span className="material-icons-round" style={{fontSize:'16px'}}>content_copy</span>
-                                            </button>
-                                            Bună ziua! Vă sunăm de la <b className="text-white">{selectedOrder.store_name}</b> pentru confirmarea comenzii <b className="text-white">{selectedOrder.client_personal_id || `#${selectedOrder.id}`}</b> pentru <b className="text-white">{selectedOrder.produse || '[PRODUS]'}</b>. Livrarea se face prin curier, plata ramburs. Adresa de livrare este <b className="text-white">{selectedOrder.adresa || '[ADRESĂ]'}</b>. Este totul în regulă?
-                                        </div>
-                                    </div>
+                                
+                                {/* Notes */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                    <h3 className="text-base font-bold text-gray-900 mb-4">Notițe apel</h3>
+                                    <textarea
+                                        value={noteText}
+                                        onChange={e => setNoteText(e.target.value)}
+                                        placeholder="Adaugă observații..."
+                                        className="w-full min-h-[100px] bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-900 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
+                                    />
+                                    <button onClick={saveNote} disabled={savingNote} className="mt-3 px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50">
+                                        {savingNote ? 'Se salvează...' : 'Salvează'}
+                                    </button>
                                 </div>
-
-                                {/* Historic */}
-                                {selectedOrder.istoric && (
-                                    <div className="card-depth rounded-2xl p-5">
-                                        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><span className="material-icons-round text-base text-gray-400">timeline</span>Istoric activitate</h3>
-                                        <div className="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed">{selectedOrder.istoric}</div>
-                                    </div>
-                                )}
-                            </>
+                            </div>
                         )}
                     </div>
 
                     {/* ── Dialer Panel ───────────────────────────────────────── */}
                     {dialerOpen && (
-                        <div className="w-[300px] shrink-0 card-depth rounded-2xl p-5 flex flex-col items-center">
+                        <div className="w-[300px] shrink-0 bg-white rounded-2xl shadow-xl border border-gray-200 p-6 flex flex-col items-center h-[520px]">
+                            <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">Dialer</h3>
+                            
                             {/* Phone display */}
-                            <div className="w-full mb-6 min-h-[60px] flex items-center justify-center relative">
+                            <div className="w-full mb-8 min-h-[50px] flex items-center justify-center relative bg-gray-50 rounded-xl">
                                 <input
                                     type="text"
                                     value={phoneNumber}
                                     onChange={e => setPhoneNumber(e.target.value)}
-                                    className="w-full bg-transparent border-none outline-none text-center text-2xl font-light text-white tracking-widest"
+                                    className="w-full bg-transparent border-none outline-none text-center text-3xl font-medium text-gray-900 tracking-wider"
                                     placeholder=" "
                                     autoFocus
                                 />
                                 {phoneNumber && (
-                                    <button onClick={handleDelete} className="absolute right-0 text-gray-500 hover:text-white transition-colors">
+                                    <button onClick={handleDelete} className="absolute right-3 text-gray-400 hover:text-gray-700 transition-colors">
                                         <span className="material-icons-round">backspace</span>
                                     </button>
                                 )}
@@ -576,22 +598,22 @@ const Drafturi = () => {
 
                             {/* Call state */}
                             {callState !== 'idle' && (
-                                <div className={`mb-4 px-4 py-1.5 rounded-full text-xs font-medium tracking-wider uppercase animate-pulse ${callState === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                <div className={`mb-6 px-5 py-2 rounded-full text-xs font-bold tracking-wider uppercase animate-pulse ${callState === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                     {callState === 'active' ? 'Apel în curs...' : 'Apelează...'}
                                 </div>
                             )}
 
                             {/* Keypad */}
-                            <div className={`grid grid-cols-3 gap-3 w-full mb-5 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                            <div className={`grid grid-cols-3 gap-4 w-full mb-8 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                                 {[
                                     { key: '1', sub: '' }, { key: '2', sub: 'ABC' }, { key: '3', sub: 'DEF' },
                                     { key: '4', sub: 'GHI' }, { key: '5', sub: 'JKL' }, { key: '6', sub: 'MNO' },
                                     { key: '7', sub: 'PQRS' }, { key: '8', sub: 'TUV' }, { key: '9', sub: 'WXYZ' },
                                     { key: '*', sub: '' }, { key: '0', sub: '+' }, { key: '#', sub: '' }
                                 ].map(item => (
-                                    <button key={item.key} onClick={() => handleKeypadPress(item.key)} className="flex flex-col items-center justify-center h-14 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all active:scale-95">
-                                        <span className="text-xl font-light text-white">{item.key}</span>
-                                        {item.sub && <span className="text-[8px] text-gray-500 font-medium tracking-widest">{item.sub}</span>}
+                                    <button key={item.key} onClick={() => handleKeypadPress(item.key)} className="flex flex-col items-center justify-center h-16 w-16 rounded-full bg-white hover:bg-gray-50 border border-gray-200 shadow-sm transition-all active:scale-95 mx-auto">
+                                        <span className="text-2xl font-semibold text-gray-700">{item.key}</span>
+                                        {item.sub && <span className="text-[9px] text-gray-400 font-bold tracking-widest">{item.sub}</span>}
                                     </button>
                                 ))}
                             </div>
@@ -600,9 +622,9 @@ const Drafturi = () => {
                             <button
                                 onClick={handleCallAction}
                                 disabled={!phoneNumber && callState === 'idle'}
-                                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${callState === 'idle' ? 'bg-green-500 hover:bg-green-400 shadow-[0_0_20px_rgba(34,197,94,0.3)]' : 'bg-red-500 hover:bg-red-400 shadow-[0_0_20px_rgba(239,68,68,0.3)]'}`}
+                                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${callState === 'idle' ? 'bg-[#22C55E] hover:bg-[#16A34A]' : 'bg-red-500 hover:bg-red-600'}`}
                             >
-                                <span className="material-icons-round text-white text-2xl">{callState === 'idle' ? 'call' : 'call_end'}</span>
+                                <span className="material-icons-round text-white text-3xl">{callState === 'idle' ? 'call' : 'call_end'}</span>
                             </button>
                         </div>
                     )}
@@ -615,15 +637,15 @@ const Drafturi = () => {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 const Field = ({ label, value, highlight }: { label: string; value?: string | null; highlight?: boolean }) => (
     <div>
-        <p className="text-[11px] text-gray-500 mb-0.5">{label}</p>
-        <p className={`text-sm font-medium ${highlight ? 'text-amber-300' : 'text-white'}`}>{value || '—'}</p>
+        <p className="text-[12px] text-gray-500 font-medium mb-1">{label}</p>
+        <p className={`text-base font-bold ${highlight ? 'text-amber-600' : 'text-gray-900'}`}>{value || '—'}</p>
     </div>
 );
 
-const DL = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="flex justify-between items-center py-1.5 border-b border-white/3 last:border-0">
-        <span className="text-xs text-gray-500">{label}</span>
-        <span className="text-sm text-white">{value}</span>
+const DL = ({ label, value }: { label: string | React.ReactNode; value: React.ReactNode }) => (
+    <div className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+        <span className="text-sm font-medium text-gray-500">{label}</span>
+        <span className="text-sm font-semibold text-gray-900 text-right">{value}</span>
     </div>
 );
 
