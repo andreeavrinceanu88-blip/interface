@@ -244,11 +244,11 @@ function Sidebar() {
         >
             {/* Logo */}
             <div className="flex items-center h-20 px-4 shrink-0 overflow-hidden">
-                <span className="text-3xl font-bold text-white shrink-0" style={{ fontFamily: '"Space Grotesk", sans-serif' }}>V</span>
+                <span className="text-3xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-[#00d2ff] via-[#00b0ff] to-[#008cff] drop-shadow-[0_0_15px_rgba(0,176,255,0.3)] font-mono shrink-0" style={{ fontFamily: '"Space Grotesk", sans-serif' }}>N</span>
                 <span
-                    className={`text-2xl font-bold text-white whitespace-nowrap overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ml-2 ${collapsed ? 'max-w-0 opacity-0' : 'max-w-[200px] opacity-100'}`}
+                    className={`text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-[#00d2ff] via-[#00b0ff] to-[#008cff] font-mono whitespace-nowrap overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ml-2 ${collapsed ? 'max-w-0 opacity-0' : 'max-w-[200px] opacity-100'}`}
                     style={{ fontFamily: '"Space Grotesk", sans-serif' }}
-                >itaDomus</span>
+                >ANOASSIST</span>
             </div>
 
             <nav className="flex-1 space-y-4 mt-2 overflow-y-auto overflow-x-hidden px-2">
@@ -313,7 +313,7 @@ function SidebarLink({ to, icon, label, badge, collapsed }: { to: string; icon: 
             to={to}
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
-                `flex items-center px-4 py-2.5 mx-2 rounded-xl transition-all duration-150 overflow-hidden ${
+                `flex items-center ${collapsed ? 'justify-center w-12 h-12 mx-auto p-0' : 'px-4 py-2.5 mx-2'} rounded-xl transition-all duration-150 overflow-hidden ${
                     isActive
                         ? 'bg-[#5B4FDB] text-white'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'

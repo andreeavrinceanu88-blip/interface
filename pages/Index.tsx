@@ -99,7 +99,7 @@ const Index = () => {
         <>
             <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-light dark:text-white mb-2 tracking-tight">Bine ai revenit, {latestMetrics?.nume_admin || profile?.full_name || 'Utilizator'}!</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">Bine ai revenit, {latestMetrics?.nume_admin || profile?.full_name || 'Utilizator'}!</h2>
                 </div>
                 <div className="flex flex-wrap gap-3 relative z-50">
                     <div className="flex items-center gap-2 bg-[#13141a] p-1 rounded-xl border border-white/5 shadow-inner">
@@ -139,41 +139,41 @@ const Index = () => {
                     <div className="widget-sculpted-3d p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
                         <div className="relative z-10">
                             <div className="icon-cart-v3 mb-4"><span className="material-icons-round icon-cart-v3-symbol">shopping_cart</span></div>
-                            <p className="text-xs text-gray-400 font-light mb-1">Comenzi Totale</p>
-                            <h3 className="text-3xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(totalComenzi.toLocaleString())}</h3>
+                            <p className="text-xs text-gray-500 font-medium mb-1">Comenzi Totale</p>
+                            <h3 className="text-3xl font-bold text-gray-900 tracking-tight font-num">{displayValue(totalComenzi.toLocaleString())}</h3>
                         </div>
                     </div>
                     <div className="widget-sculpted-3d p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
                         <div className="relative z-10">
                             <div className="icon-cart-v3 mb-4"><span className="material-icons-round icon-symbol-blue">check_circle</span></div>
-                            <p className="text-xs text-gray-400 font-light mb-1">Coșuri Recuperate</p>
-                            <h3 className="text-3xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(cosuriRecuperate.toLocaleString())}</h3>
+                            <p className="text-xs text-gray-500 font-medium mb-1">Coșuri Recuperate</p>
+                            <h3 className="text-3xl font-bold text-gray-900 tracking-tight font-num">{displayValue(cosuriRecuperate.toLocaleString())}</h3>
                         </div>
                     </div>
                     <div className="widget-sculpted-3d p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
                         <div className="relative z-10">
                             <div className="icon-cart-v3 mb-4"><span className="material-icons-round icon-symbol-emerald">verified</span></div>
-                            <p className="text-xs text-gray-400 font-light mb-1">Comenzi Confirmate</p>
-                            <h3 className="text-3xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(comenziConfirmate.toLocaleString())}</h3>
+                            <p className="text-xs text-gray-500 font-medium mb-1">Comenzi Confirmate</p>
+                            <h3 className="text-3xl font-bold text-gray-900 tracking-tight font-num">{displayValue(comenziConfirmate.toLocaleString())}</h3>
                         </div>
                     </div>
                 </div>
                 {/* 2 sales cards — each col-span-1, aligning with the 2 conversion cards below */}
-                <div className="lg:col-span-1 widget-sculpted-3d p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#001f3f] to-[#006bb3] text-white group hover:-translate-y-1 transition-transform">
+                <div className="lg:col-span-1 widget-sculpted-3d p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-100 group hover:-translate-y-1 transition-transform">
                     <div className="relative z-10 h-full flex flex-col justify-between">
-                        <div className="icon-cart-v3"><span className="material-icons-round icon-symbol-laser-blue">payments</span></div>
+                        <div className="icon-cart-v3 bg-white border border-indigo-100"><span className="material-icons-round icon-symbol-laser-blue">payments</span></div>
                         <div className="mt-3">
-                            <p className="text-xs text-cyan-200 font-light mb-1">Vânzări Generate</p>
-                            <h3 className="text-3xl font-light mt-1 font-num glow-text">{displayValue(metricsLoading && !latestMetrics ? '...' : `${vanzariGenerate.toLocaleString()} RON`)}</h3>
+                            <p className="text-xs text-indigo-700 font-medium mb-1">Vânzări Generate</p>
+                            <h3 className="text-2xl lg:text-3xl font-bold text-indigo-900 tracking-tight font-num">{displayValue(vanzariGenerate.toLocaleString())} RON</h3>
                         </div>
                     </div>
                 </div>
-                <div className="lg:col-span-1 widget-sculpted-3d p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#0d2d1a] to-[#1a5c34] text-white group hover:-translate-y-1 transition-transform">
+                <div className="lg:col-span-1 widget-sculpted-3d p-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-100 group hover:-translate-y-1 transition-transform">
                     <div className="relative z-10 h-full flex flex-col justify-between">
-                        <div className="icon-cart-v3"><span className="material-icons-round icon-symbol-emerald">trending_up</span></div>
+                        <div className="icon-cart-v3 bg-white border border-emerald-100"><span className="material-icons-round icon-symbol-laser-green">trending_up</span></div>
                         <div className="mt-3">
-                            <p className="text-xs text-emerald-200 font-light mb-1">Vânzări Upsell</p>
-                            <h3 className="text-3xl font-light mt-1 font-num glow-text">{displayValue(metricsLoading && !latestMetrics ? '...' : `${vanzariUpsell.toLocaleString()} RON`)}</h3>
+                            <p className="text-xs text-emerald-700 font-medium mb-1">Vânzări Upsell</p>
+                            <h3 className="text-2xl lg:text-3xl font-bold text-emerald-900 tracking-tight font-num">{displayValue(vanzariUpsell.toLocaleString())} RON</h3>
                         </div>
                     </div>
                 </div>
@@ -182,7 +182,7 @@ const Index = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
                 <div className="lg:col-span-2 card-depth p-6 rounded-2xl">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-light dark:text-white tracking-tight">Volum</h3>
+                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">Volum</h3>
                         <div className="flex p-1 bg-surface-dark-lighter rounded-xl border border-white/5">
                             {['day', 'week', 'month'].map((p) => (
                                 <button key={p} onClick={() => setChartPeriod(p as ChartPeriod)} className={`px-4 py-1.5 text-xs rounded-lg transition-colors capitalize ${chartPeriod === p ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
@@ -207,7 +207,7 @@ const Index = () => {
                     </div>
                 </div>
                 <div className="lg:col-span-1 card-depth p-6 rounded-2xl flex flex-col">
-                    <h3 className="text-xl font-light dark:text-white mb-4">Conversie Drafturi</h3>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Conversie Drafturi</h3>
                     <div className="flex-1 flex items-center justify-center">
                         <div className="relative w-48 h-48 flex items-center justify-center">
                             <div style={{ filter: 'drop-shadow(0 0 10px #10b981) drop-shadow(0 0 22px rgba(16,185,129,0.45))' }} className="absolute inset-0">
@@ -216,13 +216,13 @@ const Index = () => {
                                 </ResponsiveContainer>
                             </div>
                             <div className="absolute inset-0 flex items-center justify-center flex-col z-20">
-                                <span className="text-3xl font-light dark:text-white font-num" style={{ textShadow: '0 0 16px rgba(16,185,129,0.7)' }}>{displayValue(draftConversionRate.toFixed(2))}%</span>
+                                <span className="text-3xl font-bold text-gray-900 font-num" style={{ textShadow: '0 0 16px rgba(16,185,129,0.7)' }}>{displayValue(draftConversionRate.toFixed(2))}%</span>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div className="lg:col-span-1 card-depth p-6 rounded-2xl flex flex-col">
-                    <h3 className="text-xl font-light dark:text-white mb-4">Conversie Upsell</h3>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Conversie Upsell</h3>
                     <div className="flex-1 flex items-center justify-center">
                         <div className="relative w-48 h-48 flex items-center justify-center">
                             <div style={{ filter: 'drop-shadow(0 0 10px #00d2ff) drop-shadow(0 0 22px rgba(0,210,255,0.45))' }} className="absolute inset-0">
@@ -231,7 +231,7 @@ const Index = () => {
                                 </ResponsiveContainer>
                             </div>
                             <div className="absolute inset-0 flex items-center justify-center flex-col z-20">
-                                <span className="text-3xl font-light dark:text-white font-num" style={{ textShadow: '0 0 16px rgba(0,210,255,0.7)' }}>{displayValue(conversionRate.toFixed(2))}%</span>
+                                <span className="text-3xl font-bold text-gray-900 font-num" style={{ textShadow: '0 0 16px rgba(0,210,255,0.7)' }}>{displayValue(conversionRate.toFixed(2))}%</span>
                             </div>
                         </div>
                     </div>
@@ -240,19 +240,19 @@ const Index = () => {
 
             <div className="card-depth p-6 rounded-2xl mb-8">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-light dark:text-white tracking-tight">Activitate Recentă</h3>
+                    <h3 className="text-xl font-bold text-gray-900 tracking-tight">Activitate Recentă</h3>
                     <a className="text-sm text-primary hover:text-cyan-300 font-normal flex items-center gap-1 transition-colors" href="/#/call-recordings">Vezi toate<span className="material-icons-round text-base">arrow_forward</span></a>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-xs font-normal text-gray-500 uppercase tracking-wider border-b border-gray-800"><th className="py-4 px-4">ID</th><th className="py-4 px-4">Telefon</th><th className="py-4 px-4">Tip</th><th className="py-4 px-4">Durată</th><th className="py-4 px-4">Dată</th><th className="py-4 px-4 text-right">Înregistrare</th></tr>
+                            <tr className="text-xs font-normal text-gray-500 uppercase tracking-wider border-b border-gray-200"><th className="py-4 px-4">ID</th><th className="py-4 px-4">Telefon</th><th className="py-4 px-4">Tip</th><th className="py-4 px-4">Durată</th><th className="py-4 px-4">Dată</th><th className="py-4 px-4 text-right">Înregistrare</th></tr>
                         </thead>
                         <tbody className="text-sm">
                             {recordingsLoading ? <tr><td colSpan={6} className="py-8 text-center text-gray-500 italic">Se încarcă...</td></tr> :
                                 recentRecordings.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-gray-500 italic">Nicio activitate.</td></tr> :
                                 recentRecordings.map((rec) => (
-                                    <tr key={rec.id} className="group hover:bg-white/5 transition-colors border-b border-gray-800/50 last:border-0">
+                                    <tr key={rec.id} className="group hover:bg-white/5 transition-colors border-b border-gray-200/50 last:border-0">
                                         <td className="py-4 px-4 dark:text-white font-num">{rec.client_personal_id || '-'}</td>
                                         <td className="py-4 px-4 font-light">{rec.phone_number || 'Necunoscut'}</td>
                                         <td className="py-4 px-4"><span className={`px-2 py-0.5 rounded text-[10px] uppercase font-medium ${rec.direction === 'inbound' ? 'text-green-400 bg-green-500/10' : 'text-blue-400 bg-blue-500/10'}`}>{rec.direction === 'inbound' ? 'Primit' : 'Inițiat'}</span></td>
