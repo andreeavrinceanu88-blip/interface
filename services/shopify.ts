@@ -143,3 +143,50 @@ export async function syncOrderStatusWithShopify(storeName: string, draftOrderId
         return false;
     }
 }
+
+export async function syncOrderAddressWithShopify(storeName: string, draftOrderId: string, newAddress: string) {
+    try {
+        const config = getStoreConfig(storeName);
+        const token = await getAccessToken(config);
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': token,
+        };
+        const graphqlUrl = `${config.url}/admin/api/${API_VERSION}/graphql.json`;
+
+        const gid = draftOrderId.includes('gid://') ? draftOrderId : `gid://shopify/DraftOrder/${draftOrderId}`;
+
+        const updateMut = `
+            mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
+                draftOrderUpdate(id: $id, input: $input) {
+                    userErrors { field message }
+                }
+            }
+        `;
+        const res = await fetch(graphqlUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                query: updateMut,
+                variables: {
+                    id: gid,
+                    input: {
+                        shippingAddress: {
+                            address1: newAddress
+                        }
+                    }
+                }
+            })
+        });
+        const data = await res.json();
+        const errors = data?.data?.draftOrderUpdate?.userErrors;
+        if (errors && errors.length > 0) {
+            console.error('Shopify sync address error:', errors);
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error('Shopify Sync Address Error:', err);
+        return false;
+    }
+}

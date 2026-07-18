@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
-import { syncOrderStatusWithShopify } from '../services/shopify';
+import { syncOrderStatusWithShopify, syncOrderAddressWithShopify } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CallStatus = 'ON' | 'OFF';
@@ -94,6 +94,9 @@ const Drafturi = () => {
     const [noteText, setNoteText] = useState('');
     const [savingNote, setSavingNote] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
+    const [addressText, setAddressText] = useState('');
+    const [savingAddress, setSavingAddress] = useState(false);
     const [toast, setToast] = useState<string>('');
 
     // ── Dialer
@@ -248,6 +251,33 @@ const Drafturi = () => {
         if (!nErr) { setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, notes: noteText } : o)); showToast('Notiță salvată'); }
         else { console.error('[SaveNote] error:', nErr); setError('Eroare la salvarea notiței'); showToast('Eroare la salvare'); }
         setSavingNote(false);
+    };
+
+    // ── Save address
+    const handleSaveAddress = async () => {
+        if (!selectedOrder) return;
+        setSavingAddress(true);
+        const newAddress = addressText.trim();
+        const { error: err } = await supabaseAdmin.from('orders').update({ adresa: newAddress }).eq('id', selectedOrder.id);
+        if (!err) {
+            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, adresa: newAddress } : o));
+            showToast('Adresa a fost actualizată');
+            setEditingAddressId(null);
+            
+            // Sync with Shopify if it's a draft order
+            if (selectedOrder.type === 'draft') {
+                const shopifyId = selectedOrder.client_personal_id || selectedOrder.id.toString();
+                const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
+                syncOrderAddressWithShopify(storeName, shopifyId, newAddress).then(success => {
+                    if (success) console.log('Shopify address updated');
+                    else console.error('Failed to update Shopify address');
+                });
+            }
+        } else {
+            console.error('[SaveAddress] error:', err);
+            showToast('Eroare la salvarea adresei');
+        }
+        setSavingAddress(false);
     };
 
     // ── Dialer actions
@@ -490,9 +520,11 @@ const Drafturi = () => {
                                 <div className="grid grid-cols-2 gap-6">
                                     {/* Client Details */}
                                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative">
-                                        <button className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
-                                            <span className="material-icons-round text-[16px]">edit</span> Editează
-                                        </button>
+                                        {editingAddressId !== selectedOrder.id && (
+                                            <button onClick={() => { setEditingAddressId(selectedOrder.id); setAddressText(selectedOrder.adresa || ''); }} className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
+                                                <span className="material-icons-round text-[16px]">edit</span> Editează
+                                            </button>
+                                        )}
                                         <h3 className="text-base font-bold text-gray-900 mb-6">Date client</h3>
                                         
                                         <div className="space-y-4">
@@ -511,10 +543,30 @@ const Drafturi = () => {
                                             <Field label="Email" value="client@email.com" />
                                             <div>
                                                 <p className="text-[12px] text-gray-500 font-medium mb-1">Adresă livrare</p>
-                                                <p className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-line">{selectedOrder.adresa || '—'}</p>
-                                                <p className="text-emerald-600 text-xs font-semibold mt-2 flex items-center gap-1">
-                                                    <span className="material-icons-round text-[14px]">check</span> Adresă completă
-                                                </p>
+                                                {editingAddressId === selectedOrder.id ? (
+                                                    <div className="mt-2 space-y-2 relative z-10">
+                                                        <textarea
+                                                            className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                            rows={3}
+                                                            value={addressText}
+                                                            onChange={(e) => setAddressText(e.target.value)}
+                                                            disabled={savingAddress}
+                                                        />
+                                                        <div className="flex gap-2 justify-end">
+                                                            <button onClick={() => setEditingAddressId(null)} disabled={savingAddress} className="px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">Anulează</button>
+                                                            <button onClick={handleSaveAddress} disabled={savingAddress} className="px-3 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50">
+                                                                {savingAddress ? 'Se salvează...' : 'Salvează'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-line">{selectedOrder.adresa || '—'}</p>
+                                                        <p className="text-emerald-600 text-xs font-semibold mt-2 flex items-center gap-1">
+                                                            <span className="material-icons-round text-[14px]">check</span> Adresă completă
+                                                        </p>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
