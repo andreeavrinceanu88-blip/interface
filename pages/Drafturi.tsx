@@ -98,6 +98,7 @@ const Drafturi = () => {
     const [addressText, setAddressText] = useState('');
     const [savingAddress, setSavingAddress] = useState(false);
     const [toast, setToast] = useState<string>('');
+    const [shopifyNotif, setShopifyNotif] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
@@ -112,6 +113,12 @@ const Drafturi = () => {
     const showToast = (msg: string) => {
         setToast(msg);
         setTimeout(() => setToast(''), 2500);
+    };
+
+    // ── Shopify notification helper
+    const showShopifyNotif = (msg: string, type: 'success' | 'error') => {
+        setShopifyNotif({ msg, type });
+        setTimeout(() => setShopifyNotif(null), 4000);
     };
 
     // ── Init brand
@@ -228,8 +235,8 @@ const Drafturi = () => {
                 // but we can await it if we want to show a toast.
                 syncOrderStatusWithShopify(storeName, shopifyId, newStatus, orderToSync.notes || undefined)
                     .then(success => {
-                        if (success) console.log('Shopify sync success');
-                        else console.error('Shopify sync failed');
+                        if (success) showShopifyNotif('Shopify sincronizat ✓ Tag-ul a fost adăugat', 'success');
+                        else showShopifyNotif('Eroare Shopify — Tag-ul nu a fost sincronizat', 'error');
                     });
             }
 
@@ -269,8 +276,8 @@ const Drafturi = () => {
                 const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
                 const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
                 syncOrderAddressWithShopify(storeName, shopifyId, newAddress).then(success => {
-                    if (success) console.log('Shopify address updated');
-                    else console.error('Failed to update Shopify address');
+                    if (success) showShopifyNotif('Shopify sincronizat ✓ Adresa a fost actualizată', 'success');
+                    else showShopifyNotif('Eroare Shopify — Adresa nu a fost sincronizată', 'error');
                 });
             }
         } else {
@@ -311,6 +318,33 @@ const Drafturi = () => {
             {toast && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm px-5 py-3 rounded-xl shadow-2xl animate-fade-in">
                     {toast}
+                </div>
+            )}
+
+            {/* Shopify Notification Popup */}
+            {shopifyNotif && (
+                <div 
+                    className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-sm transition-all duration-300 animate-fade-in ${
+                        shopifyNotif.type === 'success' 
+                            ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800' 
+                            : 'bg-red-50/95 border-red-200 text-red-800'
+                    }`}
+                    style={{ minWidth: '300px', maxWidth: '420px' }}
+                >
+                    <span className={`material-icons-round text-xl ${
+                        shopifyNotif.type === 'success' ? 'text-emerald-600' : 'text-red-500'
+                    }`}>
+                        {shopifyNotif.type === 'success' ? 'cloud_done' : 'cloud_off'}
+                    </span>
+                    <div className="flex-1">
+                        <p className="text-[13px] font-bold leading-tight">
+                            {shopifyNotif.type === 'success' ? 'Sincronizare reușită' : 'Eroare sincronizare'}
+                        </p>
+                        <p className="text-[12px] font-medium opacity-80 mt-0.5">{shopifyNotif.msg}</p>
+                    </div>
+                    <button onClick={() => setShopifyNotif(null)} className="text-gray-400 hover:text-gray-600 transition-colors ml-1">
+                        <span className="material-icons-round text-[18px]">close</span>
+                    </button>
                 </div>
             )}
 
