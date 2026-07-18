@@ -98,6 +98,37 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true });
         }
 
+        // ── ACTION: update-note ──
+        if (action === 'update-note') {
+            const updateMut = `
+                mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
+                    draftOrderUpdate(id: $id, input: $input) {
+                        draftOrder { id }
+                        userErrors { field message }
+                    }
+                }
+            `;
+            const gqlRes = await fetch(graphqlUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    query: updateMut,
+                    variables: {
+                        id: gid,
+                        input: {
+                            note: note || ''
+                        }
+                    }
+                })
+            });
+            const gqlData = await gqlRes.json();
+            const errors = gqlData?.data?.draftOrderUpdate?.userErrors;
+            if (errors && errors.length > 0) {
+                return res.status(400).json({ success: false, errors });
+            }
+            return res.status(200).json({ success: true });
+        }
+
         // ── ACTION: update-status ──
         if (action === 'update-status') {
             // 1. Get current tags

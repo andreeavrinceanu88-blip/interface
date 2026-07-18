@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
-import { syncOrderStatusWithShopify, syncOrderAddressWithShopify } from '../services/shopify';
+import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CallStatus = 'ON' | 'OFF';
@@ -255,8 +255,24 @@ const Drafturi = () => {
         if (!selectedOrder) return;
         setSavingNote(true);
         const { error: nErr } = await supabaseAdmin.from('orders').update({ notes: noteText }).eq('id', selectedOrder.id);
-        if (!nErr) { setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, notes: noteText } : o)); showToast('Notiță salvată'); }
-        else { console.error('[SaveNote] error:', nErr); setError('Eroare la salvarea notiței'); showToast('Eroare la salvare'); }
+        if (!nErr) {
+            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, notes: noteText } : o));
+            showToast('Notiță salvată');
+
+            // Sync with Shopify
+            if (selectedOrder.type === 'draft') {
+                const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
+                const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
+                syncOrderNoteWithShopify(storeName, shopifyId, noteText).then(success => {
+                    if (success) showShopifyNotif('Shopify sincronizat ✓ Notița a fost actualizată', 'success');
+                    else showShopifyNotif('Eroare Shopify — Notița nu a fost sincronizată', 'error');
+                });
+            }
+        } else {
+            console.error('[SaveNote] error:', nErr);
+            setError('Eroare la salvarea notiței');
+            showToast('Eroare la salvare');
+        }
         setSavingNote(false);
     };
 

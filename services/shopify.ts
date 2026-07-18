@@ -55,3 +55,29 @@ export async function syncOrderAddressWithShopify(storeName: string, orderId: st
         return false;
     }
 }
+
+export async function syncOrderNoteWithShopify(storeName: string, orderId: string, noteText: string): Promise<boolean> {
+    try {
+        const res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update-note',
+                storeName,
+                orderId,
+                note: noteText,
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            console.log('Shopify note sync success');
+            return true;
+        } else {
+            console.error('Shopify note sync failed:', data);
+            return false;
+        }
+    } catch (err) {
+        console.error('Shopify note sync error:', err);
+        return false;
+    }
+}
