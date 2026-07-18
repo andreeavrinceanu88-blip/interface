@@ -222,7 +222,7 @@ const Drafturi = () => {
             // Sync with Shopify
             const orderToSync = orders.find(o => o.id === orderId);
             if (orderToSync) {
-                const shopifyId = orderToSync.client_personal_id || orderToSync.id.toString();
+                const shopifyId = orderToSync.order_id || orderToSync.id.toString();
                 const storeName = orderToSync.store_name || selectedBrand || 'Tamtrend';
                 // We call it in the background to not block the UI completely, 
                 // but we can await it if we want to show a toast.
@@ -266,7 +266,7 @@ const Drafturi = () => {
             
             // Sync with Shopify if it's a draft order
             if (selectedOrder.type === 'draft') {
-                const shopifyId = selectedOrder.client_personal_id || selectedOrder.id.toString();
+                const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
                 const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
                 syncOrderAddressWithShopify(storeName, shopifyId, newAddress).then(success => {
                     if (success) console.log('Shopify address updated');
