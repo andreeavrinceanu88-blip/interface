@@ -511,7 +511,11 @@ const Drafturi = () => {
                                 >
                                     <div className="flex justify-between items-start mb-2">
                                         <span className="text-xs font-semibold text-gray-400">#{order.id} <span className="font-normal ml-1 text-gray-400">{fmtDate(order.created_at).split(',')[0]}</span></span>
-                                        {order.status === 'ON' && <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-[#FFF8D6] text-amber-700 tracking-wide">NOU</span>}
+                                        {(!order.cerere_adresa || order.cerere_adresa.trim() === '' || order.cerere_adresa.trim() === '-') ? (
+                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-700 tracking-wide border border-emerald-200" title="Adresă corectă">ADRESĂ OK</span>
+                                        ) : (
+                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-red-50 text-red-700 tracking-wide border border-red-200" title={`Adresă greșită: ${order.cerere_adresa}`}>ADRESĂ GREȘITĂ</span>
+                                        )}
                                     </div>
                                     <div className="flex justify-between items-center mb-1.5">
                                         <p className="text-base font-bold text-gray-900 leading-tight truncate pr-2">{order.name || 'Client Nou'}</p>
