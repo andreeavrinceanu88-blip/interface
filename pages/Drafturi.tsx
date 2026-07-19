@@ -26,6 +26,7 @@ interface Order {
     health: string;
     istoric: string;
     client_personal_id: string;
+    email: string;
 }
 
 const TABS: { id: string; label: string }[] = [
@@ -590,7 +591,7 @@ const Drafturi = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            <Field label="Email" value="client@email.com" />
+                                            <Field label="Email" value={selectedOrder.email || 'nespecificat'} />
                                             <div>
                                                 <p className="text-[12px] text-gray-500 font-medium mb-1">Adresă livrare</p>
                                                 {editingAddressId === selectedOrder.id ? (
