@@ -311,7 +311,7 @@ const Drafturi = () => {
         if (callState === 'idle') {
             if (!clientRef.current) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
             try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { alert('Este nevoie de acces la microfon pentru a suna!'); return; }
-            const callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40775393060';
+            const callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40751064714';
             try { callRef.current = clientRef.current.newCall({ destinationNumber: phoneNumber, callerNumber: callerId, audio: true, video: false }); setCallState('calling'); }
             catch (err) { console.error('Call failed', err); alert('A apărut o eroare la inițierea apelului.'); }
         } else {
