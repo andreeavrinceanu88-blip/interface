@@ -678,7 +678,7 @@ const Drafturi = () => {
                                     </div>
 
                                     {/* Order Details */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative">
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
                                         <button className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
                                             <span className="material-icons-round text-[16px]">edit</span> Editează
                                         </button>
@@ -708,7 +708,7 @@ const Drafturi = () => {
                                 {/* Products + Actions Row */}
                                 <div className="grid grid-cols-2 gap-6">
                                     {/* Products */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative">
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
                                         {!editingProducts && (
                                             <button 
                                                 onClick={() => {
@@ -867,9 +867,9 @@ const Drafturi = () => {
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                                        <h3 className="text-base font-bold text-gray-900 mb-6">Acțiuni rapide</h3>
-                                        <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                                        <h3 className="text-base font-bold text-gray-900 mb-5">Acțiuni rapide</h3>
+                                        <div className="flex flex-col gap-3">
                                             {QUICK_ACTIONS.map(action => (
                                                 <button
                                                     key={action.id}
@@ -886,7 +886,7 @@ const Drafturi = () => {
                                 </div>
                                 
                                 {/* Notes */}
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                                     <h3 className="text-base font-bold text-gray-900 mb-4">Notițe apel</h3>
                                     <textarea
                                         value={noteText}
