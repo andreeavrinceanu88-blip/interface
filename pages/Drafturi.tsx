@@ -160,7 +160,8 @@ const Drafturi = () => {
     const [phoneNumber, setPhoneNumber] = useState('');
     const clientRef = useRef<any>(null);
     const callRef = useRef<any>(null);
-    const audioRef = useRef<HTMLAudioElement>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const ringbackAudioRef = useRef<HTMLAudioElement | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
     const [callState, setCallState] = useState<'idle' | 'calling' | 'active'>('idle');
 
@@ -194,9 +195,16 @@ const Drafturi = () => {
             client.on('telnyx.notification', (notification: any) => {
                 const call = notification.call;
                 if (notification.type === 'callUpdate') {
-                    if (call.state === 'ringing') setCallState('calling');
+                    if (call.state === 'ringing') {
+                        setCallState('calling');
+                        if (ringbackAudioRef.current) ringbackAudioRef.current.play().catch(() => {});
+                    }
                     else if (call.state === 'active') {
                         setCallState('active');
+                        if (ringbackAudioRef.current) {
+                            ringbackAudioRef.current.pause();
+                            ringbackAudioRef.current.currentTime = 0;
+                        }
                         if (audioRef.current && call.remoteStream) {
                             audioRef.current.srcObject = call.remoteStream;
                             audioRef.current.play().catch(() => {});
@@ -204,6 +212,10 @@ const Drafturi = () => {
                     } else if (call.state === 'destroy') {
                         setCallState('idle');
                         callRef.current = null;
+                        if (ringbackAudioRef.current) {
+                            ringbackAudioRef.current.pause();
+                            ringbackAudioRef.current.currentTime = 0;
+                        }
                         if (audioRef.current) audioRef.current.srcObject = null;
                     }
                 }
@@ -388,6 +400,10 @@ const Drafturi = () => {
         } else {
             if (callRef.current) callRef.current.hangup();
             setCallState('idle');
+            if (ringbackAudioRef.current) {
+                ringbackAudioRef.current.pause();
+                ringbackAudioRef.current.currentTime = 0;
+            }
         }
     };
 
@@ -400,6 +416,7 @@ const Drafturi = () => {
     return (
         <div className="flex flex-col h-full overflow-hidden bg-[#F9FAFB] text-gray-900 rounded-tl-3xl shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-t border-gray-200 absolute inset-0 pt-6 px-6">
             <audio ref={audioRef} style={{ display: 'none' }} />
+            <audio ref={ringbackAudioRef} src="https://upload.wikimedia.org/wikipedia/commons/c/c4/European_ringback_tone.ogg" loop style={{ display: 'none' }} />
 
             {/* Toast */}
             {toast && (
