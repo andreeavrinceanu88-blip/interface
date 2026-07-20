@@ -710,7 +710,7 @@ const Drafturi = () => {
                                 <div className="grid grid-cols-2 gap-6">
                                     {/* Products */}
                                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative">
-                                        {!editingProducts && selectedOrder.type === 'draft' && (
+                                        {!editingProducts && (
                                             <button 
                                                 onClick={() => {
                                                     const items = parseProduse(selectedOrder.produse);
