@@ -169,3 +169,46 @@ export async function getProductImages(storeName: string, productIds: number[]):
         return null;
     }
 }
+
+export async function getAllProducts(storeName: string): Promise<any[] | null> {
+    try {
+        const res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get-all-products', storeName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            return data.products;
+        }
+        console.error('Failed to get all products:', data);
+        return null;
+    } catch (err) {
+        console.error('Error in getAllProducts:', err);
+        return null;
+    }
+}
+
+export async function updateShopifyLineItemsBulk(storeName: string, orderId: number | string, items: { variant_id: number | string, quantity: number }[]): Promise<any | null> {
+    try {
+        const res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update-draft-order-line-items',
+                storeName,
+                orderId,
+                items
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            return data.draftOrder;
+        }
+        console.error('Failed to update line items in bulk:', data);
+        return null;
+    } catch (err) {
+        console.error('Error in updateShopifyLineItemsBulk:', err);
+        return null;
+    }
+}

@@ -103,6 +103,44 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, images });
         }
 
+        // ── ACTION: get-all-products (no orderId needed) ──
+        if (action === 'get-all-products') {
+            const query = `
+                query getAllProducts {
+                    products(first: 50, query: "status:active") {
+                        edges {
+                            node {
+                                id
+                                title
+                                featuredImage { url altText }
+                                variants(first: 50) {
+                                    edges {
+                                        node {
+                                            id
+                                            title
+                                            price
+                                            sku
+                                            inventoryQuantity
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            `;
+            const gqlRes = await fetch(graphqlUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ query })
+            });
+            const gqlData = await gqlRes.json();
+            if (gqlData.errors) return res.status(500).json({ error: gqlData.errors });
+            
+            const products = gqlData.data.products.edges.map(e => e.node);
+            return res.status(200).json({ success: true, products });
+        }
+
         if (!orderId) {
             return res.status(400).json({ error: 'orderId is required for this action' });
         }
@@ -364,6 +402,62 @@ export default async function handler(req, res) {
                 currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'RON',
             })) || [];
             return res.status(200).json({ success: true, lineItems: resultItems });
+        }
+
+        // ── ACTION: update-draft-order-line-items ──
+        if (action === 'update-draft-order-line-items') {
+            const { items } = req.body;
+            if (!items || !Array.isArray(items)) {
+                return res.status(400).json({ error: 'items array is required' });
+            }
+            
+            const mutation = `
+                mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
+                    draftOrderUpdate(id: $id, input: $input) {
+                        draftOrder {
+                            id
+                            lineItems(first: 50) {
+                                edges {
+                                    node {
+                                        id
+                                        title
+                                        quantity
+                                        originalUnitPriceSet { presentmentMoney { amount } }
+                                        variant { id product { id } }
+                                    }
+                                }
+                            }
+                        }
+                        userErrors { field message }
+                    }
+                }
+            `;
+            
+            const lineItemsInput = items.map(item => {
+                const variantGid = String(item.variant_id).includes('gid://') ? item.variant_id : `gid://shopify/ProductVariant/${item.variant_id}`;
+                return {
+                    variantId: variantGid,
+                    quantity: item.quantity
+                };
+            });
+
+            const gqlRes = await fetch(graphqlUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    query: mutation,
+                    variables: {
+                        id: gid,
+                        input: { lineItems: lineItemsInput }
+                    }
+                })
+            });
+            const gqlData = await gqlRes.json();
+            const errors = gqlData?.data?.draftOrderUpdate?.userErrors;
+            if (errors && errors.length > 0) {
+                return res.status(400).json({ success: false, errors });
+            }
+            return res.status(200).json({ success: true, draftOrder: gqlData?.data?.draftOrderUpdate?.draftOrder });
         }
 
         return res.status(400).json({ error: `Unknown action: ${action}` });

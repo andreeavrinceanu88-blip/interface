@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
-import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages } from '../services/shopify';
+import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages, getAllProducts, updateShopifyLineItemsBulk } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CallStatus = 'ON' | 'OFF';
@@ -151,9 +151,13 @@ const Drafturi = () => {
 
     // ── Product editing
     const [editingProducts, setEditingProducts] = useState(false);
-    const [editedQuantities, setEditedQuantities] = useState<Record<string, number>>({});
+    const [editedProductsList, setEditedProductsList] = useState<any[]>([]);
     const [savingProducts, setSavingProducts] = useState(false);
     const [productImages, setProductImages] = useState<Record<string, string | null>>({});
+
+    const [showAddProductModal, setShowAddProductModal] = useState(false);
+    const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+    const [loadingProducts, setLoadingProducts] = useState(false);
 
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
@@ -777,9 +781,7 @@ const Drafturi = () => {
                                                         return;
                                                     }
                                                     setEditingProducts(true);
-                                                    const qMap: Record<string, number> = {};
-                                                    items.forEach(it => { qMap[String(it.variant_id)] = it.quantity; });
-                                                    setEditedQuantities(qMap);
+                                                    setEditedProductsList([...items]);
                                                 }}
                                                 className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1"
                                             >
@@ -789,7 +791,7 @@ const Drafturi = () => {
                                         {editingProducts && (
                                             <div className="absolute top-6 right-6 flex gap-2">
                                                 <button 
-                                                    onClick={() => { setEditingProducts(false); setEditedQuantities({}); }}
+                                                    onClick={() => { setEditingProducts(false); setEditedProductsList([]); }}
                                                     className="text-gray-500 hover:text-gray-700 text-sm font-semibold flex items-center gap-1"
                                                 >
                                                     <span className="material-icons-round text-[16px]">close</span> Anulează
@@ -798,13 +800,8 @@ const Drafturi = () => {
                                                     disabled={savingProducts}
                                                     onClick={async () => {
                                                         setSavingProducts(true);
-                                                        const items = parseProduse(selectedOrder.produse);
-                                                        // Update JSON with new quantities
-                                                        const updatedJson = items.map(it => ({
-                                                            ...it,
-                                                            quantity: editedQuantities[String(it.variant_id)] ?? it.quantity,
-                                                        }));
-                                                        const newProduse = JSON.stringify(updatedJson);
+                                                        
+                                                        const newProduse = JSON.stringify(editedProductsList);
                                                         
                                                         // Save to Supabase
                                                         const { error: dbErr } = await supabaseAdmin.from('orders').update({ produse: newProduse }).eq('id', selectedOrder.id);
@@ -818,15 +815,17 @@ const Drafturi = () => {
                                                         // Sync to Shopify
                                                         const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
                                                         const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
-                                                        const shopifyItems = updatedJson.map(it => ({
-                                                            variantId: `gid://shopify/ProductVariant/${it.variant_id}`,
+                                                        
+                                                        const shopifyItems = editedProductsList.map(it => ({
+                                                            variant_id: it.variant_id,
                                                             quantity: it.quantity,
                                                         }));
-                                                        const result = await updateShopifyLineItemQuantity(storeName, shopifyId, shopifyItems);
+                                                        
+                                                        const result = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems);
                                                         if (result) {
-                                                            showShopifyNotif('Shopify sincronizat ✓ Cantitățile au fost actualizate', 'success');
+                                                            showShopifyNotif('Shopify sincronizat ✓ Lista a fost actualizată', 'success');
                                                         } else {
-                                                            showShopifyNotif('Eroare Shopify — Cantitățile nu au fost sincronizate', 'error');
+                                                            showShopifyNotif('Eroare Shopify — Produsele nu au fost sincronizate', 'error');
                                                         }
                                                         
                                                         setSavingProducts(false);
@@ -837,12 +836,27 @@ const Drafturi = () => {
                                                     <span className="material-icons-round text-[16px]">save</span>
                                                     {savingProducts ? 'Se salvează...' : 'Salvează'}
                                                 </button>
+
+                                                <button 
+                                                    onClick={async () => {
+                                                        const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
+                                                        setLoadingProducts(true);
+                                                        setShowAddProductModal(true);
+                                                        const prods = await getAllProducts(storeName);
+                                                        if (prods) setAvailableProducts(prods);
+                                                        setLoadingProducts(false);
+                                                    }}
+                                                    className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg flex items-center gap-1 ml-2 transition-colors"
+                                                >
+                                                    <span className="material-icons-round text-[16px]">add</span>
+                                                    Adaugă produs
+                                                </button>
                                             </div>
                                         )}
                                         <h3 className="text-base font-bold text-gray-900 mb-6">Produse comandate</h3>
                                         
                                         {(() => {
-                                            const items = parseProduse(selectedOrder.produse);
+                                            const items = editingProducts ? editedProductsList : parseProduse(selectedOrder.produse);
                                             if (items.length === 0) {
                                                 return (
                                                     <div className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed">
@@ -852,11 +866,12 @@ const Drafturi = () => {
                                             }
                                             return (
                                                 <div className="space-y-3">
-                                                    {items.map((item) => {
-                                                        const qty = editingProducts ? (editedQuantities[String(item.variant_id)] ?? item.quantity) : item.quantity;
+                                                    {items.map((item, idx) => {
+                                                        const qty = item.quantity;
                                                         const price = parseFloat(item.price);
+                                                        const canRemove = editedProductsList.length > 1;
                                                         return (
-                                                            <div key={item.id} className="flex items-center gap-4 bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                                            <div key={item.id || idx} className="flex items-center gap-4 bg-gray-50 rounded-xl p-4 border border-gray-200">
                                                                 {/* Product Image */}
                                                                 <div className="w-16 h-16 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
                                                                     {productImages[String(item.product_id)] ? (
@@ -874,34 +889,54 @@ const Drafturi = () => {
                                                                     <p className="text-sm text-gray-500">{price.toFixed(2)} lei / buc{item.sku ? ` · ${item.sku}` : ''}</p>
                                                                 </div>
                                                                 {editingProducts ? (
-                                                                    <div className="flex items-center gap-2 shrink-0">
+                                                                    <div className="flex items-center gap-4 shrink-0">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <button 
+                                                                                onClick={() => {
+                                                                                    if (qty > 1) {
+                                                                                        const newList = [...editedProductsList];
+                                                                                        newList[idx] = { ...newList[idx], quantity: qty - 1 };
+                                                                                        setEditedProductsList(newList);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
+                                                                            >
+                                                                                −
+                                                                            </button>
+                                                                            <input 
+                                                                                type="number" 
+                                                                                min={1}
+                                                                                value={qty}
+                                                                                onChange={(e) => {
+                                                                                    const val = parseInt(e.target.value);
+                                                                                    if (!isNaN(val) && val >= 1) {
+                                                                                        const newList = [...editedProductsList];
+                                                                                        newList[idx] = { ...newList[idx], quantity: val };
+                                                                                        setEditedProductsList(newList);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-14 h-10 text-center text-base font-bold text-gray-900 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                                                                            />
+                                                                            <button 
+                                                                                onClick={() => {
+                                                                                    const newList = [...editedProductsList];
+                                                                                    newList[idx] = { ...newList[idx], quantity: qty + 1 };
+                                                                                    setEditedProductsList(newList);
+                                                                                }}
+                                                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
+                                                                            >
+                                                                                +
+                                                                            </button>
+                                                                        </div>
                                                                         <button 
                                                                             onClick={() => {
-                                                                                const cur = editedQuantities[String(item.variant_id)] ?? item.quantity;
-                                                                                if (cur > 1) setEditedQuantities(prev => ({ ...prev, [String(item.variant_id)]: cur - 1 }));
+                                                                                if (!canRemove) return;
+                                                                                setEditedProductsList(prev => prev.filter((_, i) => i !== idx));
                                                                             }}
-                                                                            className="w-10 h-10 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
+                                                                            disabled={!canRemove}
+                                                                            className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors ${canRemove ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
                                                                         >
-                                                                            −
-                                                                        </button>
-                                                                        <input 
-                                                                            type="number" 
-                                                                            min={1}
-                                                                            value={qty}
-                                                                            onChange={(e) => {
-                                                                                const val = parseInt(e.target.value);
-                                                                                if (!isNaN(val) && val >= 1) setEditedQuantities(prev => ({ ...prev, [String(item.variant_id)]: val }));
-                                                                            }}
-                                                                            className="w-14 h-10 text-center text-base font-bold text-gray-900 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
-                                                                        />
-                                                                        <button 
-                                                                            onClick={() => {
-                                                                                const cur = editedQuantities[String(item.variant_id)] ?? item.quantity;
-                                                                                setEditedQuantities(prev => ({ ...prev, [String(item.variant_id)]: cur + 1 }));
-                                                                            }}
-                                                                            className="w-10 h-10 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
-                                                                        >
-                                                                            +
+                                                                            <span className="material-icons-round text-[20px]">delete</span>
                                                                         </button>
                                                                     </div>
                                                                 ) : (
@@ -1017,6 +1052,90 @@ const Drafturi = () => {
                     )}
                 </div>
             </div>
+            
+            {/* Add Product Modal */}
+            {showAddProductModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+                            <h2 className="text-lg font-bold text-gray-900">Adaugă produs în comandă</h2>
+                            <button 
+                                onClick={() => setShowAddProductModal(false)}
+                                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 transition-colors"
+                            >
+                                <span className="material-icons-round text-[20px]">close</span>
+                            </button>
+                        </div>
+                        <div className="p-5 overflow-y-auto flex-1 bg-white">
+                            {loadingProducts ? (
+                                <div className="py-12 flex flex-col items-center justify-center gap-3">
+                                    <span className="material-icons-round text-indigo-500 animate-spin text-3xl">autorenew</span>
+                                    <p className="text-sm font-medium text-gray-500">Se încarcă produsele...</p>
+                                </div>
+                            ) : availableProducts.length === 0 ? (
+                                <div className="py-12 text-center">
+                                    <p className="text-gray-500 font-medium">Nu s-au găsit produse active.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {availableProducts.map(prod => (
+                                        prod.variants?.edges?.map((vEdge: any) => {
+                                            const variant = vEdge.node;
+                                            const imgUrl = prod.featuredImage?.url;
+                                            const price = parseFloat(variant.price || '0');
+                                            
+                                            return (
+                                                <div key={variant.id} className="flex items-center gap-4 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl p-3 border border-gray-200">
+                                                    <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                                        {imgUrl ? (
+                                                            <img src={imgUrl} alt={prod.title} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="material-icons-round text-gray-300 text-xl">inventory_2</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-semibold text-gray-900 truncate">{prod.title}</p>
+                                                        <p className="text-xs text-gray-500 truncate">{variant.title !== 'Default Title' ? variant.title : ''} • {price.toFixed(2)} lei</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditedProductsList(prev => {
+                                                                const numVariantId = variant.id.split('/').pop();
+                                                                const numProdId = prod.id.split('/').pop();
+                                                                // Check if exists
+                                                                const existingIdx = prev.findIndex(p => String(p.variant_id) === numVariantId);
+                                                                if (existingIdx >= 0) {
+                                                                    const copy = [...prev];
+                                                                    copy[existingIdx].quantity += 1;
+                                                                    return copy;
+                                                                }
+                                                                // Add new
+                                                                return [...prev, {
+                                                                    id: Date.now(), // temporary id
+                                                                    product_id: parseInt(numProdId),
+                                                                    variant_id: parseInt(numVariantId),
+                                                                    title: prod.title + (variant.title !== 'Default Title' ? ` - ${variant.title}` : ''),
+                                                                    quantity: 1,
+                                                                    price: price.toString(),
+                                                                    sku: variant.sku || ''
+                                                                }];
+                                                            });
+                                                            setShowAddProductModal(false);
+                                                        }}
+                                                        className="shrink-0 bg-white border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 text-sm font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
+                                                    >
+                                                        <span className="material-icons-round text-[16px]">add</span> Adaugă
+                                                    </button>
+                                                </div>
+                                            );
+                                        })
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
