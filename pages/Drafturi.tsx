@@ -798,9 +798,9 @@ const Drafturi = () => {
                                                         const qty = editingProducts ? (editedQuantities[String(item.variant_id)] ?? item.quantity) : item.quantity;
                                                         const price = parseFloat(item.price);
                                                         return (
-                                                            <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-200">
+                                                            <div key={item.id} className="flex items-center gap-4 bg-gray-50 rounded-xl p-4 border border-gray-200">
                                                                 {/* Product Image */}
-                                                                <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                                                <div className="w-16 h-16 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
                                                                     {productImages[String(item.product_id)] ? (
                                                                         <img 
                                                                             src={productImages[String(item.product_id)]!} 
@@ -808,21 +808,21 @@ const Drafturi = () => {
                                                                             className="w-full h-full object-cover"
                                                                         />
                                                                     ) : (
-                                                                        <span className="material-icons-round text-gray-300 text-xl">inventory_2</span>
+                                                                        <span className="material-icons-round text-gray-300 text-2xl">inventory_2</span>
                                                                     )}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className="text-sm font-semibold text-gray-900 truncate">{item.title}</p>
-                                                                    <p className="text-xs text-gray-500">{price.toFixed(2)} lei / buc{item.sku ? ` · ${item.sku}` : ''}</p>
+                                                                    <p className="text-base font-semibold text-gray-900 truncate">{item.title}</p>
+                                                                    <p className="text-sm text-gray-500">{price.toFixed(2)} lei / buc{item.sku ? ` · ${item.sku}` : ''}</p>
                                                                 </div>
                                                                 {editingProducts ? (
-                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                    <div className="flex items-center gap-2 shrink-0">
                                                                         <button 
                                                                             onClick={() => {
                                                                                 const cur = editedQuantities[String(item.variant_id)] ?? item.quantity;
                                                                                 if (cur > 1) setEditedQuantities(prev => ({ ...prev, [String(item.variant_id)]: cur - 1 }));
                                                                             }}
-                                                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
+                                                                            className="w-10 h-10 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
                                                                         >
                                                                             −
                                                                         </button>
@@ -834,22 +834,22 @@ const Drafturi = () => {
                                                                                 const val = parseInt(e.target.value);
                                                                                 if (!isNaN(val) && val >= 1) setEditedQuantities(prev => ({ ...prev, [String(item.variant_id)]: val }));
                                                                             }}
-                                                                            className="w-12 h-8 text-center text-sm font-bold text-gray-900 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                                                                            className="w-14 h-10 text-center text-base font-bold text-gray-900 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
                                                                         />
                                                                         <button 
                                                                             onClick={() => {
                                                                                 const cur = editedQuantities[String(item.variant_id)] ?? item.quantity;
                                                                                 setEditedQuantities(prev => ({ ...prev, [String(item.variant_id)]: cur + 1 }));
                                                                             }}
-                                                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
+                                                                            className="w-10 h-10 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
                                                                         >
                                                                             +
                                                                         </button>
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-sm font-semibold text-gray-600 shrink-0">x{qty}</span>
+                                                                    <span className="text-base font-semibold text-gray-600 shrink-0 px-2">x{qty}</span>
                                                                 )}
-                                                                <span className="text-sm font-bold text-indigo-600 w-20 text-right">
+                                                                <span className="text-base font-bold text-indigo-600 w-24 text-right">
                                                                     {(price * qty).toFixed(2)} lei
                                                                 </span>
                                                             </div>
