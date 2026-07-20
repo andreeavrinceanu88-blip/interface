@@ -203,6 +203,126 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true });
         }
 
+        // ── ACTION: get-line-items ──
+        if (action === 'get-line-items') {
+            const query = `
+                query getDraftOrderLineItems($id: ID!) {
+                    draftOrder(id: $id) {
+                        id
+                        name
+                        lineItems(first: 50) {
+                            edges {
+                                node {
+                                    id
+                                    title
+                                    quantity
+                                    variant {
+                                        id
+                                        title
+                                        price
+                                    }
+                                    originalUnitPriceSet {
+                                        shopMoney {
+                                            amount
+                                            currencyCode
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            `;
+            const gqlRes = await fetch(graphqlUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ query, variables: { id: gid } })
+            });
+            const gqlData = await gqlRes.json();
+            const draftOrder = gqlData?.data?.draftOrder;
+            if (!draftOrder) {
+                return res.status(404).json({ success: false, error: 'Draft order not found' });
+            }
+            const lineItems = draftOrder.lineItems.edges.map(e => ({
+                id: e.node.id,
+                title: e.node.title,
+                quantity: e.node.quantity,
+                variantId: e.node.variant?.id || null,
+                variantTitle: e.node.variant?.title || null,
+                price: e.node.originalUnitPriceSet?.shopMoney?.amount || '0',
+                currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'RON',
+            }));
+            return res.status(200).json({ success: true, lineItems, draftName: draftOrder.name });
+        }
+
+        // ── ACTION: update-line-item-quantity ──
+        if (action === 'update-line-item-quantity') {
+            const { lineItems: updatedLineItems } = req.body;
+            if (!updatedLineItems || !Array.isArray(updatedLineItems)) {
+                return res.status(400).json({ error: 'lineItems array is required' });
+            }
+
+            // Build the line items input for the mutation
+            // We need to use draftOrderUpdate with the full line items list
+            const lineItemsInput = updatedLineItems.map(item => ({
+                variantId: item.variantId,
+                quantity: item.quantity,
+            }));
+
+            const updateMut = `
+                mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
+                    draftOrderUpdate(id: $id, input: $input) {
+                        draftOrder {
+                            id
+                            lineItems(first: 50) {
+                                edges {
+                                    node {
+                                        id
+                                        title
+                                        quantity
+                                        variant { id title price }
+                                        originalUnitPriceSet {
+                                            shopMoney { amount currencyCode }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        userErrors { field message }
+                    }
+                }
+            `;
+            const gqlRes = await fetch(graphqlUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    query: updateMut,
+                    variables: {
+                        id: gid,
+                        input: {
+                            lineItems: lineItemsInput
+                        }
+                    }
+                })
+            });
+            const gqlData = await gqlRes.json();
+            const errors = gqlData?.data?.draftOrderUpdate?.userErrors;
+            if (errors && errors.length > 0) {
+                return res.status(400).json({ success: false, errors });
+            }
+            const updatedDraft = gqlData?.data?.draftOrderUpdate?.draftOrder;
+            const resultItems = updatedDraft?.lineItems?.edges?.map(e => ({
+                id: e.node.id,
+                title: e.node.title,
+                quantity: e.node.quantity,
+                variantId: e.node.variant?.id || null,
+                variantTitle: e.node.variant?.title || null,
+                price: e.node.originalUnitPriceSet?.shopMoney?.amount || '0',
+                currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'RON',
+            })) || [];
+            return res.status(200).json({ success: true, lineItems: resultItems });
+        }
+
         return res.status(400).json({ error: `Unknown action: ${action}` });
 
     } catch (err) {

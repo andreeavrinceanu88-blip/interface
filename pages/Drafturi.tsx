@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
-import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify } from '../services/shopify';
+import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, getShopifyLineItems, updateShopifyLineItemQuantity, ShopifyLineItem } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CallStatus = 'ON' | 'OFF';
@@ -100,6 +100,13 @@ const Drafturi = () => {
     const [savingAddress, setSavingAddress] = useState(false);
     const [toast, setToast] = useState<string>('');
     const [shopifyNotif, setShopifyNotif] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+    // ── Product editing
+    const [editingProducts, setEditingProducts] = useState(false);
+    const [lineItems, setLineItems] = useState<ShopifyLineItem[]>([]);
+    const [editedQuantities, setEditedQuantities] = useState<Record<string, number>>({});
+    const [loadingLineItems, setLoadingLineItems] = useState(false);
+    const [savingProducts, setSavingProducts] = useState(false);
 
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
@@ -659,14 +666,134 @@ const Drafturi = () => {
                                 <div className="grid grid-cols-2 gap-6">
                                     {/* Products */}
                                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative">
-                                        <button className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
-                                            <span className="material-icons-round text-[16px]">edit</span> Editează produse
-                                        </button>
+                                        {!editingProducts && selectedOrder.type === 'draft' && (
+                                            <button 
+                                                onClick={async () => {
+                                                    setEditingProducts(true);
+                                                    setLoadingLineItems(true);
+                                                    const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
+                                                    const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
+                                                    const items = await getShopifyLineItems(storeName, shopifyId);
+                                                    if (items) {
+                                                        setLineItems(items);
+                                                        const qMap: Record<string, number> = {};
+                                                        items.forEach(it => { if (it.variantId) qMap[it.variantId] = it.quantity; });
+                                                        setEditedQuantities(qMap);
+                                                    } else {
+                                                        showShopifyNotif('Nu am putut încărca produsele din Shopify', 'error');
+                                                        setEditingProducts(false);
+                                                    }
+                                                    setLoadingLineItems(false);
+                                                }}
+                                                className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1"
+                                            >
+                                                <span className="material-icons-round text-[16px]">edit</span> Editează produse
+                                            </button>
+                                        )}
+                                        {editingProducts && (
+                                            <div className="absolute top-6 right-6 flex gap-2">
+                                                <button 
+                                                    onClick={() => { setEditingProducts(false); setLineItems([]); setEditedQuantities({}); }}
+                                                    className="text-gray-500 hover:text-gray-700 text-sm font-semibold flex items-center gap-1"
+                                                >
+                                                    <span className="material-icons-round text-[16px]">close</span> Anulează
+                                                </button>
+                                                <button 
+                                                    disabled={savingProducts}
+                                                    onClick={async () => {
+                                                        setSavingProducts(true);
+                                                        const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
+                                                        const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
+                                                        const updatedItems = lineItems.filter(it => it.variantId).map(it => ({
+                                                            variantId: it.variantId!,
+                                                            quantity: editedQuantities[it.variantId!] ?? it.quantity,
+                                                        }));
+                                                        const result = await updateShopifyLineItemQuantity(storeName, shopifyId, updatedItems);
+                                                        if (result) {
+                                                            showShopifyNotif('Shopify sincronizat ✓ Cantitățile au fost actualizate', 'success');
+                                                            // Update local produse string
+                                                            const newProduse = result.map(it => `${it.title} x ${it.quantity}`).join('\n');
+                                                            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, produse: newProduse } : o));
+                                                            // Also update in Supabase
+                                                            await supabaseAdmin.from('orders').update({ produse: newProduse }).eq('id', selectedOrder.id);
+                                                            setLineItems(result);
+                                                        } else {
+                                                            showShopifyNotif('Eroare Shopify — Cantitățile nu au fost actualizate', 'error');
+                                                        }
+                                                        setSavingProducts(false);
+                                                        setEditingProducts(false);
+                                                    }}
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50"
+                                                >
+                                                    <span className="material-icons-round text-[16px]">save</span>
+                                                    {savingProducts ? 'Se salvează...' : 'Salvează'}
+                                                </button>
+                                            </div>
+                                        )}
                                         <h3 className="text-base font-bold text-gray-900 mb-6">Produse comandate</h3>
                                         
-                                        <div className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed">
-                                            {selectedOrder.produse || <span className="text-gray-400 italic">Niciun produs specificat</span>}
-                                        </div>
+                                        {editingProducts ? (
+                                            loadingLineItems ? (
+                                                <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
+                                                    <span className="material-icons-round animate-spin text-base">sync</span>
+                                                    Se încarcă produsele din Shopify...
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    {lineItems.map((item) => (
+                                                        <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-200">
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-semibold text-gray-900 truncate">{item.title}</p>
+                                                                <p className="text-xs text-gray-500">{parseFloat(item.price).toFixed(2)} {item.currency} / buc</p>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        if (!item.variantId) return;
+                                                                        const cur = editedQuantities[item.variantId] ?? item.quantity;
+                                                                        if (cur > 1) setEditedQuantities(prev => ({ ...prev, [item.variantId!]: cur - 1 }));
+                                                                    }}
+                                                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
+                                                                >
+                                                                    −
+                                                                </button>
+                                                                <input 
+                                                                    type="number" 
+                                                                    min={1}
+                                                                    value={item.variantId ? (editedQuantities[item.variantId] ?? item.quantity) : item.quantity}
+                                                                    onChange={(e) => {
+                                                                        if (!item.variantId) return;
+                                                                        const val = parseInt(e.target.value);
+                                                                        if (!isNaN(val) && val >= 1) setEditedQuantities(prev => ({ ...prev, [item.variantId!]: val }));
+                                                                    }}
+                                                                    className="w-12 h-8 text-center text-sm font-bold text-gray-900 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                                                                />
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        if (!item.variantId) return;
+                                                                        const cur = editedQuantities[item.variantId] ?? item.quantity;
+                                                                        setEditedQuantities(prev => ({ ...prev, [item.variantId!]: cur + 1 }));
+                                                                    }}
+                                                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            </div>
+                                                            <span className="text-sm font-bold text-indigo-600 w-20 text-right">
+                                                                {(parseFloat(item.price) * (item.variantId ? (editedQuantities[item.variantId] ?? item.quantity) : item.quantity)).toFixed(2)} {item.currency}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    {lineItems.length === 0 && (
+                                                        <p className="text-sm text-gray-400 italic">Niciun produs găsit în Shopify.</p>
+                                                    )}
+                                                </div>
+                                            )
+                                        ) : (
+                                            <div className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                                {selectedOrder.produse || <span className="text-gray-400 italic">Niciun produs specificat</span>}
+                                            </div>
+                                        )}
                                         
                                         {selectedOrder.cerere_upsell && (
                                             <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">

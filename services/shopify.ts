@@ -81,3 +81,66 @@ export async function syncOrderNoteWithShopify(storeName: string, orderId: strin
         return false;
     }
 }
+
+export interface ShopifyLineItem {
+    id: string;
+    title: string;
+    quantity: number;
+    variantId: string | null;
+    variantTitle: string | null;
+    price: string;
+    currency: string;
+}
+
+export async function getShopifyLineItems(storeName: string, orderId: string): Promise<ShopifyLineItem[] | null> {
+    try {
+        const res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'get-line-items',
+                storeName,
+                orderId,
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            return data.lineItems;
+        } else {
+            console.error('Failed to get line items:', data);
+            return null;
+        }
+    } catch (err) {
+        console.error('Error getting line items:', err);
+        return null;
+    }
+}
+
+export async function updateShopifyLineItemQuantity(
+    storeName: string,
+    orderId: string,
+    lineItems: { variantId: string; quantity: number }[]
+): Promise<ShopifyLineItem[] | null> {
+    try {
+        const res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update-line-item-quantity',
+                storeName,
+                orderId,
+                lineItems,
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            return data.lineItems;
+        } else {
+            console.error('Failed to update line items:', data);
+            return null;
+        }
+    } catch (err) {
+        console.error('Error updating line items:', err);
+        return null;
+    }
+}
