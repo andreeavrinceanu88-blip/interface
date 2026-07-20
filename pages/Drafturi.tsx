@@ -659,9 +659,9 @@ const Drafturi = () => {
                                 </div>
 
                                 {/* Info Grids */}
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-5 gap-6">
                                     {/* Client Details */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative">
+                                    <div className="col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
                                         {editingAddressId !== selectedOrder.id && (
                                             <button onClick={() => { setEditingAddressId(selectedOrder.id); setAddressText(selectedOrder.adresa || ''); }} className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
                                                 <span className="material-icons-round text-[16px]">edit</span> Editează
@@ -714,7 +714,7 @@ const Drafturi = () => {
                                     </div>
 
                                     {/* Order Details */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
+                                    <div className="col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
                                         <button className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
                                             <span className="material-icons-round text-[16px]">edit</span> Editează
                                         </button>
@@ -742,9 +742,9 @@ const Drafturi = () => {
                                 </div>
 
                                 {/* Products + Actions Row */}
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-5 gap-6">
                                     {/* Products */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
+                                    <div className="col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
                                         {!editingProducts && (
                                             <button 
                                                 onClick={() => {
@@ -903,7 +903,7 @@ const Drafturi = () => {
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                                    <div className="col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                                         <h3 className="text-base font-bold text-gray-900 mb-5">Acțiuni rapide</h3>
                                         <div className="flex flex-col gap-3">
                                             {QUICK_ACTIONS.map(action => (
