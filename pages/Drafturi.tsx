@@ -101,6 +101,25 @@ const produseDisplayText = (produse: string): string => {
     return items.map(it => `${it.title} x${it.quantity}`).join(', ');
 };
 
+const formatPhoneNumber = (phone: string | null | undefined): string => {
+    if (!phone) return '—';
+    // Remove all non-digits
+    let cleaned = phone.replace(/\D/g, '');
+    
+    // If it starts with 40 and has 11 digits, replace 40 with 0
+    if (cleaned.startsWith('40') && cleaned.length === 11) {
+        cleaned = '0' + cleaned.substring(2);
+    }
+    
+    // If it's a 10 digit number starting with 0, format as 07xx xxx xxx
+    if (cleaned.length === 10 && cleaned.startsWith('0')) {
+        return `${cleaned.substring(0, 4)} ${cleaned.substring(4, 7)} ${cleaned.substring(7, 10)}`;
+    }
+    
+    // Otherwise return original
+    return phone;
+};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 const Drafturi = () => {
     const { profile } = useAuth();
@@ -572,7 +591,7 @@ const Drafturi = () => {
                                         <p className="text-base font-bold text-gray-900 leading-tight truncate pr-2">{order.name || 'Client Nou'}</p>
                                         <span className="text-base font-bold text-gray-900 shrink-0">{money(order.value)}</span>
                                     </div>
-                                    <p className="text-sm text-gray-500 font-medium mb-1">{order.phone_number || '—'}</p>
+                                    <p className="text-sm text-gray-500 font-medium mb-1">{formatPhoneNumber(order.phone_number)}</p>
                                     {order.produse && <p className="text-sm text-indigo-600 font-medium truncate">{produseDisplayText(order.produse)}</p>}
                                 </button>
                             ))
@@ -638,7 +657,7 @@ const Drafturi = () => {
                                             <div>
                                                 <p className="text-[12px] text-gray-500 font-medium mb-1">Telefon</p>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-base text-gray-900 font-bold">{selectedOrder.phone_number || '—'}</span>
+                                                    <span className="text-base text-gray-900 font-bold">{formatPhoneNumber(selectedOrder.phone_number)}</span>
                                                     {selectedOrder.phone_number && (
                                                         <button onClick={() => { navigator.clipboard?.writeText(selectedOrder.phone_number); showToast('Copiat!'); }} className="text-gray-400 hover:text-gray-700 transition-colors">
                                                             <span className="material-icons-round text-[16px]">content_copy</span>
