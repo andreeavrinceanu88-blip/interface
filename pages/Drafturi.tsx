@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
-import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity } from '../services/shopify';
+import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CallStatus = 'ON' | 'OFF';
@@ -134,6 +134,7 @@ const Drafturi = () => {
     const [editingProducts, setEditingProducts] = useState(false);
     const [editedQuantities, setEditedQuantities] = useState<Record<string, number>>({});
     const [savingProducts, setSavingProducts] = useState(false);
+    const [productImages, setProductImages] = useState<Record<string, string | null>>({});
 
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
@@ -248,6 +249,22 @@ const Drafturi = () => {
         if (first) { setSelectedId(first.id); setNoteText(first.notes || ''); }
         else { setSelectedId(null); setNoteText(''); }
     }, [activeTab, orders]);
+
+    // ── Fetch product images when selected order changes
+    useEffect(() => {
+        if (!selectedOrder) return;
+        const items = parseProduse(selectedOrder.produse);
+        if (items.length === 0) return;
+        // Only fetch for product IDs we don't already have
+        const missingIds = items
+            .map(it => it.product_id)
+            .filter(pid => pid && !(String(pid) in productImages));
+        if (missingIds.length === 0) return;
+        const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
+        getProductImages(storeName, missingIds).then(imgs => {
+            if (imgs) setProductImages(prev => ({ ...prev, ...imgs }));
+        });
+    }, [selectedId, selectedOrder?.produse]);
 
     // Sync note text when selection changes
     useEffect(() => {
@@ -782,6 +799,18 @@ const Drafturi = () => {
                                                         const price = parseFloat(item.price);
                                                         return (
                                                             <div key={item.id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-200">
+                                                                {/* Product Image */}
+                                                                <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                                                    {productImages[String(item.product_id)] ? (
+                                                                        <img 
+                                                                            src={productImages[String(item.product_id)]!} 
+                                                                            alt={item.title}
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="material-icons-round text-gray-300 text-xl">inventory_2</span>
+                                                                    )}
+                                                                </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-sm font-semibold text-gray-900 truncate">{item.title}</p>
                                                                     <p className="text-xs text-gray-500">{price.toFixed(2)} lei / buc{item.sku ? ` · ${item.sku}` : ''}</p>

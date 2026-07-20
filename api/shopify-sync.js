@@ -50,10 +50,10 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        const { action, storeName, orderId, address, status, note } = req.body;
+        const { action, storeName, orderId, address, status, note, productIds } = req.body;
 
-        if (!storeName || !orderId) {
-            return res.status(400).json({ error: 'storeName and orderId are required' });
+        if (!storeName) {
+            return res.status(400).json({ error: 'storeName is required' });
         }
 
         const config = getStoreConfig(storeName);
@@ -63,6 +63,49 @@ export default async function handler(req, res) {
             'X-Shopify-Access-Token': token,
         };
         const graphqlUrl = `${config.url}/admin/api/${API_VERSION}/graphql.json`;
+
+        // ── ACTION: get-product-images (no orderId needed) ──
+        if (action === 'get-product-images') {
+            if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+                return res.status(400).json({ error: 'productIds array is required' });
+            }
+            // Build GIDs
+            const gids = productIds.map(pid => `gid://shopify/Product/${pid}`);
+            const query = `
+                query getProducts($ids: [ID!]!) {
+                    nodes(ids: $ids) {
+                        ... on Product {
+                            id
+                            title
+                            featuredImage {
+                                url
+                                altText
+                            }
+                        }
+                    }
+                }
+            `;
+            const gqlRes = await fetch(graphqlUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ query, variables: { ids: gids } })
+            });
+            const gqlData = await gqlRes.json();
+            const nodes = gqlData?.data?.nodes || [];
+            const images = {};
+            nodes.forEach(node => {
+                if (node && node.id) {
+                    // Extract numeric ID from GID
+                    const numericId = node.id.replace('gid://shopify/Product/', '');
+                    images[numericId] = node.featuredImage?.url || null;
+                }
+            });
+            return res.status(200).json({ success: true, images });
+        }
+
+        if (!orderId) {
+            return res.status(400).json({ error: 'orderId is required for this action' });
+        }
         const gid = String(orderId).includes('gid://') ? orderId : `gid://shopify/DraftOrder/${orderId}`;
 
         // ── ACTION: update-address ──

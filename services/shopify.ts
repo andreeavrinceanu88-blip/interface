@@ -144,3 +144,28 @@ export async function updateShopifyLineItemQuantity(
         return null;
     }
 }
+
+// Returns a map of productId -> imageUrl
+export async function getProductImages(storeName: string, productIds: number[]): Promise<Record<string, string | null> | null> {
+    try {
+        const res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'get-product-images',
+                storeName,
+                productIds,
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            return data.images;
+        } else {
+            console.error('Failed to get product images:', data);
+            return null;
+        }
+    } catch (err) {
+        console.error('Error getting product images:', err);
+        return null;
+    }
+}
