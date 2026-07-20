@@ -596,7 +596,7 @@ const Drafturi = () => {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                         <h2 className="text-2xl font-bold text-gray-900">Comanda {selectedOrder.client_personal_id || `#${selectedOrder.id}`}</h2>
-                                        <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
+                                        <span className={`text-sm font-bold px-3 py-1.5 rounded-md ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
                                         Sursă: <span className="text-gray-900">Facebook Ads</span>
@@ -685,7 +685,6 @@ const Drafturi = () => {
                                         <h3 className="text-base font-bold text-gray-900 mb-6">Detalii comandă</h3>
                                         
                                         <div className="space-y-4">
-                                            <DL label="Status" value={<span className={`text-[11px] font-bold px-2 py-0.5 rounded ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>} />
                                             <DL label="Creată" value={fmtDate(selectedOrder.created_at)} />
                                             <DL label="Metodă plată" value="Ramburs" />
                                             <DL label="Metodă livrare" value="Curier rapid" />
