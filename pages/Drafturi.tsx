@@ -158,6 +158,7 @@ const Drafturi = () => {
     const [showAddProductModal, setShowAddProductModal] = useState(false);
     const [availableProducts, setAvailableProducts] = useState<any[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
+    const [productSearchQuery, setProductSearchQuery] = useState('');
 
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
@@ -1067,71 +1068,109 @@ const Drafturi = () => {
                             </button>
                         </div>
                         <div className="p-5 overflow-y-auto flex-1 bg-white">
+                            <div className="mb-4">
+                                <div className="relative">
+                                    <span className="material-icons-round absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                                    <input 
+                                        type="text"
+                                        placeholder="Caută produs (titlu sau SKU)..."
+                                        value={productSearchQuery}
+                                        onChange={(e) => setProductSearchQuery(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-shadow text-sm"
+                                        autoFocus
+                                    />
+                                    {productSearchQuery && (
+                                        <button 
+                                            onClick={() => setProductSearchQuery('')}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 flex items-center justify-center"
+                                        >
+                                            <span className="material-icons-round text-[16px]">close</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
                             {loadingProducts ? (
                                 <div className="py-12 flex flex-col items-center justify-center gap-3">
                                     <span className="material-icons-round text-indigo-500 animate-spin text-3xl">autorenew</span>
                                     <p className="text-sm font-medium text-gray-500">Se încarcă produsele...</p>
                                 </div>
-                            ) : availableProducts.length === 0 ? (
-                                <div className="py-12 text-center">
-                                    <p className="text-gray-500 font-medium">Nu s-au găsit produse active.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {availableProducts.map(prod => (
-                                        prod.variants?.edges?.map((vEdge: any) => {
-                                            const variant = vEdge.node;
-                                            const imgUrl = prod.featuredImage?.url;
-                                            const price = parseFloat(variant.price || '0');
-                                            
-                                            return (
-                                                <div key={variant.id} className="flex items-center gap-4 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl p-3 border border-gray-200">
-                                                    <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
-                                                        {imgUrl ? (
-                                                            <img src={imgUrl} alt={prod.title} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <span className="material-icons-round text-gray-300 text-xl">inventory_2</span>
-                                                        )}
+                            ) : (() => {
+                                const q = productSearchQuery.toLowerCase();
+                                const filtered = availableProducts.map(prod => {
+                                    const matchingVariants = prod.variants?.edges?.filter((vEdge: any) => {
+                                        const variant = vEdge.node;
+                                        const t = (prod.title + ' ' + (variant.title !== 'Default Title' ? variant.title : '')).toLowerCase();
+                                        const sku = (variant.sku || '').toLowerCase();
+                                        return t.includes(q) || sku.includes(q);
+                                    });
+                                    return { ...prod, variants: { edges: matchingVariants } };
+                                }).filter(prod => prod.variants.edges && prod.variants.edges.length > 0);
+
+                                if (filtered.length === 0) {
+                                    return (
+                                        <div className="py-12 text-center">
+                                            <p className="text-gray-500 font-medium">{productSearchQuery ? 'Nu s-au găsit produse pentru căutarea ta.' : 'Nu s-au găsit produse active.'}</p>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="space-y-3">
+                                        {filtered.map(prod => (
+                                            prod.variants?.edges?.map((vEdge: any) => {
+                                                const variant = vEdge.node;
+                                                const imgUrl = prod.featuredImage?.url;
+                                                const price = parseFloat(variant.price || '0');
+                                                
+                                                return (
+                                                    <div key={variant.id} className="flex items-center gap-4 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl p-3 border border-gray-200">
+                                                        <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                                            {imgUrl ? (
+                                                                <img src={imgUrl} alt={prod.title} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <span className="material-icons-round text-gray-300 text-xl">inventory_2</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-semibold text-gray-900 truncate">{prod.title}</p>
+                                                            <p className="text-xs text-gray-500 truncate">{variant.title !== 'Default Title' ? variant.title : ''} • {price.toFixed(2)} lei</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditedProductsList(prev => {
+                                                                    const numVariantId = variant.id.split('/').pop();
+                                                                    const numProdId = prod.id.split('/').pop();
+                                                                    const existingIdx = prev.findIndex(p => String(p.variant_id) === numVariantId);
+                                                                    if (existingIdx >= 0) {
+                                                                        const copy = [...prev];
+                                                                        copy[existingIdx].quantity += 1;
+                                                                        return copy;
+                                                                    }
+                                                                    return [...prev, {
+                                                                        id: Date.now(),
+                                                                        product_id: parseInt(numProdId),
+                                                                        variant_id: parseInt(numVariantId),
+                                                                        title: prod.title + (variant.title !== 'Default Title' ? ` - ${variant.title}` : ''),
+                                                                        quantity: 1,
+                                                                        price: price.toString(),
+                                                                        sku: variant.sku || ''
+                                                                    }];
+                                                                });
+                                                                setShowAddProductModal(false);
+                                                                setProductSearchQuery(''); // reset search
+                                                            }}
+                                                            className="shrink-0 bg-white border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 text-sm font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
+                                                        >
+                                                            <span className="material-icons-round text-[16px]">add</span> Adaugă
+                                                        </button>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-semibold text-gray-900 truncate">{prod.title}</p>
-                                                        <p className="text-xs text-gray-500 truncate">{variant.title !== 'Default Title' ? variant.title : ''} • {price.toFixed(2)} lei</p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditedProductsList(prev => {
-                                                                const numVariantId = variant.id.split('/').pop();
-                                                                const numProdId = prod.id.split('/').pop();
-                                                                // Check if exists
-                                                                const existingIdx = prev.findIndex(p => String(p.variant_id) === numVariantId);
-                                                                if (existingIdx >= 0) {
-                                                                    const copy = [...prev];
-                                                                    copy[existingIdx].quantity += 1;
-                                                                    return copy;
-                                                                }
-                                                                // Add new
-                                                                return [...prev, {
-                                                                    id: Date.now(), // temporary id
-                                                                    product_id: parseInt(numProdId),
-                                                                    variant_id: parseInt(numVariantId),
-                                                                    title: prod.title + (variant.title !== 'Default Title' ? ` - ${variant.title}` : ''),
-                                                                    quantity: 1,
-                                                                    price: price.toString(),
-                                                                    sku: variant.sku || ''
-                                                                }];
-                                                            });
-                                                            setShowAddProductModal(false);
-                                                        }}
-                                                        className="shrink-0 bg-white border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 text-sm font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
-                                                    >
-                                                        <span className="material-icons-round text-[16px]">add</span> Adaugă
-                                                    </button>
-                                                </div>
-                                            );
-                                        })
-                                    ))}
-                                </div>
-                            )}
+                                                );
+                                            })
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
