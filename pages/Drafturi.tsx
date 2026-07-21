@@ -336,7 +336,7 @@ const Drafturi = () => {
     // ── Shopify notification helper
     const showShopifyNotif = (msg: string, type: 'success' | 'error') => {
         setShopifyNotif({ msg, type });
-        setTimeout(() => setShopifyNotif(null), 4000);
+        setTimeout(() => setShopifyNotif(null), type === 'error' ? 10000 : 5000);
     };
 
     // ── Init brand
@@ -492,8 +492,10 @@ const Drafturi = () => {
                                 showShopifyNotif('Shopify sincronizat ✓ Tag-ul a fost adăugat', 'success');
                             }
                         } else {
-                            const errMsg = result.errors?.map((e: any) => e.message).join(', ') || 'Eroare necunoscută';
-                            showShopifyNotif(`Eroare Shopify — ${errMsg}`, 'error');
+                            const errMsg = (result as any).errorMessage
+                                || result.errors?.map((e: any) => `${e.field ? e.field + ': ' : ''}${e.message}`).join(' | ')
+                                || 'Eroare necunoscută de la Shopify';
+                            showShopifyNotif(`Eroare Shopify: ${errMsg}`, 'error');
                         }
                     });
             }
@@ -634,25 +636,25 @@ const Drafturi = () => {
             {/* Shopify Notification Popup */}
             {shopifyNotif && (
                 <div 
-                    className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-sm transition-all duration-300 animate-fade-in ${
+                    className={`fixed top-6 right-6 z-[100] flex items-start gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-sm transition-all duration-300 animate-fade-in ${
                         shopifyNotif.type === 'success' 
                             ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800' 
                             : 'bg-red-50/95 border-red-200 text-red-800'
                     }`}
-                    style={{ minWidth: '300px', maxWidth: '420px' }}
+                    style={{ minWidth: '300px', maxWidth: shopifyNotif.type === 'error' ? '520px' : '420px' }}
                 >
-                    <span className={`material-icons-round text-xl ${
+                    <span className={`material-icons-round text-xl mt-0.5 shrink-0 ${
                         shopifyNotif.type === 'success' ? 'text-emerald-600' : 'text-red-500'
                     }`}>
                         {shopifyNotif.type === 'success' ? 'cloud_done' : 'cloud_off'}
                     </span>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-bold leading-tight">
                             {shopifyNotif.type === 'success' ? 'Sincronizare reușită' : 'Eroare sincronizare'}
                         </p>
-                        <p className="text-[12px] font-medium opacity-80 mt-0.5">{shopifyNotif.msg}</p>
+                        <p className="text-[12px] font-medium opacity-80 mt-0.5 break-words whitespace-pre-wrap">{shopifyNotif.msg}</p>
                     </div>
-                    <button onClick={() => setShopifyNotif(null)} className="text-gray-400 hover:text-gray-600 transition-colors ml-1">
+                    <button onClick={() => setShopifyNotif(null)} className="text-gray-400 hover:text-gray-600 transition-colors ml-1 shrink-0">
                         <span className="material-icons-round text-[18px]">close</span>
                     </button>
                 </div>

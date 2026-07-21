@@ -296,10 +296,26 @@ export default async function handler(req, res) {
                     })
                 });
                 const completeData = await completeRes.json();
+                console.log('[shopify-sync] draftOrderComplete response:', JSON.stringify(completeData));
+
+                // Check for GraphQL-level errors (e.g. auth, network, query errors)
+                if (completeData?.errors && completeData.errors.length > 0) {
+                    const errMsg = completeData.errors.map(e => e.message).join('; ');
+                    return res.status(400).json({ success: false, errorMessage: errMsg, raw: completeData });
+                }
+
+                // Check for userErrors (business logic errors from Shopify)
                 const completeErrors = completeData?.data?.draftOrderComplete?.userErrors;
                 if (completeErrors && completeErrors.length > 0) {
-                    return res.status(400).json({ success: false, errors: completeErrors });
+                    const errMsg = completeErrors.map(e => `${e.field ? e.field + ': ' : ''}${e.message}`).join('; ');
+                    return res.status(400).json({ success: false, errorMessage: errMsg, errors: completeErrors });
                 }
+
+                // Check if the mutation returned no data at all
+                if (!completeData?.data?.draftOrderComplete) {
+                    return res.status(400).json({ success: false, errorMessage: 'Shopify nu a returnat date valide. Verifică dacă draft-ul există.', raw: completeData });
+                }
+
                 const resultOrder = completeData?.data?.draftOrderComplete?.draftOrder;
                 return res.status(200).json({
                     success: true,
