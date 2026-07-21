@@ -506,8 +506,27 @@ const Drafturi = () => {
     };
 
     // ── Dialer actions
-    const handleKeypadPress = (key: string) => setPhoneNumber(prev => prev + key);
-    const handleDelete = () => setPhoneNumber(prev => prev.slice(0, -1));
+    const formatDialerNumber = (val: string) => {
+        const clean = val.replace(/[^\d+]/g, '');
+        if (clean.startsWith('+40')) {
+            let res = clean.slice(0, 6);
+            if (clean.length > 6) res += ' ' + clean.slice(6, 9);
+            if (clean.length > 9) res += ' ' + clean.slice(9, 12);
+            if (clean.length > 12) res += ' ' + clean.slice(12);
+            return res;
+        }
+        if (clean.startsWith('0')) {
+            let res = clean.slice(0, 4);
+            if (clean.length > 4) res += ' ' + clean.slice(4, 7);
+            if (clean.length > 7) res += ' ' + clean.slice(7, 10);
+            if (clean.length > 10) res += ' ' + clean.slice(10);
+            return res;
+        }
+        return clean;
+    };
+
+    const handleKeypadPress = (key: string) => setPhoneNumber(prev => formatDialerNumber(prev + key));
+    const handleDelete = () => setPhoneNumber(prev => formatDialerNumber(prev.trimEnd().slice(0, -1)));
     const handleCallAction = async () => {
         if (!phoneNumber) return;
         if (callState === 'idle' || callState === 'rejected') {
@@ -524,8 +543,9 @@ const Drafturi = () => {
 
             userHungUpRef.current = false;
             const callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40751064714';
+            const cleanDestination = phoneNumber.replace(/\s/g, '');
             try {
-                callRef.current = clientRef.current.newCall({ destinationNumber: phoneNumber, callerNumber: callerId, audio: true, video: false });
+                callRef.current = clientRef.current.newCall({ destinationNumber: cleanDestination, callerNumber: callerId, audio: true, video: false });
                 updateCallState('calling');
                 playRingback(); // Start ringback immediately on dial
             }
@@ -539,7 +559,7 @@ const Drafturi = () => {
     };
 
     const callClient = (phone: string) => {
-        setPhoneNumber(phone.replace(/\s/g, ''));
+        setPhoneNumber(formatDialerNumber(phone));
         setDialerOpen(true);
     };
 
@@ -1101,17 +1121,15 @@ const Drafturi = () => {
 
                     {/* ── Dialer Panel ───────────────────────────────────────── */}
                     {dialerOpen && (
-                        <div className="w-[310px] shrink-0 bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 flex flex-col items-center h-[590px] justify-between">
-                            <div className="w-full flex flex-col items-center">
-                                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Dialer</h3>
-                                
+                        <div className="w-[340px] shrink-0 bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 flex flex-col items-center h-[590px] justify-between">
+                            <div className="w-full flex flex-col items-center pt-2">
                                 {/* Phone display */}
-                                <div className="w-full mb-4 min-h-[50px] flex items-center justify-center relative bg-gray-50 rounded-xl px-2 py-1">
+                                <div className="w-full mb-4 min-h-[54px] flex items-center justify-center relative bg-gray-50 rounded-2xl px-3 py-1">
                                     <input
                                         type="text"
                                         value={phoneNumber}
-                                        onChange={e => setPhoneNumber(e.target.value)}
-                                        className="w-full bg-transparent border-none outline-none text-center text-3xl font-medium text-gray-900 tracking-wider"
+                                        onChange={e => setPhoneNumber(formatDialerNumber(e.target.value))}
+                                        className="w-full bg-transparent border-none outline-none text-center text-3xl font-semibold text-gray-900 tracking-normal"
                                         placeholder=" "
                                         autoFocus
                                     />
