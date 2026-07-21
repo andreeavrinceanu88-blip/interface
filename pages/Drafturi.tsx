@@ -1146,16 +1146,26 @@ const Drafturi = () => {
                     {/* ── Dialer Panel ───────────────────────────────────────── */}
                     {dialerOpen && (
                         <div className="w-[340px] shrink-0 bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 flex flex-col items-center h-[590px] justify-between">
-                            <div className="w-full flex flex-col items-center pt-1">
-                                {/* Active Call Timer mm:ss */}
-                                {callState === 'active' && (
-                                    <div className="text-xs font-bold text-emerald-600 font-mono tracking-widest mb-1 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/60 animate-pulse">
-                                        {formatCallTimer(callDurationSeconds)}
-                                    </div>
-                                )}
+                            <div className="w-full flex flex-col items-center pt-2">
+                                {/* Reserved fixed height status & timer slot (prevents layout shifts) */}
+                                <div className="h-7 flex items-center justify-center mb-2">
+                                    {callState === 'active' ? (
+                                        <div className="text-xs font-bold text-emerald-600 font-mono tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/60 animate-pulse">
+                                            {formatCallTimer(callDurationSeconds)}
+                                        </div>
+                                    ) : callState === 'rejected' ? (
+                                        <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-red-100 text-red-700">
+                                            Apel respins
+                                        </div>
+                                    ) : callState === 'calling' ? (
+                                        <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-amber-100 text-amber-700 animate-pulse">
+                                            Apelează...
+                                        </div>
+                                    ) : null}
+                                </div>
                                 
                                 {/* Phone display */}
-                                <div className="w-full mb-4 min-h-[54px] flex items-center justify-center relative bg-gray-50 rounded-2xl px-3 py-1">
+                                <div className="w-full mb-6 min-h-[54px] flex items-center justify-center relative bg-gray-50 rounded-2xl px-3 py-1">
                                     <input
                                         type="text"
                                         value={phoneNumber}
@@ -1171,21 +1181,8 @@ const Drafturi = () => {
                                     )}
                                 </div>
 
-                                {/* Call state */}
-                                {callState !== 'idle' && (
-                                    <div className={`mb-4 px-5 py-2 rounded-full text-xs font-bold tracking-wider uppercase ${
-                                        callState === 'active' 
-                                            ? 'bg-emerald-100 text-emerald-700 animate-pulse' 
-                                            : callState === 'rejected'
-                                            ? 'bg-red-100 text-red-700'
-                                            : 'bg-amber-100 text-amber-700 animate-pulse'
-                                    }`}>
-                                        {callState === 'active' ? 'Apel în curs...' : callState === 'rejected' ? 'Apel respins' : 'Apelează...'}
-                                    </div>
-                                )}
-
                                 {/* Keypad */}
-                                <div className={`grid grid-cols-3 gap-4 w-full my-2 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                                <div className={`grid grid-cols-3 gap-4 w-full mt-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                                     {[
                                         { key: '1', sub: '' }, { key: '2', sub: 'ABC' }, { key: '3', sub: 'DEF' },
                                         { key: '4', sub: 'GHI' }, { key: '5', sub: 'JKL' }, { key: '6', sub: 'MNO' },
