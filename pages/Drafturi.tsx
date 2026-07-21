@@ -1101,63 +1101,69 @@ const Drafturi = () => {
 
                     {/* ── Dialer Panel ───────────────────────────────────────── */}
                     {dialerOpen && (
-                        <div className="w-[300px] shrink-0 bg-white rounded-2xl shadow-xl border border-gray-200 p-6 flex flex-col items-center h-[520px]">
-                            <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">Dialer</h3>
-                            
-                            {/* Phone display */}
-                            <div className="w-full mb-8 min-h-[50px] flex items-center justify-center relative bg-gray-50 rounded-xl">
-                                <input
-                                    type="text"
-                                    value={phoneNumber}
-                                    onChange={e => setPhoneNumber(e.target.value)}
-                                    className="w-full bg-transparent border-none outline-none text-center text-3xl font-medium text-gray-900 tracking-wider"
-                                    placeholder=" "
-                                    autoFocus
-                                />
-                                {phoneNumber && (
-                                    <button onClick={handleDelete} className="absolute right-3 text-gray-400 hover:text-gray-700 transition-colors">
-                                        <span className="material-icons-round">backspace</span>
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Call state */}
-                            {callState !== 'idle' && (
-                                <div className={`mb-6 px-5 py-2 rounded-full text-xs font-bold tracking-wider uppercase ${
-                                    callState === 'active' 
-                                        ? 'bg-emerald-100 text-emerald-700 animate-pulse' 
-                                        : callState === 'rejected'
-                                        ? 'bg-red-100 text-red-700'
-                                        : 'bg-amber-100 text-amber-700 animate-pulse'
-                                }`}>
-                                    {callState === 'active' ? 'Apel în curs...' : callState === 'rejected' ? 'Apel respins' : 'Apelează...'}
+                        <div className="w-[310px] shrink-0 bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 flex flex-col items-center h-[590px] justify-between">
+                            <div className="w-full flex flex-col items-center">
+                                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Dialer</h3>
+                                
+                                {/* Phone display */}
+                                <div className="w-full mb-4 min-h-[50px] flex items-center justify-center relative bg-gray-50 rounded-xl px-2 py-1">
+                                    <input
+                                        type="text"
+                                        value={phoneNumber}
+                                        onChange={e => setPhoneNumber(e.target.value)}
+                                        className="w-full bg-transparent border-none outline-none text-center text-3xl font-medium text-gray-900 tracking-wider"
+                                        placeholder=" "
+                                        autoFocus
+                                    />
+                                    {phoneNumber && (
+                                        <button onClick={handleDelete} className="absolute right-3 text-gray-400 hover:text-gray-700 transition-colors">
+                                            <span className="material-icons-round">backspace</span>
+                                        </button>
+                                    )}
                                 </div>
-                            )}
 
-                            {/* Keypad */}
-                            <div className={`grid grid-cols-3 gap-4 w-full mb-8 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-                                {[
-                                    { key: '1', sub: '' }, { key: '2', sub: 'ABC' }, { key: '3', sub: 'DEF' },
-                                    { key: '4', sub: 'GHI' }, { key: '5', sub: 'JKL' }, { key: '6', sub: 'MNO' },
-                                    { key: '7', sub: 'PQRS' }, { key: '8', sub: 'TUV' }, { key: '9', sub: 'WXYZ' },
-                                    { key: '*', sub: '' }, { key: '0', sub: '+' }, { key: '#', sub: '' }
-                                ].map(item => (
-                                    <button key={item.key} onClick={() => handleKeypadPress(item.key)} className="flex flex-col items-center justify-center h-16 w-16 rounded-full bg-white hover:bg-gray-50 border border-gray-200 shadow-sm transition-all active:scale-95 mx-auto">
-                                        <span className="text-2xl font-semibold text-gray-700">{item.key}</span>
-                                        {item.sub && <span className="text-[9px] text-gray-400 font-bold tracking-widest">{item.sub}</span>}
-                                    </button>
-                                ))}
+                                {/* Call state */}
+                                {callState !== 'idle' && (
+                                    <div className={`mb-4 px-5 py-2 rounded-full text-xs font-bold tracking-wider uppercase ${
+                                        callState === 'active' 
+                                            ? 'bg-emerald-100 text-emerald-700 animate-pulse' 
+                                            : callState === 'rejected'
+                                            ? 'bg-red-100 text-red-700'
+                                            : 'bg-amber-100 text-amber-700 animate-pulse'
+                                    }`}>
+                                        {callState === 'active' ? 'Apel în curs...' : callState === 'rejected' ? 'Apel respins' : 'Apelează...'}
+                                    </div>
+                                )}
+
+                                {/* Keypad */}
+                                <div className={`grid grid-cols-3 gap-4 w-full my-2 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                                    {[
+                                        { key: '1', sub: '' }, { key: '2', sub: 'ABC' }, { key: '3', sub: 'DEF' },
+                                        { key: '4', sub: 'GHI' }, { key: '5', sub: 'JKL' }, { key: '6', sub: 'MNO' },
+                                        { key: '7', sub: 'PQRS' }, { key: '8', sub: 'TUV' }, { key: '9', sub: 'WXYZ' },
+                                        { key: '*', sub: '' }, { key: '0', sub: '+' }, { key: '#', sub: '' }
+                                    ].map(item => (
+                                        <button key={item.key} onClick={() => handleKeypadPress(item.key)} className="flex flex-col items-center justify-center h-16 w-16 rounded-full bg-gray-100 hover:bg-gray-200 shadow-none transition-all active:scale-90 mx-auto">
+                                            <span className="text-2xl font-semibold text-gray-800 leading-none">{item.key}</span>
+                                            {item.sub && <span className="text-[9px] text-gray-400 font-bold tracking-widest mt-0.5">{item.sub}</span>}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
-                            {/* Call button */}
+                            {/* Call button - iOS Style */}
                             <button
                                 onClick={handleCallAction}
                                 disabled={!phoneNumber && (callState === 'idle' || callState === 'rejected')}
-                                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
-                                    (callState === 'idle' || callState === 'rejected') ? 'bg-[#22C55E] hover:bg-[#16A34A]' : 'bg-red-500 hover:bg-red-600'
+                                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-md mb-2 ${
+                                    (callState === 'idle' || callState === 'rejected') 
+                                        ? 'bg-[#34C759] hover:bg-[#2FB34F] text-white' 
+                                        : 'bg-[#FF3B30] hover:bg-[#E0332B] text-white'
                                 }`}
                             >
-                                <span className="material-icons-round text-white text-3xl">{(callState === 'idle' || callState === 'rejected') ? 'call' : 'call_end'}</span>
+                                <span className="material-icons-round text-white text-3xl">
+                                    {(callState === 'idle' || callState === 'rejected') ? 'call' : 'call_end'}
+                                </span>
                             </button>
                         </div>
                     )}
