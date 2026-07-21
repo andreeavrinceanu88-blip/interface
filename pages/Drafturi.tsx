@@ -233,8 +233,52 @@ const Drafturi = () => {
         }
     };
 
+    const playRejectedBeeps = () => {
+        console.log('[Ringback] playRejectedBeeps called');
+        try {
+            if (!audioCtxRef.current) {
+                audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            }
+            const ctx = audioCtxRef.current;
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
+            
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.value = 425;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            // 3 fast beeps (busy signal: 200ms sound, 150ms silence)
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.setValueAtTime(0, now + 0.2);
+            
+            gain.gain.setValueAtTime(0.4, now + 0.35);
+            gain.gain.setValueAtTime(0, now + 0.55);
+            
+            gain.gain.setValueAtTime(0.4, now + 0.7);
+            gain.gain.setValueAtTime(0, now + 0.9);
+            
+            osc.start(now);
+            osc.stop(now + 1.0);
+        } catch(e) {
+            console.error('[RejectedBeeps] error:', e);
+        }
+    };
+
     const [isConnecting, setIsConnecting] = useState(false);
-    const [callState, setCallState] = useState<'idle' | 'calling' | 'active'>('idle');
+    const [callState, setCallState] = useState<'idle' | 'calling' | 'active' | 'rejected'>('idle');
+    const callStateRef = useRef<'idle' | 'calling' | 'active' | 'rejected'>('idle');
+    const userHungUpRef = useRef(false);
+
+    const updateCallState = (newState: 'idle' | 'calling' | 'active' | 'rejected') => {
+        setCallState(newState);
+        callStateRef.current = newState;
+    };
 
     // ── Toast helper
     const showToast = (msg: string) => {
@@ -267,21 +311,31 @@ const Drafturi = () => {
                 const call = notification.call;
                 if (notification.type === 'callUpdate') {
                     if (call.state === 'ringing') {
-                        setCallState('calling');
+                        updateCallState('calling');
                         playRingback();
                     }
                     else if (call.state === 'active') {
-                        setCallState('active');
+                        updateCallState('active');
                         stopRingback();
                         if (audioRef.current && call.remoteStream) {
                             audioRef.current.srcObject = call.remoteStream;
                             audioRef.current.play().catch(() => {});
                         }
-                    } else if (call.state === 'destroy') {
-                        setCallState('idle');
-                        callRef.current = null;
+                    } else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
                         stopRingback();
                         if (audioRef.current) audioRef.current.srcObject = null;
+                        callRef.current = null;
+                        
+                        // If call ended while in calling state and user didn't hang up manually -> Client rejected!
+                        if (callStateRef.current === 'calling' && !userHungUpRef.current) {
+                            updateCallState('rejected');
+                            playRejectedBeeps();
+                            setTimeout(() => {
+                                updateCallState('idle');
+                            }, 3000);
+                        } else {
+                            updateCallState('idle');
+                        }
                     }
                 }
             });
@@ -456,7 +510,7 @@ const Drafturi = () => {
     const handleDelete = () => setPhoneNumber(prev => prev.slice(0, -1));
     const handleCallAction = async () => {
         if (!phoneNumber) return;
-        if (callState === 'idle') {
+        if (callState === 'idle' || callState === 'rejected') {
             if (!clientRef.current) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
             try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { alert('Este nevoie de acces la microfon pentru a suna!'); return; }
             
@@ -468,16 +522,18 @@ const Drafturi = () => {
                 audioCtxRef.current.resume();
             }
 
+            userHungUpRef.current = false;
             const callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40751064714';
             try {
                 callRef.current = clientRef.current.newCall({ destinationNumber: phoneNumber, callerNumber: callerId, audio: true, video: false });
-                setCallState('calling');
+                updateCallState('calling');
                 playRingback(); // Start ringback immediately on dial
             }
             catch (err) { console.error('Call failed', err); alert('A apărut o eroare la inițierea apelului.'); }
         } else {
+            userHungUpRef.current = true;
             if (callRef.current) callRef.current.hangup();
-            setCallState('idle');
+            updateCallState('idle');
             stopRingback();
         }
     };
@@ -1067,8 +1123,14 @@ const Drafturi = () => {
 
                             {/* Call state */}
                             {callState !== 'idle' && (
-                                <div className={`mb-6 px-5 py-2 rounded-full text-xs font-bold tracking-wider uppercase animate-pulse ${callState === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                    {callState === 'active' ? 'Apel în curs...' : 'Apelează...'}
+                                <div className={`mb-6 px-5 py-2 rounded-full text-xs font-bold tracking-wider uppercase ${
+                                    callState === 'active' 
+                                        ? 'bg-emerald-100 text-emerald-700 animate-pulse' 
+                                        : callState === 'rejected'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-amber-100 text-amber-700 animate-pulse'
+                                }`}>
+                                    {callState === 'active' ? 'Apel în curs...' : callState === 'rejected' ? 'Apel respins' : 'Apelează...'}
                                 </div>
                             )}
 
@@ -1090,10 +1152,12 @@ const Drafturi = () => {
                             {/* Call button */}
                             <button
                                 onClick={handleCallAction}
-                                disabled={!phoneNumber && callState === 'idle'}
-                                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${callState === 'idle' ? 'bg-[#22C55E] hover:bg-[#16A34A]' : 'bg-red-500 hover:bg-red-600'}`}
+                                disabled={!phoneNumber && (callState === 'idle' || callState === 'rejected')}
+                                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
+                                    (callState === 'idle' || callState === 'rejected') ? 'bg-[#22C55E] hover:bg-[#16A34A]' : 'bg-red-500 hover:bg-red-600'
+                                }`}
                             >
-                                <span className="material-icons-round text-white text-3xl">{callState === 'idle' ? 'call' : 'call_end'}</span>
+                                <span className="material-icons-round text-white text-3xl">{(callState === 'idle' || callState === 'rejected') ? 'call' : 'call_end'}</span>
                             </button>
                         </div>
                     )}
