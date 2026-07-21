@@ -272,8 +272,32 @@ const Drafturi = () => {
 
     const [isConnecting, setIsConnecting] = useState(false);
     const [callState, setCallState] = useState<'idle' | 'calling' | 'active' | 'rejected'>('idle');
+    const [callDurationSeconds, setCallDurationSeconds] = useState(0);
     const callStateRef = useRef<'idle' | 'calling' | 'active' | 'rejected'>('idle');
     const userHungUpRef = useRef(false);
+
+    useEffect(() => {
+        let interval: any = null;
+        if (callState === 'active') {
+            setCallDurationSeconds(0);
+            interval = setInterval(() => {
+                setCallDurationSeconds(prev => prev + 1);
+            }, 1000);
+        } else {
+            setCallDurationSeconds(0);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [callState]);
+
+    const formatCallTimer = (sec: number) => {
+        const mins = Math.floor(sec / 60);
+        const remainder = sec % 60;
+        const mm = String(mins).padStart(2, '0');
+        const ss = String(remainder).padStart(2, '0');
+        return `${mm}:${ss}`;
+    };
 
     const updateCallState = (newState: 'idle' | 'calling' | 'active' | 'rejected') => {
         setCallState(newState);
@@ -1122,7 +1146,14 @@ const Drafturi = () => {
                     {/* ── Dialer Panel ───────────────────────────────────────── */}
                     {dialerOpen && (
                         <div className="w-[340px] shrink-0 bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 flex flex-col items-center h-[590px] justify-between">
-                            <div className="w-full flex flex-col items-center pt-2">
+                            <div className="w-full flex flex-col items-center pt-1">
+                                {/* Active Call Timer mm:ss */}
+                                {callState === 'active' && (
+                                    <div className="text-xs font-bold text-emerald-600 font-mono tracking-widest mb-1 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/60 animate-pulse">
+                                        {formatCallTimer(callDurationSeconds)}
+                                    </div>
+                                )}
+                                
                                 {/* Phone display */}
                                 <div className="w-full mb-4 min-h-[54px] flex items-center justify-center relative bg-gray-50 rounded-2xl px-3 py-1">
                                     <input
