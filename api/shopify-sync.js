@@ -267,17 +267,48 @@ export default async function handler(req, res) {
                 const completeMut = `
                     mutation draftOrderComplete($id: ID!, $paymentPending: Boolean) {
                         draftOrderComplete(id: $id, paymentPending: $paymentPending) {
+                            draftOrder {
+                                id
+                                status
+                                tags
+                                note
+                                order {
+                                    id
+                                    name
+                                    totalPriceSet {
+                                        shopMoney {
+                                            amount
+                                            currencyCode
+                                        }
+                                    }
+                                }
+                            }
                             userErrors { field message }
                         }
                     }
                 `;
-                await fetch(graphqlUrl, {
+                const completeRes = await fetch(graphqlUrl, {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
                         query: completeMut,
                         variables: { id: gid, paymentPending: true }
                     })
+                });
+                const completeData = await completeRes.json();
+                const completeErrors = completeData?.data?.draftOrderComplete?.userErrors;
+                if (completeErrors && completeErrors.length > 0) {
+                    return res.status(400).json({ success: false, errors: completeErrors });
+                }
+                const resultOrder = completeData?.data?.draftOrderComplete?.draftOrder;
+                return res.status(200).json({
+                    success: true,
+                    confirmed: true,
+                    orderName: resultOrder?.order?.name || null,
+                    orderTotal: resultOrder?.order?.totalPriceSet?.shopMoney?.amount || null,
+                    currency: resultOrder?.order?.totalPriceSet?.shopMoney?.currencyCode || 'RON',
+                    tags: resultOrder?.tags || updatedTags,
+                    note: resultOrder?.note || newNote,
                 });
             }
 

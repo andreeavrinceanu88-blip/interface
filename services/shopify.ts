@@ -3,7 +3,18 @@
 
 const API_ENDPOINT = '/api/shopify-sync';
 
-export async function syncOrderStatusWithShopify(storeName: string, orderId: string, status: string, additionalNote?: string): Promise<boolean> {
+export interface ShopifySyncResult {
+    success: boolean;
+    confirmed?: boolean;
+    orderName?: string | null;
+    orderTotal?: string | null;
+    currency?: string;
+    tags?: string[];
+    note?: string;
+    errors?: any[];
+}
+
+export async function syncOrderStatusWithShopify(storeName: string, orderId: string, status: string, additionalNote?: string): Promise<ShopifySyncResult> {
     try {
         const res = await fetch(API_ENDPOINT, {
             method: 'POST',
@@ -18,15 +29,15 @@ export async function syncOrderStatusWithShopify(storeName: string, orderId: str
         });
         const data = await res.json();
         if (data.success) {
-            console.log('Shopify status sync success');
-            return true;
+            console.log('Shopify status sync success', data);
+            return data;
         } else {
             console.error('Shopify status sync failed:', data);
-            return false;
+            return { success: false, errors: data.errors };
         }
     } catch (err) {
         console.error('Shopify status sync error:', err);
-        return false;
+        return { success: false };
     }
 }
 

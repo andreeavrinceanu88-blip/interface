@@ -483,9 +483,18 @@ const Drafturi = () => {
                 // We call it in the background to not block the UI completely, 
                 // but we can await it if we want to show a toast.
                 syncOrderStatusWithShopify(storeName, shopifyId, newStatus, orderToSync.notes || undefined)
-                    .then(success => {
-                        if (success) showShopifyNotif('Shopify sincronizat ✓ Tag-ul a fost adăugat', 'success');
-                        else showShopifyNotif('Eroare Shopify — Tag-ul nu a fost sincronizat', 'error');
+                    .then(result => {
+                        if (result.success) {
+                            if (result.confirmed && result.orderName) {
+                                const total = result.orderTotal ? ` · ${parseFloat(result.orderTotal).toFixed(2)} ${result.currency || 'RON'}` : '';
+                                showShopifyNotif(`✓ Comandă creată: ${result.orderName}${total}`, 'success');
+                            } else {
+                                showShopifyNotif('Shopify sincronizat ✓ Tag-ul a fost adăugat', 'success');
+                            }
+                        } else {
+                            const errMsg = result.errors?.map((e: any) => e.message).join(', ') || 'Eroare necunoscută';
+                            showShopifyNotif(`Eroare Shopify — ${errMsg}`, 'error');
+                        }
                     });
             }
 
