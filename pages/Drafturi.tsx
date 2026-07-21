@@ -182,7 +182,7 @@ const Drafturi = () => {
         gain.connect(ctx.destination);
         const now = ctx.currentTime;
         for (let i = 0; i < 20; i++) {
-            gain.gain.setValueAtTime(0.1, now + i * 5);
+            gain.gain.setValueAtTime(0.3, now + i * 5);
             gain.gain.setValueAtTime(0, now + i * 5 + 1);
         }
         osc.start(now);
@@ -426,6 +426,15 @@ const Drafturi = () => {
         if (callState === 'idle') {
             if (!clientRef.current) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
             try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { alert('Este nevoie de acces la microfon pentru a suna!'); return; }
+            
+            // Bypass Autoplay Policy by initializing AudioContext on user click
+            if (!audioCtxRef.current) {
+                audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            }
+            if (audioCtxRef.current.state === 'suspended') {
+                audioCtxRef.current.resume();
+            }
+
             const callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40751064714';
             try { callRef.current = clientRef.current.newCall({ destinationNumber: phoneNumber, callerNumber: callerId, audio: true, video: false }); setCallState('calling'); }
             catch (err) { console.error('Call failed', err); alert('A apărut o eroare la inițierea apelului.'); }
