@@ -492,10 +492,25 @@ const Drafturi = () => {
                                 showShopifyNotif('Shopify sincronizat ✓ Tag-ul a fost adăugat', 'success');
                             }
                         } else {
-                            const errMsg = (result as any).errorMessage
-                                || result.errors?.map((e: any) => `${e.field ? e.field + ': ' : ''}${e.message}`).join(' | ')
-                                || 'Eroare necunoscută de la Shopify';
-                            showShopifyNotif(`Eroare Shopify: ${errMsg}`, 'error');
+                            let errMsg = (result as any).errorMessage
+                                || result.errors?.map((e: any) => `${e.field ? e.field + ': ' : ''}${e.message}`).join(' | ');
+                                
+                            if (!errMsg) {
+                                // Fallback to raw JSON if we couldn't extract a friendly message
+                                try {
+                                    const rawToDisplay = result.raw || result;
+                                    errMsg = typeof rawToDisplay === 'string' ? rawToDisplay : JSON.stringify(rawToDisplay, null, 2);
+                                } catch(e) {
+                                    errMsg = 'Eroare necunoscută de la Shopify';
+                                }
+                            } else if (result.raw) {
+                                // Even if we have a friendly message, optionally append the raw JSON for full debugging context if it's there
+                                try {
+                                    errMsg += '\n\n' + JSON.stringify(result.raw, null, 2);
+                                } catch(e) {}
+                            }
+                            
+                            showShopifyNotif(`Eroare Shopify:\n${errMsg}`, 'error');
                         }
                     });
             }

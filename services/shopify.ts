@@ -12,6 +12,8 @@ export interface ShopifySyncResult {
     tags?: string[];
     note?: string;
     errors?: any[];
+    errorMessage?: string;
+    raw?: any;
 }
 
 export async function syncOrderStatusWithShopify(storeName: string, orderId: string, status: string, additionalNote?: string): Promise<ShopifySyncResult> {
@@ -33,11 +35,11 @@ export async function syncOrderStatusWithShopify(storeName: string, orderId: str
             return data;
         } else {
             console.error('Shopify status sync failed:', data);
-            return { success: false, errors: data.errors };
+            return data; // Return full data object containing error details
         }
-    } catch (err) {
+    } catch (err: any) {
         console.error('Shopify status sync error:', err);
-        return { success: false };
+        return { success: false, errorMessage: err.message, raw: err };
     }
 }
 
