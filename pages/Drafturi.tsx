@@ -273,6 +273,7 @@ const Drafturi = () => {
     const [isConnecting, setIsConnecting] = useState(false);
     const [callState, setCallState] = useState<'idle' | 'calling' | 'active' | 'rejected'>('idle');
     const [callDurationSeconds, setCallDurationSeconds] = useState(0);
+    const [isMuted, setIsMuted] = useState(false);
     const callStateRef = useRef<'idle' | 'calling' | 'active' | 'rejected'>('idle');
     const userHungUpRef = useRef(false);
 
@@ -299,7 +300,29 @@ const Drafturi = () => {
         return `${mm}:${ss}`;
     };
 
+    const toggleMute = () => {
+        if (!callRef.current) return;
+        const newMuted = !isMuted;
+        try {
+            if (newMuted) {
+                if (typeof callRef.current.muteAudio === 'function') callRef.current.muteAudio();
+                if (callRef.current.localStream) {
+                    callRef.current.localStream.getAudioTracks().forEach((t: any) => t.enabled = false);
+                }
+            } else {
+                if (typeof callRef.current.unmuteAudio === 'function') callRef.current.unmuteAudio();
+                if (callRef.current.localStream) {
+                    callRef.current.localStream.getAudioTracks().forEach((t: any) => t.enabled = true);
+                }
+            }
+            setIsMuted(newMuted);
+        } catch (e) {
+            console.error('[Mute] Error toggling mute:', e);
+        }
+    };
+
     const updateCallState = (newState: 'idle' | 'calling' | 'active' | 'rejected') => {
+        if (newState !== 'active') setIsMuted(false);
         setCallState(newState);
         callStateRef.current = newState;
     };
@@ -1197,20 +1220,35 @@ const Drafturi = () => {
                                 </div>
                             </div>
 
-                            {/* Call button - iOS Style */}
-                            <button
-                                onClick={handleCallAction}
-                                disabled={!phoneNumber && (callState === 'idle' || callState === 'rejected')}
-                                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-md mb-2 ${
-                                    (callState === 'idle' || callState === 'rejected') 
-                                        ? 'bg-[#34C759] hover:bg-[#2FB34F] text-white' 
-                                        : 'bg-[#FF3B30] hover:bg-[#E0332B] text-white'
-                                }`}
-                            >
-                                <span className="material-icons-round text-white text-3xl">
-                                    {(callState === 'idle' || callState === 'rejected') ? 'call' : 'call_end'}
-                                </span>
-                            </button>
+                            {/* Call button & controls - iOS Style */}
+                            <div className="flex items-center justify-center gap-4 mb-2">
+                                <button
+                                    onClick={handleCallAction}
+                                    disabled={!phoneNumber && (callState === 'idle' || callState === 'rejected')}
+                                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-md ${
+                                        (callState === 'idle' || callState === 'rejected') 
+                                            ? 'bg-[#34C759] hover:bg-[#2FB34F] text-white' 
+                                            : 'bg-[#FF3B30] hover:bg-[#E0332B] text-white'
+                                    }`}
+                                >
+                                    <span className="material-icons-round text-white text-3xl">
+                                        {(callState === 'idle' || callState === 'rejected') ? 'call' : 'call_end'}
+                                    </span>
+                                </button>
+
+                                {/* Mute button (shown when call is active) */}
+                                {callState === 'active' && (
+                                    <button
+                                        onClick={toggleMute}
+                                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
+                                            isMuted ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                        }`}
+                                        title={isMuted ? 'Activare microfon' : 'Dezactivare microfon (Mute)'}
+                                    >
+                                        <span className="material-icons-round text-2xl">{isMuted ? 'mic_off' : 'mic'}</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
