@@ -170,33 +170,66 @@ const Drafturi = () => {
     const audioCtxRef = useRef<any>(null);
 
     const playRingback = () => {
-        if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const ctx = audioCtxRef.current;
-        if (ctx.state === 'suspended') ctx.resume();
-        stopRingback();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 425;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        const now = ctx.currentTime;
-        for (let i = 0; i < 20; i++) {
-            gain.gain.setValueAtTime(0.3, now + i * 5);
-            gain.gain.setValueAtTime(0, now + i * 5 + 1);
+        console.log('[Ringback] playRingback called');
+        try {
+            if (!audioCtxRef.current) {
+                audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+                console.log('[Ringback] Created new AudioContext');
+            }
+            const ctx = audioCtxRef.current;
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+                console.log('[Ringback] Resumed suspended AudioContext');
+            }
+            stopRingback();
+
+            // Play a beep immediately, then repeat every 3 seconds
+            const playBeep = () => {
+                try {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 425;
+                    gain.gain.value = 0.4;
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    // Stop after 1 second
+                    setTimeout(() => {
+                        try { osc.stop(); osc.disconnect(); gain.disconnect(); } catch(e) {}
+                    }, 1000);
+                    console.log('[Ringback] Beep played');
+                } catch(e) {
+                    console.error('[Ringback] Beep error:', e);
+                }
+            };
+
+            playBeep(); // First beep immediately
+            const intervalId = setInterval(playBeep, 3000); // Then every 3s
+            ringbackOscRef.current = { intervalId };
+            console.log('[Ringback] Interval started');
+        } catch(e) {
+            console.error('[Ringback] playRingback error:', e);
         }
-        osc.start(now);
-        ringbackOscRef.current = { osc, gain };
     };
 
     const stopRingback = () => {
         if (ringbackOscRef.current) {
             try {
-                ringbackOscRef.current.osc.stop();
-                ringbackOscRef.current.osc.disconnect();
-                ringbackOscRef.current.gain.disconnect();
+                if (ringbackOscRef.current.intervalId) {
+                    clearInterval(ringbackOscRef.current.intervalId);
+                }
+                // Legacy cleanup
+                if (ringbackOscRef.current.osc) {
+                    ringbackOscRef.current.osc.stop();
+                    ringbackOscRef.current.osc.disconnect();
+                }
+                if (ringbackOscRef.current.gain) {
+                    ringbackOscRef.current.gain.disconnect();
+                }
             } catch (e) {}
             ringbackOscRef.current = null;
+            console.log('[Ringback] Stopped');
         }
     };
 
@@ -436,7 +469,11 @@ const Drafturi = () => {
             }
 
             const callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40751064714';
-            try { callRef.current = clientRef.current.newCall({ destinationNumber: phoneNumber, callerNumber: callerId, audio: true, video: false }); setCallState('calling'); }
+            try {
+                callRef.current = clientRef.current.newCall({ destinationNumber: phoneNumber, callerNumber: callerId, audio: true, video: false });
+                setCallState('calling');
+                playRingback(); // Start ringback immediately on dial
+            }
             catch (err) { console.error('Call failed', err); alert('A apărut o eroare la inițierea apelului.'); }
         } else {
             if (callRef.current) callRef.current.hangup();
