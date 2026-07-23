@@ -287,16 +287,41 @@ export default async function handler(req, res) {
                         }
                     }
                 `;
-                const completeRes = await fetch(graphqlUrl, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        query: completeMut,
-                        variables: { id: gid, paymentPending: true }
-                    })
-                });
-                const completeData = await completeRes.json();
-                console.log('[shopify-sync] draftOrderComplete response:', JSON.stringify(completeData));
+                // We will retry up to 3 times if Shopify says the order is still calculating
+                let maxRetries = 3;
+                let completeData;
+                let completeErrors;
+
+                while (maxRetries > 0) {
+                    const completeRes = await fetch(graphqlUrl, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            query: completeMut,
+                            variables: { id: gid, paymentPending: true }
+                        })
+                    });
+                    completeData = await completeRes.json();
+                    
+                    if (maxRetries === 3) {
+                        console.log('[shopify-sync] initial draftOrderComplete response:', JSON.stringify(completeData));
+                    }
+
+                    completeErrors = completeData?.data?.draftOrderComplete?.userErrors;
+                    
+                    // Check if it's the calculation error
+                    const isCalculatingError = completeErrors && completeErrors.some(e => 
+                        e.message && e.message.toLowerCase().includes('calculating')
+                    );
+
+                    if (isCalculatingError && maxRetries > 1) {
+                        console.log(`[shopify-sync] Order calculating, retrying in 2s... (${maxRetries - 1} left)`);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        maxRetries--;
+                    } else {
+                        break; // Success or unrecoverable error
+                    }
+                }
 
                 // Check for GraphQL-level errors (e.g. auth, network, query errors)
                 if (completeData?.errors && completeData.errors.length > 0) {
@@ -305,7 +330,6 @@ export default async function handler(req, res) {
                 }
 
                 // Check for userErrors (business logic errors from Shopify)
-                const completeErrors = completeData?.data?.draftOrderComplete?.userErrors;
                 if (completeErrors && completeErrors.length > 0) {
                     const errMsg = completeErrors.map(e => `${e.field ? e.field + ': ' : ''}${e.message}`).join('; ');
                     return res.status(400).json({ success: false, errorMessage: errMsg, errors: completeErrors });
