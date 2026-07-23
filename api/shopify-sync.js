@@ -218,7 +218,7 @@ export default async function handler(req, res) {
                     draftOrder(id: $id) {
                         id
                         tags
-                        note
+                        note2
                     }
                 }
             `;
@@ -238,7 +238,7 @@ export default async function handler(req, res) {
             const updatedTags = [...currentTags];
             if (!updatedTags.includes(statusTag)) updatedTags.push(statusTag);
 
-            let newNote = draftOrder.note ? draftOrder.note + '\n' : '';
+            let newNote = draftOrder.note2 ? draftOrder.note2 + '\n' : '';
             newNote += `[Status platformă: ${statusTag}]`;
             if (note) newNote += ` - ${note}`;
 
@@ -271,7 +271,7 @@ export default async function handler(req, res) {
                                 id
                                 status
                                 tags
-                                note
+                                note2
                                 order {
                                     id
                                     name
@@ -324,7 +324,7 @@ export default async function handler(req, res) {
                     orderTotal: resultOrder?.order?.totalPriceSet?.shopMoney?.amount || null,
                     currency: resultOrder?.order?.totalPriceSet?.shopMoney?.currencyCode || 'RON',
                     tags: resultOrder?.tags || updatedTags,
-                    note: resultOrder?.note || newNote,
+                    note: resultOrder?.note2 || newNote,
                 });
             }
 
