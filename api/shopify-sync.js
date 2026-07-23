@@ -287,41 +287,22 @@ export default async function handler(req, res) {
                         }
                     }
                 `;
-                // We will retry up to 3 times if Shopify says the order is still calculating
-                let maxRetries = 3;
-                let completeData;
-                let completeErrors;
+                
+                // Wait 5 seconds to ensure Shopify finishes background recalculations
+                console.log(`[shopify-sync] Waiting 5 seconds before confirming draft ${gid}...`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
 
-                while (maxRetries > 0) {
-                    const completeRes = await fetch(graphqlUrl, {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify({
-                            query: completeMut,
-                            variables: { id: gid, paymentPending: true }
-                        })
-                    });
-                    completeData = await completeRes.json();
-                    
-                    if (maxRetries === 3) {
-                        console.log('[shopify-sync] initial draftOrderComplete response:', JSON.stringify(completeData));
-                    }
-
-                    completeErrors = completeData?.data?.draftOrderComplete?.userErrors;
-                    
-                    // Check if it's the calculation error
-                    const isCalculatingError = completeErrors && completeErrors.some(e => 
-                        e.message && e.message.toLowerCase().includes('calculating')
-                    );
-
-                    if (isCalculatingError && maxRetries > 1) {
-                        console.log(`[shopify-sync] Order calculating, retrying in 2s... (${maxRetries - 1} left)`);
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        maxRetries--;
-                    } else {
-                        break; // Success or unrecoverable error
-                    }
-                }
+                const completeRes = await fetch(graphqlUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        query: completeMut,
+                        variables: { id: gid, paymentPending: true }
+                    })
+                });
+                const completeData = await completeRes.json();
+                console.log('[shopify-sync] draftOrderComplete response:', JSON.stringify(completeData));
+                const completeErrors = completeData?.data?.draftOrderComplete?.userErrors;
 
                 // Check for GraphQL-level errors (e.g. auth, network, query errors)
                 if (completeData?.errors && completeData.errors.length > 0) {
