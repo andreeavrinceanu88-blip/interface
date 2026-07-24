@@ -43,7 +43,7 @@ export async function syncOrderStatusWithShopify(storeName: string, orderId: str
     }
 }
 
-export async function syncOrderAddressWithShopify(storeName: string, orderId: string, newAddress: string): Promise<any> {
+export async function syncOrderAddressWithShopify(storeName: string, orderId: string, newAddress: string, city?: string, province?: string): Promise<any> {
     try {
         const res = await fetch(API_ENDPOINT, {
             method: 'POST',
@@ -53,6 +53,8 @@ export async function syncOrderAddressWithShopify(storeName: string, orderId: st
                 storeName,
                 orderId,
                 address: newAddress,
+                city,
+                province
             })
         });
         const data = await res.json();

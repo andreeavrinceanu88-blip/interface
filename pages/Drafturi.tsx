@@ -17,6 +17,8 @@ interface Order {
     created_at: string;
     produse: string;
     adresa: string;
+    oras?: string;
+    judet?: string;
     cerere: string;
     cerere_adresa: string;
     cerere_upsell: string;
@@ -145,6 +147,8 @@ const Drafturi = () => {
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
     const [addressText, setAddressText] = useState('');
+    const [orasText, setOrasText] = useState('');
+    const [judetText, setJudetText] = useState('');
     const [savingAddress, setSavingAddress] = useState(false);
     const [toast, setToast] = useState<string>('');
     const [shopifyNotif, setShopifyNotif] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -556,9 +560,11 @@ const Drafturi = () => {
         if (!selectedOrder) return;
         setSavingAddress(true);
         const newAddress = addressText.trim();
-        const { error: err } = await supabaseAdmin.from('orders').update({ adresa: newAddress }).eq('id', selectedOrder.id);
+        const newOras = orasText.trim();
+        const newJudet = judetText.trim();
+        const { error: err } = await supabaseAdmin.from('orders').update({ adresa: newAddress, oras: newOras, judet: newJudet }).eq('id', selectedOrder.id);
         if (!err) {
-            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, adresa: newAddress } : o));
+            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, adresa: newAddress, oras: newOras, judet: newJudet } : o));
             showToast('Adresa a fost actualizată');
             setEditingAddressId(null);
             
@@ -566,7 +572,7 @@ const Drafturi = () => {
             if (selectedOrder.type === 'draft') {
                 const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
                 const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
-                syncOrderAddressWithShopify(storeName, shopifyId, newAddress).then(result => {
+                syncOrderAddressWithShopify(storeName, shopifyId, newAddress, newOras, newJudet).then(result => {
                     if (result.success) {
                         showShopifyNotif('Shopify sincronizat ✓ Adresa a fost actualizată', 'success');
                     } else {
@@ -899,7 +905,7 @@ const Drafturi = () => {
                                     {/* Client Details */}
                                     <div className="col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
                                         {editingAddressId !== selectedOrder.id && (
-                                            <button onClick={() => { setEditingAddressId(selectedOrder.id); setAddressText(selectedOrder.adresa || ''); }} className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
+                                            <button onClick={() => { setEditingAddressId(selectedOrder.id); setAddressText(selectedOrder.adresa || ''); setOrasText(selectedOrder.oras || ''); setJudetText(selectedOrder.judet || ''); }} className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
                                                 <span className="material-icons-round text-[16px]">edit</span> Editează
                                             </button>
                                         )}
@@ -922,24 +928,53 @@ const Drafturi = () => {
                                             <div>
                                                 <p className="text-[12px] text-gray-500 font-medium mb-1">Adresă livrare</p>
                                                 {editingAddressId === selectedOrder.id ? (
-                                                    <div className="mt-2 space-y-2 relative z-10">
-                                                        <textarea
-                                                            className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                                            rows={3}
-                                                            value={addressText}
-                                                            onChange={(e) => setAddressText(e.target.value)}
-                                                            disabled={savingAddress}
-                                                        />
-                                                        <div className="flex gap-2 justify-end">
-                                                            <button onClick={() => setEditingAddressId(null)} disabled={savingAddress} className="px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">Anulează</button>
-                                                            <button onClick={handleSaveAddress} disabled={savingAddress} className="px-3 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50">
+                                                    <div className="mt-2 space-y-3 relative z-10">
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 font-medium mb-1 block">Adresă (Stradă, număr, bloc, etc.)</label>
+                                                            <textarea
+                                                                className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                rows={2}
+                                                                value={addressText}
+                                                                onChange={(e) => setAddressText(e.target.value)}
+                                                                disabled={savingAddress}
+                                                            />
+                                                        </div>
+                                                        <div className="flex gap-3">
+                                                            <div className="flex-1">
+                                                                <label className="text-xs text-gray-500 font-medium mb-1 block">Oraș</label>
+                                                                <input
+                                                                    type="text"
+                                                                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                    value={orasText}
+                                                                    onChange={(e) => setOrasText(e.target.value)}
+                                                                    disabled={savingAddress}
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <label className="text-xs text-gray-500 font-medium mb-1 block">Județ</label>
+                                                                <input
+                                                                    type="text"
+                                                                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                    value={judetText}
+                                                                    onChange={(e) => setJudetText(e.target.value)}
+                                                                    disabled={savingAddress}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2 justify-end pt-1">
+                                                            <button onClick={() => setEditingAddressId(null)} disabled={savingAddress} className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">Anulează</button>
+                                                            <button onClick={handleSaveAddress} disabled={savingAddress} className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50">
                                                                 {savingAddress ? 'Se salvează...' : 'Salvează'}
                                                             </button>
                                                         </div>
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <p className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-line">{selectedOrder.adresa || '—'}</p>
+                                                        <p className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-line">
+                                                            {selectedOrder.adresa || '—'}
+                                                            {selectedOrder.oras ? `, ${selectedOrder.oras}` : ''}
+                                                            {selectedOrder.judet ? `, ${selectedOrder.judet}` : ''}
+                                                        </p>
                                                         <p className="text-emerald-600 text-xs font-semibold mt-2 flex items-center gap-1">
                                                             <span className="material-icons-round text-[14px]">check</span> Adresă completă
                                                         </p>

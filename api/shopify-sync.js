@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        const { action, storeName, orderId, address, status, note, productIds } = req.body;
+        const { action, storeName, orderId, address, city, province, status, note, productIds } = req.body;
 
         if (!storeName) {
             return res.status(400).json({ error: 'storeName is required' });
@@ -156,6 +156,10 @@ export default async function handler(req, res) {
                     }
                 }
             `;
+            const shippingAddress: any = { address1: address || '' };
+            if (city) shippingAddress.city = city;
+            if (province) shippingAddress.province = province;
+
             const gqlRes = await fetch(graphqlUrl, {
                 method: 'POST',
                 headers,
@@ -163,11 +167,7 @@ export default async function handler(req, res) {
                     query: updateMut,
                     variables: {
                         id: gid,
-                        input: {
-                            shippingAddress: {
-                                address1: address
-                            }
-                        }
+                        input: { shippingAddress }
                     }
                 })
             });
