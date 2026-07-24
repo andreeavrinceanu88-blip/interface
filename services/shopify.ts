@@ -43,7 +43,7 @@ export async function syncOrderStatusWithShopify(storeName: string, orderId: str
     }
 }
 
-export async function syncOrderAddressWithShopify(storeName: string, orderId: string, newAddress: string): Promise<boolean> {
+export async function syncOrderAddressWithShopify(storeName: string, orderId: string, newAddress: string): Promise<any> {
     try {
         const res = await fetch(API_ENDPOINT, {
             method: 'POST',
@@ -58,14 +58,14 @@ export async function syncOrderAddressWithShopify(storeName: string, orderId: st
         const data = await res.json();
         if (data.success) {
             console.log('Shopify address sync success');
-            return true;
+            return data;
         } else {
             console.error('Shopify address sync failed:', data);
-            return false;
+            return data;
         }
-    } catch (err) {
+    } catch (err: any) {
         console.error('Shopify address sync error:', err);
-        return false;
+        return { success: false, errorMessage: err.message, raw: err };
     }
 }
 

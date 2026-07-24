@@ -566,9 +566,22 @@ const Drafturi = () => {
             if (selectedOrder.type === 'draft') {
                 const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
                 const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
-                syncOrderAddressWithShopify(storeName, shopifyId, newAddress).then(success => {
-                    if (success) showShopifyNotif('Shopify sincronizat ✓ Adresa a fost actualizată', 'success');
-                    else showShopifyNotif('Eroare Shopify — Adresa nu a fost sincronizată', 'error');
+                syncOrderAddressWithShopify(storeName, shopifyId, newAddress).then(result => {
+                    if (result.success) {
+                        showShopifyNotif('Shopify sincronizat ✓ Adresa a fost actualizată', 'success');
+                    } else {
+                        let errMsg = (result as any).errorMessage
+                            || result.errors?.map((e: any) => `${e.field ? e.field + ': ' : ''}${e.message}`).join(' | ');
+                            
+                        if (!errMsg) {
+                            try {
+                                errMsg = JSON.stringify(result.raw || result, null, 2);
+                            } catch (e) {
+                                errMsg = 'Eroare necunoscută de la Shopify';
+                            }
+                        }
+                        showShopifyNotif(`Eroare Shopify la actualizare adresă:\n${errMsg}`, 'error');
+                    }
                 });
             }
         } else {
