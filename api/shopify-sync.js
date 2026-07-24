@@ -172,6 +172,13 @@ export default async function handler(req, res) {
                 })
             });
             const gqlData = await gqlRes.json();
+            
+            // Check for GraphQL-level errors
+            if (gqlData?.errors && gqlData.errors.length > 0) {
+                const errMsg = gqlData.errors.map(e => e.message).join('; ');
+                return res.status(400).json({ success: false, errorMessage: errMsg, raw: gqlData });
+            }
+            
             const errors = gqlData?.data?.draftOrderUpdate?.userErrors;
             if (errors && errors.length > 0) {
                 return res.status(400).json({ success: false, errors });
@@ -203,6 +210,13 @@ export default async function handler(req, res) {
                 })
             });
             const gqlData = await gqlRes.json();
+            
+            // Check for GraphQL-level errors
+            if (gqlData?.errors && gqlData.errors.length > 0) {
+                const errMsg = gqlData.errors.map(e => e.message).join('; ');
+                return res.status(400).json({ success: false, errorMessage: errMsg, raw: gqlData });
+            }
+            
             const errors = gqlData?.data?.draftOrderUpdate?.userErrors;
             if (errors && errors.length > 0) {
                 return res.status(400).json({ success: false, errors });
@@ -439,6 +453,13 @@ export default async function handler(req, res) {
                 })
             });
             const gqlData = await gqlRes.json();
+            
+            // Check for GraphQL-level errors
+            if (gqlData?.errors && gqlData.errors.length > 0) {
+                const errMsg = gqlData.errors.map(e => e.message).join('; ');
+                return res.status(400).json({ success: false, errorMessage: errMsg, raw: gqlData });
+            }
+            
             const errors = gqlData?.data?.draftOrderUpdate?.userErrors;
             if (errors && errors.length > 0) {
                 return res.status(400).json({ success: false, errors });
@@ -505,6 +526,13 @@ export default async function handler(req, res) {
                 })
             });
             const gqlData = await gqlRes.json();
+            
+            // Check for GraphQL-level errors
+            if (gqlData?.errors && gqlData.errors.length > 0) {
+                const errMsg = gqlData.errors.map(e => e.message).join('; ');
+                return res.status(400).json({ success: false, errorMessage: errMsg, raw: gqlData });
+            }
+            
             const errors = gqlData?.data?.draftOrderUpdate?.userErrors;
             if (errors && errors.length > 0) {
                 return res.status(400).json({ success: false, errors });
