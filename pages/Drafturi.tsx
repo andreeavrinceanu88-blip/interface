@@ -970,11 +970,22 @@ const Drafturi = () => {
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <p className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-line">
-                                                            {selectedOrder.adresa || '—'}
-                                                            {selectedOrder.oras ? `, ${selectedOrder.oras}` : ''}
-                                                            {selectedOrder.judet ? `, ${selectedOrder.judet}` : ''}
-                                                        </p>
+                                                        <div className="space-y-1 mt-1">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[11px] text-gray-500 font-medium">Stradă/Număr</span>
+                                                                <span className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-line">{selectedOrder.adresa || '—'}</span>
+                                                            </div>
+                                                            <div className="flex gap-4 pt-1">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[11px] text-gray-500 font-medium">Oraș</span>
+                                                                    <span className="text-sm font-medium text-gray-900">{selectedOrder.oras || '—'}</span>
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[11px] text-gray-500 font-medium">Județ</span>
+                                                                    <span className="text-sm font-medium text-gray-900">{selectedOrder.judet || '—'}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                         <p className="text-emerald-600 text-xs font-semibold mt-2 flex items-center gap-1">
                                                             <span className="material-icons-round text-[14px]">check</span> Adresă completă
                                                         </p>
