@@ -954,11 +954,15 @@ const Drafturi = () => {
                                                                 <label className="text-xs text-gray-500 font-medium mb-1 block">Județ</label>
                                                                 <input
                                                                     type="text"
+                                                                    list="judete-list"
                                                                     className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                                                     value={judetText}
                                                                     onChange={(e) => setJudetText(e.target.value)}
                                                                     disabled={savingAddress}
                                                                 />
+                                                                <datalist id="judete-list">
+                                                                    {['Alba', 'Arad', 'Argeș', 'Bacău', 'Bihor', 'Bistrița-Năsăud', 'Botoșani', 'Brașov', 'Brăila', 'Buzău', 'Caraș-Severin', 'Călărași', 'Cluj', 'Constanța', 'Covasna', 'Dâmbovița', 'Dolj', 'Galați', 'Giurgiu', 'Gorj', 'Harghita', 'Hunedoara', 'Ialomița', 'Iași', 'Ilfov', 'Maramureș', 'Mehedinți', 'Mureș', 'Neamț', 'Olt', 'Prahova', 'Satu Mare', 'Sălaj', 'Sibiu', 'Suceava', 'Teleorman', 'Timiș', 'Tulcea', 'Vaslui', 'Vâlcea', 'Vrancea', 'București'].map(j => <option key={j} value={j} />)}
+                                                                </datalist>
                                                             </div>
                                                         </div>
                                                         <div className="flex gap-2 justify-end pt-1">
@@ -970,23 +974,29 @@ const Drafturi = () => {
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <div className="space-y-1 mt-1">
+                                                        <div className="space-y-3 mt-2">
                                                             <div className="flex flex-col">
-                                                                <span className="text-[11px] text-gray-500 font-medium">Stradă/Număr</span>
-                                                                <span className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-line">{selectedOrder.adresa || '—'}</span>
-                                                            </div>
-                                                            <div className="flex gap-4 pt-1">
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-[11px] text-gray-500 font-medium">Oraș</span>
-                                                                    <span className="text-sm font-medium text-gray-900">{selectedOrder.oras || '—'}</span>
+                                                                <span className="text-[12px] text-gray-500 font-medium mb-1">Stradă/Număr</span>
+                                                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[14px] font-medium text-gray-900 leading-relaxed whitespace-pre-line">
+                                                                    {selectedOrder.adresa || '—'}
                                                                 </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-[11px] text-gray-500 font-medium">Județ</span>
-                                                                    <span className="text-sm font-medium text-gray-900">{selectedOrder.judet || '—'}</span>
+                                                            </div>
+                                                            <div className="flex gap-4">
+                                                                <div className="flex flex-col flex-1">
+                                                                    <span className="text-[12px] text-gray-500 font-medium mb-1">Oraș</span>
+                                                                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[14px] font-medium text-gray-900">
+                                                                        {selectedOrder.oras || '—'}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-col flex-1">
+                                                                    <span className="text-[12px] text-gray-500 font-medium mb-1">Județ</span>
+                                                                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[14px] font-medium text-gray-900">
+                                                                        {selectedOrder.judet || '—'}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <p className="text-emerald-600 text-xs font-semibold mt-2 flex items-center gap-1">
+                                                        <p className="text-emerald-600 text-xs font-semibold mt-4 flex items-center gap-1">
                                                             <span className="material-icons-round text-[14px]">check</span> Adresă completă
                                                         </p>
                                                     </>
