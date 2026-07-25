@@ -42,10 +42,14 @@ export default function StatisticiProduse() {
     }, [userStores, selectedBrand]);
 
     useEffect(() => {
+        if (!profile?.id || !selectedBrand) return;
+        
         setLoading(true);
         supabase
             .from('products')
             .select('*')
+            .eq('user_id', profile.id)
+            .eq('store', selectedBrand)
             .then(({ data, error }) => {
                 if (error) {
                     console.error('Error fetching products:', error);
@@ -54,7 +58,7 @@ export default function StatisticiProduse() {
                 }
             })
             .finally(() => setLoading(false));
-    }, [selectedBrand]);
+    }, [selectedBrand, profile?.id]);
 
     const columns = products.length > 0 ? Object.keys(products[0]).filter(col => col !== 'user_id' && col !== 'created_at') : [];
 

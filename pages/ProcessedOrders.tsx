@@ -42,10 +42,14 @@ export default function ProcessedOrders() {
     }, [userStores, selectedBrand]);
 
     useEffect(() => {
+        if (!profile?.id || !selectedBrand) return;
+        
         setLoading(true);
         supabase
             .from('orders')
             .select('*')
+            .eq('user_id', profile.id)
+            .eq('store', selectedBrand)
             .then(({ data, error }) => {
                 if (error) {
                     console.error('Error fetching orders:', error);
@@ -54,7 +58,7 @@ export default function ProcessedOrders() {
                 }
             })
             .finally(() => setLoading(false));
-    }, [selectedBrand]);
+    }, [selectedBrand, profile?.id]);
 
     const columns = orders.length > 0 ? Object.keys(orders[0]).filter(col => col !== 'user_id' && col !== 'created_at') : [];
 
