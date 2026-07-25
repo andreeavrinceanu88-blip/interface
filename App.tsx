@@ -15,6 +15,7 @@ import { queryClient } from './lib/queryClient';
 import OnboardingPage from "./pages/OnboardingPage";
 import VerificareApeluri from "./pages/VerificareApeluri";
 import Drafturi from "./pages/Drafturi";
+import ProcessedOrders from "./pages/ProcessedOrders";
 
 export default function App() {
     const { session, loading: authLoading } = useAuth();
@@ -57,6 +58,7 @@ export default function App() {
                                     <Route path="/setup" element={<OnboardingPage />} />
                                     <Route path="/drafturi" element={<Drafturi />} />
                                     <Route path="/verificare-apeluri" element={<VerificareApeluri />} />
+                                    <Route path="/processed-orders" element={<ProcessedOrders />} />
                                     <Route path="*" element={<PlaceholderPage />} />
                                 </Routes>
                             </div>
