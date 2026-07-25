@@ -57,7 +57,14 @@ export async function syncOrderAddressWithShopify(storeName: string, orderId: st
                 province
             })
         });
-        const data = await res.json();
+        const text = await res.text();
+        let data: any;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Shopify address sync: non-JSON response:', text);
+            return { success: false, errorMessage: text.substring(0, 500) };
+        }
         if (data.success) {
             console.log('Shopify address sync success');
             return data;

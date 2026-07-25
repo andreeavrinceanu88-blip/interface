@@ -57,6 +57,7 @@ export default async function handler(req, res) {
         }
 
         const config = getStoreConfig(storeName);
+        console.log(`[shopify-sync] Store: ${storeName}, URL: ${config.url}, hasClientId: ${!!config.clientId}, hasClientSecret: ${!!config.clientSecret}`);
         const token = await getAccessToken(config);
         const headers = {
             'Content-Type': 'application/json',
@@ -156,7 +157,7 @@ export default async function handler(req, res) {
                     }
                 }
             `;
-            const shippingAddress: any = { address1: address || '' };
+            const shippingAddress = { address1: address || '' };
             if (city) shippingAddress.city = city;
             if (province) shippingAddress.province = province;
 
@@ -171,7 +172,14 @@ export default async function handler(req, res) {
                     }
                 })
             });
-            const gqlData = await gqlRes.json();
+            const gqlText = await gqlRes.text();
+            let gqlData;
+            try {
+                gqlData = JSON.parse(gqlText);
+            } catch (parseErr) {
+                console.error('[shopify-sync] update-address non-JSON response:', gqlText);
+                return res.status(500).json({ success: false, errorMessage: `Shopify a returnat un răspuns invalid: ${gqlText.substring(0, 300)}` });
+            }
             
             // Check for GraphQL-level errors
             if (gqlData?.errors && gqlData.errors.length > 0) {
