@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTelnyx } from '../contexts/TelnyxContext';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages, getAllProducts, updateShopifyLineItemsBulk } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ const Drafturi = () => {
         try {
             const endOfDay = endDate + 'T23:59:59';
             console.log('[Orders] querying store:', selectedBrand, 'from', startDate, 'to', endDate);
-            const { data, error: qErr } = await supabase
+            const { data, error: qErr } = await supabaseAdmin
                 .from('orders')
                 .select('*')
                 .ilike('store_name', selectedBrand)
