@@ -136,24 +136,22 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
                 {/* ROAS bars (NEW) */}
                 <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
-                    <div className="relative z-10 h-full flex flex-col justify-center gap-4 md:gap-5">
-                        <div>
-                            <div className="flex justify-between items-end mb-1.5">
-                                <p className="text-[10px] md:text-xs text-gray-400 font-light">ROAS Inițial</p>
-                                <span className="text-sm font-medium text-white">{(latestMetrics as any)?.roas_initial || '3.5'}x</span>
+                    <div className="relative z-10 h-full flex items-end justify-around pt-2">
+                        {/* Initial ROAS */}
+                        <div className="flex flex-col items-center gap-2 h-full justify-end w-1/2">
+                            <span className="text-sm font-medium text-white">{(latestMetrics as any)?.roas_initial || '3.5'}x</span>
+                            <div className="w-6 md:w-8 h-16 md:h-20 bg-[#13141a] rounded-full overflow-hidden border border-white/5 relative flex flex-col justify-end">
+                                <div className="w-full bg-blue-500 rounded-full" style={{ height: '40%' }}></div>
                             </div>
-                            <div className="h-1.5 w-full bg-[#13141a] rounded-full overflow-hidden border border-white/5">
-                                <div className="h-full bg-blue-500 rounded-full" style={{ width: '40%' }}></div>
-                            </div>
+                            <p className="text-[10px] md:text-xs text-gray-400 font-light text-center">Inițial</p>
                         </div>
-                        <div>
-                            <div className="flex justify-between items-end mb-1.5">
-                                <p className="text-[10px] md:text-xs text-emerald-400 font-light">ROAS cu Robot</p>
-                                <span className="text-sm font-medium text-emerald-400">{(latestMetrics as any)?.roas_robot || '6.8'}x</span>
+                        {/* Robot ROAS */}
+                        <div className="flex flex-col items-center gap-2 h-full justify-end w-1/2">
+                            <span className="text-sm font-medium text-emerald-400">{(latestMetrics as any)?.roas_robot || '6.8'}x</span>
+                            <div className="w-6 md:w-8 h-16 md:h-20 bg-[#13141a] rounded-full overflow-hidden border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)] relative flex flex-col justify-end">
+                                <div className="w-full bg-emerald-500 rounded-full" style={{ height: '80%' }}></div>
                             </div>
-                            <div className="h-1.5 w-full bg-[#13141a] rounded-full overflow-hidden border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '80%' }}></div>
-                            </div>
+                            <p className="text-[10px] md:text-xs text-emerald-400 font-light text-center">Robot</p>
                         </div>
                     </div>
                 </div>
@@ -182,32 +180,38 @@ const Index = () => {
                 </div>
                 {/* Sales cards */}
                 <div className="col-span-1 md:col-span-1 grid grid-cols-2 md:grid-cols-1 gap-3">
-                    <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#001f3f] to-[#006bb3] text-white group hover:-translate-y-1 transition-transform relative overflow-hidden">
-                        <div className="absolute bottom-0 left-0 right-0 h-16 opacity-30 pointer-events-none">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={historyMetrics && historyMetrics.length > 0 ? historyMetrics : [{vanzari_generate: 0}, {vanzari_generate: vanzariGenerate}]}>
-                                    <Area type="monotone" dataKey="vanzari_generate" stroke="#00d2ff" fill="#00d2ff" strokeWidth={2} isAnimationActive={false} />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="relative z-10">
+                    <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#001f3f] to-[#006bb3] text-white group hover:-translate-y-1 transition-transform relative overflow-hidden flex flex-col">
+                        <div className="relative z-10 flex-shrink-0">
                             <div className="icon-cart-v3 mb-2" style={{ width: '36px', height: '36px', borderRadius: '10px' }}><span className="material-icons-round icon-symbol-laser-blue" style={{ fontSize: '20px' }}>payments</span></div>
                             <p className="text-[10px] md:text-xs text-cyan-200 font-light mb-1">Vânzări Generate</p>
                             <h3 className="text-lg md:text-2xl font-light font-num glow-text">{displayValue(metricsLoading && !latestMetrics ? '...' : `${vanzariGenerate.toLocaleString()} RON`)}</h3>
                         </div>
-                    </div>
-                    <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#0d2d1a] to-[#1a5c34] text-white group hover:-translate-y-1 transition-transform relative overflow-hidden">
-                        <div className="absolute bottom-0 left-0 right-0 h-16 opacity-30 pointer-events-none">
+                        <div className="relative flex-1 mt-2 -mx-3 md:-mx-5 -mb-3 md:-mb-5 min-h-[60px] opacity-70">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={historyMetrics && historyMetrics.length > 0 ? historyMetrics : [{vanzari_upsell: 0}, {vanzari_upsell: vanzariUpsell}]}>
-                                    <Area type="monotone" dataKey="vanzari_upsell" stroke="#10b981" fill="#10b981" strokeWidth={2} isAnimationActive={false} />
+                                <AreaChart data={historyMetrics && historyMetrics.length > 0 ? historyMetrics : [{vanzari_generate: 0}, {vanzari_generate: vanzariGenerate}]}>
+                                    <defs><linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00d2ff" stopOpacity={0.6}/><stop offset="95%" stopColor="#00d2ff" stopOpacity={0}/></linearGradient></defs>
+                                    <CartesianGrid strokeDasharray="0" vertical={false} stroke="rgba(255,255,255,0.03)" />
+                                    <Tooltip contentStyle={{ backgroundColor: 'rgba(22, 24, 34, 0.9)', borderColor: 'rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '12px' }} />
+                                    <Area type="monotone" dataKey="vanzari_generate" name="Vânzări" stroke="#00d2ff" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" isAnimationActive={false} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
-                        <div className="relative z-10">
+                    </div>
+                    <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#0d2d1a] to-[#1a5c34] text-white group hover:-translate-y-1 transition-transform relative overflow-hidden flex flex-col">
+                        <div className="relative z-10 flex-shrink-0">
                             <div className="icon-cart-v3 mb-2" style={{ width: '36px', height: '36px', borderRadius: '10px' }}><span className="material-icons-round icon-symbol-emerald" style={{ fontSize: '20px' }}>trending_up</span></div>
                             <p className="text-[10px] md:text-xs text-emerald-200 font-light mb-1">Vânzări Upsell</p>
                             <h3 className="text-lg md:text-2xl font-light font-num glow-text">{displayValue(metricsLoading && !latestMetrics ? '...' : `${vanzariUpsell.toLocaleString()} RON`)}</h3>
+                        </div>
+                        <div className="relative flex-1 mt-2 -mx-3 md:-mx-5 -mb-3 md:-mb-5 min-h-[60px] opacity-70">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={historyMetrics && historyMetrics.length > 0 ? historyMetrics : [{vanzari_upsell: 0}, {vanzari_upsell: vanzariUpsell}]}>
+                                    <defs><linearGradient id="colorUpsell" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.6}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient></defs>
+                                    <CartesianGrid strokeDasharray="0" vertical={false} stroke="rgba(255,255,255,0.03)" />
+                                    <Tooltip contentStyle={{ backgroundColor: 'rgba(22, 24, 34, 0.9)', borderColor: 'rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '12px' }} />
+                                    <Area type="monotone" dataKey="vanzari_upsell" name="Upsell" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorUpsell)" isAnimationActive={false} />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
