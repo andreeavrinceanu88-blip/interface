@@ -138,20 +138,20 @@ const Index = () => {
                 <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
                     <div className="relative z-10 h-full flex items-end justify-around pt-2">
                         {/* Initial ROAS */}
-                        <div className="flex flex-col items-center gap-2 h-full justify-end w-1/2">
-                            <span className="text-sm font-medium text-white">{(latestMetrics as any)?.roas_initial || '3.5'}x</span>
-                            <div className="w-6 md:w-8 h-16 md:h-20 bg-[#13141a] rounded-full overflow-hidden border border-white/5 relative flex flex-col justify-end">
+                        <div className="flex flex-col items-center gap-3 h-full justify-end w-1/2">
+                            <span className="text-sm md:text-base font-medium text-white">{(latestMetrics as any)?.roas_initial || '3.5'}x</span>
+                            <div className="w-10 md:w-12 h-32 md:h-40 bg-[#13141a] rounded-full overflow-hidden border border-white/5 relative flex flex-col justify-end">
                                 <div className="w-full bg-blue-500 rounded-full" style={{ height: '40%' }}></div>
                             </div>
-                            <p className="text-[10px] md:text-xs text-gray-400 font-light text-center">Inițial</p>
+                            <p className="text-[10px] md:text-sm text-gray-400 font-light text-center">Inițial</p>
                         </div>
                         {/* Robot ROAS */}
-                        <div className="flex flex-col items-center gap-2 h-full justify-end w-1/2">
-                            <span className="text-sm font-medium text-emerald-400">{(latestMetrics as any)?.roas_robot || '6.8'}x</span>
-                            <div className="w-6 md:w-8 h-16 md:h-20 bg-[#13141a] rounded-full overflow-hidden border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)] relative flex flex-col justify-end">
+                        <div className="flex flex-col items-center gap-3 h-full justify-end w-1/2">
+                            <span className="text-sm md:text-base font-medium text-emerald-400">{(latestMetrics as any)?.roas_robot || '6.8'}x</span>
+                            <div className="w-10 md:w-12 h-32 md:h-40 bg-[#13141a] rounded-full overflow-hidden border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)] relative flex flex-col justify-end">
                                 <div className="w-full bg-emerald-500 rounded-full" style={{ height: '80%' }}></div>
                             </div>
-                            <p className="text-[10px] md:text-xs text-emerald-400 font-light text-center">Robot</p>
+                            <p className="text-[10px] md:text-sm text-emerald-400 font-light text-center">Robot</p>
                         </div>
                     </div>
                 </div>
