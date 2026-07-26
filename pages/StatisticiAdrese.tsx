@@ -1,28 +1,72 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import { useAuth } from '../contexts/AuthContext';
 import StoreSelector from '../components/StoreSelector';
-import { supabaseAdmin } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 
 interface CountyData {
     name: string;
     value: number;
 }
 
-interface CityStats {
-    total: number;
-    cities: Record<string, number>;
+interface Order {
+    id: number;
+    judet: string | null;
+    oras: string | null;
 }
 
-// Map common Romanian county names with diacritics to the names used in the GeoJSON
-const normalizeCountyName = (name: string): string => {
-    if (!name) return 'Necunoscut';
-    let normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    // Special cases for GeoJSON compatibility (e.g., if GeoJSON uses 'Bucharest' instead of 'Bucuresti')
-    if (normalized.toLowerCase() === 'bucuresti') return 'Bucharest';
-    // Capitalize first letter of each word
-    return normalized.replace(/\b\w/g, c => c.toUpperCase());
+const normalizeCountyName = (name: string | null): string => {
+    if (!name) return 'Unknown';
+    let n = name.toLowerCase().trim();
+    // Remove diacritics
+    n = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    if (n.includes('bucuresti') || n.includes('bucharest')) return 'Bucharest';
+    if (n === 'cluj') return 'Cluj';
+    if (n === 'timis') return 'Timis';
+    if (n === 'iasi') return 'Iasi';
+    if (n === 'brasov') return 'Brasov';
+    if (n === 'constanta') return 'Constanta';
+    if (n === 'suceava') return 'Suceava';
+    if (n === 'bacau') return 'Bacau';
+    if (n === 'arges') return 'Arges';
+    if (n === 'bihor') return 'Bihor';
+    if (n === 'prahova') return 'Prahova';
+    if (n === 'dolj') return 'Dolj';
+    if (n === 'galati') return 'Galati';
+    if (n === 'maramures') return 'Maramures';
+    if (n === 'mures') return 'Mures';
+    if (n === 'sibiu') return 'Sibiu';
+    if (n === 'arad') return 'Arad';
+    if (n === 'alba') return 'Alba';
+    if (n === 'bistrita-nasaud' || n.includes('bistrita')) return 'Bistrita-Nasaud';
+    if (n === 'botosani') return 'Botosani';
+    if (n === 'caras-severin' || n.includes('caras')) return 'Caras-Severin';
+    if (n === 'calarasi') return 'Calarasi';
+    if (n === 'covasna') return 'Covasna';
+    if (n === 'dambovita') return 'Dambovita';
+    if (n === 'giurgiu') return 'Giurgiu';
+    if (n === 'gorj') return 'Gorj';
+    if (n === 'harghita') return 'Harghita';
+    if (n === 'hunedoara') return 'Hunedoara';
+    if (n === 'ialomita') return 'Ialomita';
+    if (n === 'ilfov') return 'Ilfov';
+    if (n === 'mehedinti') return 'Mehedinti';
+    if (n === 'neamt') return 'Neamt';
+    if (n === 'olt') return 'Olt';
+    if (n === 'salaj') return 'Salaj';
+    if (n === 'satu mare' || n === 'satu-mare') return 'Satu Mare';
+    if (n === 'teleorman') return 'Teleorman';
+    if (n === 'tulcea') return 'Tulcea';
+    if (n === 'vaslui') return 'Vaslui';
+    if (n === 'valcea') return 'Valcea';
+    if (n === 'vrancea') return 'Vrancea';
+    if (n === 'braila') return 'Braila';
+    if (n === 'buzau') return 'Buzau';
+    
+    // Capitalize first letter of each word as fallback
+    return n.split(/[\s-]+/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
 };
 
 export default function StatisticiAdrese() {
@@ -30,11 +74,7 @@ export default function StatisticiAdrese() {
     const userStores = profile?.stores || [];
 
     const today = new Date().toISOString().split('T')[0];
-    const [startDate, setStartDate] = useState(() => {
-        const d = new Date();
-        d.setDate(d.getDate() - 30); // Default to last 30 days
-        return d.toISOString().split('T')[0];
-    });
+    const [startDate, setStartDate] = useState(today);
     const [endDate, setEndDate] = useState(today);
 
     const [selectedBrand, setSelectedBrand] = useState<string>('');
@@ -42,8 +82,8 @@ export default function StatisticiAdrese() {
     const [mapError, setMapError] = useState<string | null>(null);
 
     const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
+    const [orders, setOrders] = useState<Order[]>([]);
     const [loadingData, setLoadingData] = useState(false);
-    const [stats, setStats] = useState<Record<string, CityStats>>({});
 
     // Auto-select first store
     useEffect(() => {
@@ -52,7 +92,6 @@ export default function StatisticiAdrese() {
         }
     }, [userStores, selectedBrand]);
 
-    // Fetch local Romania GeoJSON
     useEffect(() => {
         const fetchGeoJson = async () => {
             try {
@@ -63,67 +102,58 @@ export default function StatisticiAdrese() {
                 setMapLoaded(true);
             } catch (e) {
                 console.warn('Failed to fetch local GeoJSON', e);
-                setMapError('Nu s-a putut încărca harta județelor (Eroare rețea). Verificați dacă fisierul exista in public/romania-counties.json');
+                setMapError('Nu s-a putut încărca harta județelor (Eroare rețea).');
             }
         };
-
         fetchGeoJson();
     }, []);
 
-    // Fetch data from Supabase
+    const fetchOrders = useCallback(async () => {
+        if (!selectedBrand || !profile?.id) return;
+        setLoadingData(true);
+        try {
+            const endOfDay = endDate + 'T23:59:59';
+            const { data, error } = await supabase
+                .from('orders')
+                .select('id, judet, oras')
+                .ilike('store_name', selectedBrand)
+                .eq('user_id', profile.id)
+                .gte('created_at', startDate + 'T00:00:00')
+                .lte('created_at', endOfDay);
+
+            if (error) throw error;
+            setOrders(data || []);
+        } catch (e) {
+            console.error('Error fetching orders for map:', e);
+        } finally {
+            setLoadingData(false);
+        }
+    }, [selectedBrand, startDate, endDate, profile?.id]);
+
     useEffect(() => {
-        if (!selectedBrand) return;
+        fetchOrders();
+    }, [fetchOrders]);
 
-        const fetchData = async () => {
-            setLoadingData(true);
-            try {
-                const endOfDay = endDate + 'T23:59:59';
-                const { data, error } = await supabaseAdmin
-                    .from('orders')
-                    .select('judet, oras')
-                    .ilike('store_name', selectedBrand)
-                    .gte('created_at', startDate + 'T00:00:00')
-                    .lte('created_at', endOfDay);
+    // Process data for the map and side panel
+    const { countyData, countyCityMap, maxOrders } = useMemo(() => {
+        const cMap: Record<string, number> = {};
+        const cityMap: Record<string, Record<string, number>> = {};
+        
+        orders.forEach(o => {
+            if (!o.judet) return;
+            const normCounty = normalizeCountyName(o.judet);
+            const city = o.oras ? o.oras.trim().charAt(0).toUpperCase() + o.oras.trim().slice(1).toLowerCase() : 'Necunoscut';
+            
+            cMap[normCounty] = (cMap[normCounty] || 0) + 1;
+            if (!cityMap[normCounty]) cityMap[normCounty] = {};
+            cityMap[normCounty][city] = (cityMap[normCounty][city] || 0) + 1;
+        });
 
-                if (error) throw error;
+        const cData: CountyData[] = Object.keys(cMap).map(k => ({ name: k, value: cMap[k] }));
+        const max = cData.length > 0 ? Math.max(...cData.map(c => c.value)) : 100;
 
-                const aggregated: Record<string, CityStats> = {};
-
-                (data || []).forEach(order => {
-                    const rawJudet = order.judet || 'Necunoscut';
-                    const rawOras = order.oras || 'Necunoscut';
-                    
-                    const judet = normalizeCountyName(rawJudet);
-                    const oras = rawOras.trim();
-
-                    if (!aggregated[judet]) {
-                        aggregated[judet] = { total: 0, cities: {} };
-                    }
-                    aggregated[judet].total += 1;
-                    
-                    if (!aggregated[judet].cities[oras]) {
-                        aggregated[judet].cities[oras] = 0;
-                    }
-                    aggregated[judet].cities[oras] += 1;
-                });
-
-                setStats(aggregated);
-            } catch (err) {
-                console.error('Error fetching address stats:', err);
-            } finally {
-                setLoadingData(false);
-            }
-        };
-
-        fetchData();
-    }, [selectedBrand, startDate, endDate]);
-
-    const echartsData: CountyData[] = useMemo(() => {
-        return Object.keys(stats).map(county => ({
-            name: county,
-            value: stats[county].total
-        }));
-    }, [stats]);
+        return { countyData: cData, countyCityMap: cityMap, maxOrders: max };
+    }, [orders]);
 
     const getEchartsOption = () => {
         return {
@@ -132,14 +162,10 @@ export default function StatisticiAdrese() {
                 trigger: 'item',
                 backgroundColor: 'rgba(19, 20, 26, 0.95)',
                 borderColor: 'rgba(255, 255, 255, 0.1)',
-                textStyle: {
-                    color: '#e5e7eb', // gray-200
-                    fontFamily: 'Inter, sans-serif'
-                },
+                textStyle: { color: '#e5e7eb', fontFamily: 'Inter, sans-serif' },
                 padding: [12, 16],
                 formatter: (params: any) => {
                     const value = params.value || 0;
-                    // Provide a nice fallback name
                     let countyName = params.name || 'Necunoscut';
                     if (countyName === 'Bucharest') countyName = 'București';
                     if (countyName === 'Timis') countyName = 'Timiș';
@@ -154,14 +180,13 @@ export default function StatisticiAdrese() {
             },
             visualMap: {
                 min: 0,
-                max: 1500,
+                max: maxOrders > 0 ? maxOrders : 100,
                 left: 'right',
                 bottom: '10%',
-                text: ['1500+', '0'], // High, Low
-                textStyle: { color: '#9ca3af' }, // gray-400
+                text: [maxOrders.toString(), '0'],
+                textStyle: { color: '#9ca3af' },
                 calculable: true,
                 inRange: {
-                    // Start deeply neutral (for 0 values), go up to bright purple/cyan
                     color: ['#1e1f2e', '#0074e4', '#00b0ff', '#00d2ff', '#00e5ff']
                 },
                 itemWidth: 15,
@@ -172,43 +197,31 @@ export default function StatisticiAdrese() {
                     name: 'Comenzi',
                     type: 'map',
                     map: 'ROMANIA_COUNTIES',
-                    roam: false, // Disables zooming/panning
-                    zoom: 1.1, // Initial zoom
-                    aspectScale: 1.1, // <-- this makes it wider horizontally (fixes the vertical stretch)
+                    roam: false,
+                    zoom: 1.1,
+                    aspectScale: 1.1,
                     itemStyle: {
                         borderColor: 'rgba(255, 255, 255, 0.05)',
                         borderWidth: 1,
-                        areaColor: '#1e1f2e', // Default fallback map color
+                        areaColor: '#1e1f2e',
                     },
                     emphasis: {
                         itemStyle: {
-                            areaColor: '#3b82f6', // bright blue on hover
+                            areaColor: '#3b82f6',
                             shadowBlur: 10,
                             shadowColor: 'rgba(59, 130, 246, 0.5)'
                         },
-                        label: {
-                            show: true,
-                            color: '#fff',
-                            fontWeight: 'bold'
-                        }
+                        label: { show: true, color: '#fff', fontWeight: 'bold' }
                     },
                     select: {
-                        itemStyle: {
-                            areaColor: '#00d2ff'
-                        },
+                        itemStyle: { areaColor: '#00d2ff' },
                         label: { show: true, color: '#fff' }
                     },
-                    data: echartsData
+                    data: countyData
                 }
             ]
         };
     };
-
-    // Helper to get stats for selected county
-    const selectedStats = selectedCounty ? stats[selectedCounty] : null;
-    const topCities = selectedStats
-        ? Object.entries(selectedStats.cities).sort((a, b) => b[1] - a[1])
-        : [];
 
     return (
         <div className="space-y-6 h-full flex flex-col">
@@ -236,49 +249,42 @@ export default function StatisticiAdrese() {
             </div>
 
             <div className="card-depth rounded-2xl border border-white/5 relative flex-1 min-h-[500px] flex items-center justify-center overflow-hidden">
-                {loadingData && (
-                    <div className="absolute top-6 left-6 z-10 bg-[#13141a]/90 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 shadow-lg flex items-center gap-2">
-                        <span className="material-icons-round animate-spin text-cyan-500 text-sm">autorenew</span>
-                        <span className="text-sm text-gray-300 font-medium">Se încarcă datele...</span>
-                    </div>
-                )}
-                
-                <div className="absolute top-6 right-6 z-10 bg-[#13141a]/90 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-lg min-w-[280px] max-w-xs pointer-events-auto">
+                <div className="absolute top-6 right-6 z-10 bg-[#13141a]/90 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-lg min-w-[280px] max-w-xs pointer-events-auto max-h-[80%] flex flex-col">
                     {!selectedCounty ? (
                         <p className="text-gray-300 text-sm font-medium leading-relaxed">
-                            Selecteaza judetul pentru a vedea numarul de comenzi si distributia pe orase
+                            {loadingData ? 'Se încarcă datele...' : 'Selecteaza judetul pentru a vedea orasele cu cele mai multe comenzi.'}
                         </p>
                     ) : (
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-medium text-white tracking-tight">
-                                    {selectedCounty === 'Bucharest' ? 'București' : selectedCounty === 'Timis' ? 'Timiș' : selectedCounty}
-                                </h3>
+                        <div className="space-y-3 flex-1 flex flex-col overflow-hidden">
+                            <div className="flex justify-between items-center shrink-0">
+                                <h3 className="text-lg font-medium text-white tracking-tight">{selectedCounty === 'Bucharest' ? 'București' : selectedCounty === 'Timis' ? 'Timiș' : selectedCounty}</h3>
                                 <button onClick={() => setSelectedCounty(null)} className="text-gray-500 hover:text-white transition-colors flex items-center justify-center">
                                     <span className="material-icons-round text-sm">close</span>
                                 </button>
                             </div>
-                            <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
-                                <div className="flex justify-between items-center text-sm mb-2">
-                                    <span className="text-gray-400">Total comenzi:</span>
-                                    <span className="font-num font-semibold text-cyan-400 text-base">{selectedStats?.total || 0}</span>
+                            <div className="flex flex-col gap-2 pt-2 border-t border-white/10 shrink-0">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-gray-400">Total comenzi județ:</span>
+                                    <span className="font-num font-semibold text-cyan-400 text-base">
+                                        {countyData.find(c => c.name === selectedCounty)?.value || 0}
+                                    </span>
                                 </div>
-                                
-                                {topCities.length > 0 ? (
-                                    <div className="max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                                        <div className="text-xs text-gray-500 font-medium mb-2 uppercase tracking-wider">Top Orașe</div>
-                                        <div className="space-y-2">
-                                            {topCities.map(([city, count]) => (
-                                                <div key={city} className="flex justify-between items-center text-sm">
-                                                    <span className="text-gray-300 truncate max-w-[150px]" title={city}>{city}</span>
-                                                    <span className="font-num font-medium text-gray-400">{count}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-sm text-gray-500 italic mt-2">Nicio comandă înregistrată.</div>
-                                )}
+                            </div>
+                            <div className="pt-2 border-t border-white/10 flex-1 overflow-y-auto pr-1">
+                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Top Orașe</h4>
+                                <div className="space-y-2">
+                                    {Object.entries(countyCityMap[selectedCounty] || {})
+                                        .sort((a, b) => b[1] - a[1])
+                                        .map(([city, count]) => (
+                                            <div key={city} className="flex justify-between items-center text-sm bg-white/5 p-2 rounded-lg border border-white/5">
+                                                <span className="text-gray-300 truncate mr-2" title={city}>{city}</span>
+                                                <span className="font-num font-medium text-white">{count}</span>
+                                            </div>
+                                        ))}
+                                    {(!countyCityMap[selectedCounty] || Object.keys(countyCityMap[selectedCounty]).length === 0) && (
+                                        <div className="text-gray-500 text-sm italic">Nu există date detaliate.</div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
