@@ -396,31 +396,14 @@ const Drafturi = () => {
     const handleCallAction = async () => {
         if (!phoneNumber) return;
         if (callState === 'idle' || callState === 'rejected') {
-            if (!clientRef.current) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
+            if (!isReady) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
             try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { alert('Este nevoie de acces la microfon pentru a suna!'); return; }
             
-            // Bypass Autoplay Policy by initializing AudioContext on user click
-            if (!audioCtxRef.current) {
-                audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-            }
-            if (audioCtxRef.current.state === 'suspended') {
-                audioCtxRef.current.resume();
-            }
-
-            userHungUpRef.current = false;
             const callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40751064714';
             const cleanDestination = phoneNumber.replace(/\s/g, '');
-            try {
-                callRef.current = clientRef.current.newCall({ destinationNumber: cleanDestination, callerNumber: callerId, audio: true, video: false });
-                updateCallState('calling');
-                playRingback(); // Start ringback immediately on dial
-            }
-            catch (err) { console.error('Call failed', err); alert('A apărut o eroare la inițierea apelului.'); }
+            makeCall(cleanDestination, callerId);
         } else {
-            userHungUpRef.current = true;
-            if (callRef.current) callRef.current.hangup();
-            updateCallState('idle');
-            stopRingback();
+            hangup();
         }
     };
 
@@ -432,7 +415,7 @@ const Drafturi = () => {
     // ── Render
     return (
         <div className="flex flex-col h-full overflow-hidden bg-[#F9FAFB] text-gray-900 rounded-tl-3xl shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-t border-gray-200 absolute inset-0 pt-6 px-6">
-            <audio ref={audioRef} style={{ display: 'none' }} />
+
 
             {/* Toast */}
             {toast && (
@@ -535,7 +518,7 @@ const Drafturi = () => {
                 <div className="flex flex-wrap gap-4 items-center justify-end">
                     {/* Status indicator */}
                     <div className="flex items-center gap-3 mr-4">
-                        {!isConnecting && clientRef.current ? (
+                        {isReady ? (
                             <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Online
                             </div>
