@@ -516,10 +516,17 @@ export default async function handler(req, res) {
             
             const lineItemsInput = items.map(item => {
                 const variantGid = String(item.variant_id).includes('gid://') ? item.variant_id : `gid://shopify/ProductVariant/${item.variant_id}`;
-                return {
+                const res = {
                     variantId: variantGid,
                     quantity: item.quantity
                 };
+                if (item.appliedDiscount) {
+                    res.appliedDiscount = {
+                        value: parseFloat(item.appliedDiscount),
+                        valueType: "FIXED_AMOUNT"
+                    };
+                }
+                return res;
             });
 
             const gqlRes = await fetch(graphqlUrl, {

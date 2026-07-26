@@ -153,6 +153,7 @@ const Drafturi = () => {
     const [judetText, setJudetText] = useState('');
     const [savingAddress, setSavingAddress] = useState(false);
     const [toast, setToast] = useState<string>('');
+    const [productsDiscountMap, setProductsDiscountMap] = useState<Record<string, string>>({});
     const [shopifyNotif, setShopifyNotif] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
     // ── Product editing
@@ -242,6 +243,22 @@ const Drafturi = () => {
                 .order('created_at', { ascending: false });
 
             if (qErr) throw qErr;
+
+            // Fetch products discount mapping
+            const { data: pData } = await supabaseAdmin
+                .from('products')
+                .select('sku, discountCode')
+                .eq('store', selectedBrand)
+                .eq('user_id', profile?.id);
+                
+            const pMap: Record<string, string> = {};
+            if (pData) {
+                pData.forEach(p => {
+                    if (p.sku && p.discountCode) pMap[p.sku] = p.discountCode;
+                });
+            }
+            setProductsDiscountMap(pMap);
+
             const all: Order[] = (data || []).map(o => ({
                 ...o,
                 status: o.status || 'ON'
@@ -255,7 +272,7 @@ const Drafturi = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedBrand, startDate, endDate]);
+    }, [selectedBrand, startDate, endDate, profile?.id]);
 
     useEffect(() => { loadOrders(); }, [loadOrders]);
 
@@ -893,10 +910,22 @@ const Drafturi = () => {
                                                         const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
                                                         const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
                                                         
-                                                        const shopifyItems = editedProductsList.map(it => ({
-                                                            variant_id: it.variant_id,
-                                                            quantity: it.quantity,
-                                                        }));
+                                                        const shopifyItems = editedProductsList.map((item: any) => {
+                                                            const qty = item.quantity;
+                                                            const discountArrayStr = productsDiscountMap[item.sku];
+                                                            let discountAmount = 0;
+                                                            if (discountArrayStr) {
+                                                                const parts = discountArrayStr.split(',').map(n => parseFloat(n.trim()) || 0);
+                                                                if (parts.length > 0) {
+                                                                    discountAmount = parts[Math.min(qty - 1, parts.length - 1)] || 0;
+                                                                }
+                                                            }
+                                                            return {
+                                                                variant_id: item.variant_id || item.variantId || item.id,
+                                                                quantity: qty,
+                                                                appliedDiscount: discountAmount > 0 ? discountAmount : undefined
+                                                            };
+                                                        });
                                                         
                                                         const result = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems);
                                                         if (result) {
@@ -1020,7 +1049,17 @@ const Drafturi = () => {
                                                                     <span className="text-base font-semibold text-gray-400 shrink-0 px-2">x{qty}</span>
                                                                 )}
                                                                 <span className="text-base font-bold text-indigo-400 w-24 text-right">
-                                                                    {(price * qty).toFixed(2)} lei
+                                                                    {(() => {
+                                                                        const discountArrayStr = productsDiscountMap[item.sku];
+                                                                        let discountAmount = 0;
+                                                                        if (discountArrayStr) {
+                                                                            const parts = discountArrayStr.split(',').map(n => parseFloat(n.trim()) || 0);
+                                                                            if (parts.length > 0) {
+                                                                                discountAmount = parts[Math.min(qty - 1, parts.length - 1)] || 0;
+                                                                            }
+                                                                        }
+                                                                        return ((price * qty) - discountAmount).toFixed(2);
+                                                                    })()} lei
                                                                 </span>
                                                             </div>
                                                         );

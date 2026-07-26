@@ -211,7 +211,7 @@ export async function getAllProducts(storeName: string): Promise<any[] | null> {
     }
 }
 
-export async function updateShopifyLineItemsBulk(storeName: string, orderId: number | string, items: { variant_id: number | string, quantity: number }[]): Promise<any | null> {
+export async function updateShopifyLineItemsBulk(storeName: string, orderId: number | string, items: { variant_id: number | string, quantity: number, appliedDiscount?: number }[]): Promise<any | null> {
     try {
         const res = await fetch(API_ENDPOINT, {
             method: 'POST',
