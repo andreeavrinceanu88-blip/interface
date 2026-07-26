@@ -19,7 +19,7 @@ const Index = () => {
         }
     }, [userStores, selectedBrand]);
     
-    const { latestMetrics, loading: metricsLoading } = useDashboardMetrics(userId, selectedBrand);
+    const { latestMetrics, historyMetrics, loading: metricsLoading } = useDashboardMetrics(userId, selectedBrand);
     
     const today = new Date().toISOString().split('T')[0];
     const [startDate, setStartDate] = useState(today);
@@ -97,22 +97,22 @@ const Index = () => {
 
     return (
         <>
-            <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="mb-6 flex flex-col gap-3">
                 <div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">Bine ai revenit, {latestMetrics?.nume_admin || profile?.full_name || 'Utilizator'}!</h2>
+                    <h2 className="text-2xl md:text-3xl font-light dark:text-white tracking-tight">Bine ai revenit, {latestMetrics?.nume_admin || profile?.full_name || 'Utilizator'}!</h2>
                 </div>
-                <div className="flex flex-wrap gap-3 relative z-50">
-                    <div className="flex items-center gap-2 bg-[#13141a] p-1 rounded-xl border border-white/5 shadow-inner">
-                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="pl-3 pr-3 py-2 bg-transparent text-gray-200 text-sm border-none focus:ring-0 cursor-pointer font-num outline-none" />
-                        <span className="text-gray-600">-</span>
-                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="pl-3 pr-3 py-2 bg-transparent text-gray-200 text-sm border-none focus:ring-0 cursor-pointer font-num outline-none" />
+                <div className="flex flex-wrap gap-2 relative z-50">
+                    <div className="flex items-center gap-1 bg-[#13141a] p-1 rounded-xl border border-white/5 shadow-inner flex-1 min-w-0">
+                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="flex-1 min-w-0 pl-2 pr-1 py-2 bg-transparent text-gray-200 text-xs md:text-sm border-none focus:ring-0 cursor-pointer font-num outline-none" />
+                        <span className="text-gray-600 flex-shrink-0">-</span>
+                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1 min-w-0 pl-1 pr-2 py-2 bg-transparent text-gray-200 text-xs md:text-sm border-none focus:ring-0 cursor-pointer font-num outline-none" />
                     </div>
 
                     <div className="relative">
-                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm font-normal flex items-center gap-3 hover:text-white transition-all min-w-[160px] justify-between h-[42px]">
+                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="btn-3d-secondary px-3 md:px-5 py-2.5 rounded-xl text-sm font-normal flex items-center gap-2 hover:text-white transition-all min-w-[140px] justify-between h-[42px]">
                             <div className="flex items-center gap-2">
                                 <span className="material-icons-round text-lg text-primary">store</span>
-                                <span>{selectedBrand || 'Selectează'}</span>
+                                <span className="text-sm truncate max-w-[80px] md:max-w-none">{selectedBrand || 'Selectează'}</span>
                             </div>
                             <span className={`material-icons-round text-xl transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
                         </button>
@@ -133,65 +133,99 @@ const Index = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
-                {/* 3 small stat cards compressed into col-span-2 as a nested 3-col grid */}
-                <div className="lg:col-span-2 grid grid-cols-3 gap-4">
-                    <div className="widget-sculpted-3d p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
-                        <div className="relative z-10">
-                            <div className="icon-cart-v3 mb-4"><span className="material-icons-round icon-cart-v3-symbol">shopping_cart</span></div>
-                            <p className="text-xs text-gray-500 font-medium mb-1">Comenzi Totale</p>
-                            <h3 className="text-3xl font-bold text-gray-900 tracking-tight font-num">{displayValue(totalComenzi.toLocaleString())}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
+                {/* ROAS bars (NEW) */}
+                <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                    <div className="relative z-10 h-full flex flex-col justify-center gap-4 md:gap-5">
+                        <div>
+                            <div className="flex justify-between items-end mb-1.5">
+                                <p className="text-[10px] md:text-xs text-gray-400 font-light">ROAS Inițial</p>
+                                <span className="text-sm font-medium text-white">{(latestMetrics as any)?.roas_initial || '3.5'}x</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-[#13141a] rounded-full overflow-hidden border border-white/5">
+                                <div className="h-full bg-blue-500 rounded-full" style={{ width: '40%' }}></div>
+                            </div>
                         </div>
-                    </div>
-                    <div className="widget-sculpted-3d p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
-                        <div className="relative z-10">
-                            <div className="icon-cart-v3 mb-4"><span className="material-icons-round icon-symbol-blue">check_circle</span></div>
-                            <p className="text-xs text-gray-500 font-medium mb-1">Coșuri Recuperate</p>
-                            <h3 className="text-3xl font-bold text-gray-900 tracking-tight font-num">{displayValue(cosuriRecuperate.toLocaleString())}</h3>
-                        </div>
-                    </div>
-                    <div className="widget-sculpted-3d p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
-                        <div className="relative z-10">
-                            <div className="icon-cart-v3 mb-4"><span className="material-icons-round icon-symbol-emerald">verified</span></div>
-                            <p className="text-xs text-gray-500 font-medium mb-1">Comenzi Confirmate</p>
-                            <h3 className="text-3xl font-bold text-gray-900 tracking-tight font-num">{displayValue(comenziConfirmate.toLocaleString())}</h3>
-                        </div>
-                    </div>
-                </div>
-                {/* 2 sales cards — each col-span-1, aligning with the 2 conversion cards below */}
-                <div className="lg:col-span-1 widget-sculpted-3d p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-100 group hover:-translate-y-1 transition-transform">
-                    <div className="relative z-10 h-full flex flex-col justify-between">
-                        <div className="icon-cart-v3 bg-white border border-indigo-100"><span className="material-icons-round icon-symbol-laser-blue">payments</span></div>
-                        <div className="mt-3">
-                            <p className="text-xs text-indigo-700 font-medium mb-1">Vânzări Generate</p>
-                            <h3 className="text-2xl lg:text-3xl font-bold text-indigo-900 tracking-tight font-num">{displayValue(vanzariGenerate.toLocaleString())} RON</h3>
+                        <div>
+                            <div className="flex justify-between items-end mb-1.5">
+                                <p className="text-[10px] md:text-xs text-emerald-400 font-light">ROAS cu Robot</p>
+                                <span className="text-sm font-medium text-emerald-400">{(latestMetrics as any)?.roas_robot || '6.8'}x</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-[#13141a] rounded-full overflow-hidden border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '80%' }}></div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div className="lg:col-span-1 widget-sculpted-3d p-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-100 group hover:-translate-y-1 transition-transform">
-                    <div className="relative z-10 h-full flex flex-col justify-between">
-                        <div className="icon-cart-v3 bg-white border border-emerald-100"><span className="material-icons-round icon-symbol-laser-green">trending_up</span></div>
-                        <div className="mt-3">
-                            <p className="text-xs text-emerald-700 font-medium mb-1">Vânzări Upsell</p>
-                            <h3 className="text-2xl lg:text-3xl font-bold text-emerald-900 tracking-tight font-num">{displayValue(vanzariUpsell.toLocaleString())} RON</h3>
+
+                {/* 3 small stat cards */}
+                <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                    <div className="relative z-10">
+                        <div className="icon-cart-v3 mb-2 md:mb-4" style={{ width: '36px', height: '36px', borderRadius: '10px' }}><span className="material-icons-round icon-cart-v3-symbol" style={{ fontSize: '20px' }}>shopping_cart</span></div>
+                        <p className="text-[10px] md:text-xs text-gray-400 font-light mb-1">Comenzi Totale</p>
+                        <h3 className="text-xl md:text-3xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(totalComenzi.toLocaleString())}</h3>
+                    </div>
+                </div>
+                <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                    <div className="relative z-10">
+                        <div className="icon-cart-v3 mb-2 md:mb-4" style={{ width: '36px', height: '36px', borderRadius: '10px' }}><span className="material-icons-round icon-symbol-blue" style={{ fontSize: '20px' }}>check_circle</span></div>
+                        <p className="text-[10px] md:text-xs text-gray-400 font-light mb-1">Coșuri Recuperate</p>
+                        <h3 className="text-xl md:text-3xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(cosuriRecuperate.toLocaleString())}</h3>
+                    </div>
+                </div>
+                <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                    <div className="relative z-10">
+                        <div className="icon-cart-v3 mb-2 md:mb-4" style={{ width: '36px', height: '36px', borderRadius: '10px' }}><span className="material-icons-round icon-symbol-emerald" style={{ fontSize: '20px' }}>verified</span></div>
+                        <p className="text-[10px] md:text-xs text-gray-400 font-light mb-1">Comenzi Confirmate</p>
+                        <h3 className="text-xl md:text-3xl font-light dark:text-white tracking-tight font-num glow-text">{displayValue(comenziConfirmate.toLocaleString())}</h3>
+                    </div>
+                </div>
+                {/* Sales cards */}
+                <div className="col-span-1 md:col-span-1 grid grid-cols-2 md:grid-cols-1 gap-3">
+                    <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#001f3f] to-[#006bb3] text-white group hover:-translate-y-1 transition-transform relative overflow-hidden">
+                        <div className="absolute bottom-0 left-0 right-0 h-16 opacity-30 pointer-events-none">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={historyMetrics && historyMetrics.length > 0 ? historyMetrics : [{vanzari_generate: 0}, {vanzari_generate: vanzariGenerate}]}>
+                                    <Area type="monotone" dataKey="vanzari_generate" stroke="#00d2ff" fill="#00d2ff" strokeWidth={2} isAnimationActive={false} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="relative z-10">
+                            <div className="icon-cart-v3 mb-2" style={{ width: '36px', height: '36px', borderRadius: '10px' }}><span className="material-icons-round icon-symbol-laser-blue" style={{ fontSize: '20px' }}>payments</span></div>
+                            <p className="text-[10px] md:text-xs text-cyan-200 font-light mb-1">Vânzări Generate</p>
+                            <h3 className="text-lg md:text-2xl font-light font-num glow-text">{displayValue(metricsLoading && !latestMetrics ? '...' : `${vanzariGenerate.toLocaleString()} RON`)}</h3>
+                        </div>
+                    </div>
+                    <div className="widget-sculpted-3d p-3 md:p-5 rounded-2xl bg-gradient-to-b from-[#090a0e] from-10% via-[#0d2d1a] to-[#1a5c34] text-white group hover:-translate-y-1 transition-transform relative overflow-hidden">
+                        <div className="absolute bottom-0 left-0 right-0 h-16 opacity-30 pointer-events-none">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={historyMetrics && historyMetrics.length > 0 ? historyMetrics : [{vanzari_upsell: 0}, {vanzari_upsell: vanzariUpsell}]}>
+                                    <Area type="monotone" dataKey="vanzari_upsell" stroke="#10b981" fill="#10b981" strokeWidth={2} isAnimationActive={false} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="relative z-10">
+                            <div className="icon-cart-v3 mb-2" style={{ width: '36px', height: '36px', borderRadius: '10px' }}><span className="material-icons-round icon-symbol-emerald" style={{ fontSize: '20px' }}>trending_up</span></div>
+                            <p className="text-[10px] md:text-xs text-emerald-200 font-light mb-1">Vânzări Upsell</p>
+                            <h3 className="text-lg md:text-2xl font-light font-num glow-text">{displayValue(metricsLoading && !latestMetrics ? '...' : `${vanzariUpsell.toLocaleString()} RON`)}</h3>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-                <div className="lg:col-span-2 card-depth p-6 rounded-2xl">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold text-gray-900 tracking-tight">Volum</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+                <div className="md:col-span-2 card-depth p-4 md:p-6 rounded-2xl">
+                    <div className="flex justify-between items-center mb-4 md:mb-6">
+                        <h3 className="text-lg md:text-xl font-light dark:text-white tracking-tight">Volum</h3>
                         <div className="flex p-1 bg-surface-dark-lighter rounded-xl border border-white/5">
                             {['day', 'week', 'month'].map((p) => (
-                                <button key={p} onClick={() => setChartPeriod(p as ChartPeriod)} className={`px-4 py-1.5 text-xs rounded-lg transition-colors capitalize ${chartPeriod === p ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
+                                <button key={p} onClick={() => setChartPeriod(p as ChartPeriod)} className={`px-3 md:px-4 py-1.5 text-xs rounded-lg transition-colors capitalize ${chartPeriod === p ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
                                     {p === 'day' ? 'Zi' : p === 'week' ? 'Săpt.' : 'Lună'}
                                 </button>
                             ))}
                         </div>
                     </div>
-                    <div className="h-64 w-full">
+                    <div className="h-48 md:h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             {isChartLoading ? <div className="flex items-center justify-center h-full text-gray-500 font-light">Se încarcă graficul...</div> :
                                 <AreaChart data={chartData || []}>
@@ -206,64 +240,66 @@ const Index = () => {
                         </ResponsiveContainer>
                     </div>
                 </div>
-                <div className="lg:col-span-1 card-depth p-6 rounded-2xl flex flex-col">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Conversie Drafturi</h3>
+                <div className="md:col-span-1 card-depth p-4 md:p-6 rounded-2xl flex flex-col">
+                    <h3 className="text-lg md:text-xl font-light dark:text-white mb-4">Conversie Drafturi</h3>
                     <div className="flex-1 flex items-center justify-center">
-                        <div className="relative w-48 h-48 flex items-center justify-center">
+                        <div className="relative w-40 h-40 md:w-48 md:h-48 flex items-center justify-center">
                             <div style={{ filter: 'drop-shadow(0 0 10px #10b981) drop-shadow(0 0 22px rgba(16,185,129,0.45))' }} className="absolute inset-0">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart><Pie data={draftData} innerRadius={66} outerRadius={82} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>{draftData.map((_, index) => <Cell key={`cell-${index}`} fill={draftColors[index]} />)}</Pie></PieChart>
+                                    <PieChart><Pie data={draftData} innerRadius={56} outerRadius={70} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>{draftData.map((_, index) => <Cell key={`cell-${index}`} fill={draftColors[index]} />)}</Pie></PieChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="absolute inset-0 flex items-center justify-center flex-col z-20">
-                                <span className="text-3xl font-bold text-gray-900 font-num" style={{ textShadow: '0 0 16px rgba(16,185,129,0.7)' }}>{displayValue(draftConversionRate.toFixed(2))}%</span>
+                                <span className="text-2xl md:text-3xl font-light dark:text-white font-num" style={{ textShadow: '0 0 16px rgba(16,185,129,0.7)' }}>{displayValue(draftConversionRate.toFixed(2))}%</span>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div className="lg:col-span-1 card-depth p-6 rounded-2xl flex flex-col">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Conversie Upsell</h3>
+                <div className="md:col-span-1 card-depth p-4 md:p-6 rounded-2xl flex flex-col">
+                    <h3 className="text-lg md:text-xl font-light dark:text-white mb-4">Conversie Upsell</h3>
                     <div className="flex-1 flex items-center justify-center">
-                        <div className="relative w-48 h-48 flex items-center justify-center">
+                        <div className="relative w-40 h-40 md:w-48 md:h-48 flex items-center justify-center">
                             <div style={{ filter: 'drop-shadow(0 0 10px #00d2ff) drop-shadow(0 0 22px rgba(0,210,255,0.45))' }} className="absolute inset-0">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart><Pie data={conversionData} innerRadius={66} outerRadius={82} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>{conversionData.map((_, index) => <Cell key={`cell-${index}`} fill={conversionColors[index]} />)}</Pie></PieChart>
+                                    <PieChart><Pie data={conversionData} innerRadius={56} outerRadius={70} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>{conversionData.map((_, index) => <Cell key={`cell-${index}`} fill={conversionColors[index]} />)}</Pie></PieChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="absolute inset-0 flex items-center justify-center flex-col z-20">
-                                <span className="text-3xl font-bold text-gray-900 font-num" style={{ textShadow: '0 0 16px rgba(0,210,255,0.7)' }}>{displayValue(conversionRate.toFixed(2))}%</span>
+                                <span className="text-2xl md:text-3xl font-light dark:text-white font-num" style={{ textShadow: '0 0 16px rgba(0,210,255,0.7)' }}>{displayValue(conversionRate.toFixed(2))}%</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="card-depth p-6 rounded-2xl mb-8">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-gray-900 tracking-tight">Activitate Recentă</h3>
+            <div className="card-depth p-4 md:p-6 rounded-2xl mb-8">
+                <div className="flex justify-between items-center mb-4 md:mb-6">
+                    <h3 className="text-lg md:text-xl font-light dark:text-white tracking-tight">Activitate Recentă</h3>
                     <a className="text-sm text-primary hover:text-cyan-300 font-normal flex items-center gap-1 transition-colors" href="/#/call-recordings">Vezi toate<span className="material-icons-round text-base">arrow_forward</span></a>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-4 md:mx-0">
+                    <div className="min-w-[500px] px-4 md:px-0">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-xs font-normal text-gray-500 uppercase tracking-wider border-b border-gray-200"><th className="py-4 px-4">ID</th><th className="py-4 px-4">Telefon</th><th className="py-4 px-4">Tip</th><th className="py-4 px-4">Durată</th><th className="py-4 px-4">Dată</th><th className="py-4 px-4 text-right">Înregistrare</th></tr>
+                            <tr className="text-xs font-normal text-gray-500 uppercase tracking-wider border-b border-gray-800"><th className="py-3 px-3">ID</th><th className="py-3 px-3">Telefon</th><th className="py-3 px-3">Tip</th><th className="py-3 px-3">Durată</th><th className="py-3 px-3">Dată</th><th className="py-3 px-3 text-right">Înregistrare</th></tr>
                         </thead>
                         <tbody className="text-sm">
                             {recordingsLoading ? <tr><td colSpan={6} className="py-8 text-center text-gray-500 italic">Se încarcă...</td></tr> :
                                 recentRecordings.length === 0 ? <tr><td colSpan={6} className="py-8 text-center text-gray-500 italic">Nicio activitate.</td></tr> :
                                 recentRecordings.map((rec) => (
-                                    <tr key={rec.id} className="group hover:bg-white/5 transition-colors border-b border-gray-200/50 last:border-0">
-                                        <td className="py-4 px-4 dark:text-white font-num">{rec.client_personal_id || '-'}</td>
-                                        <td className="py-4 px-4 font-light">{rec.phone_number || 'Necunoscut'}</td>
-                                        <td className="py-4 px-4"><span className={`px-2 py-0.5 rounded text-[10px] uppercase font-medium ${rec.direction === 'inbound' ? 'text-green-400 bg-green-500/10' : 'text-blue-400 bg-blue-500/10'}`}>{rec.direction === 'inbound' ? 'Primit' : 'Inițiat'}</span></td>
-                                        <td className="py-4 px-4 font-num">{formatDuration(rec.duration_seconds)}</td>
-                                        <td className="py-4 px-4 text-gray-500 font-light">{formatDate(rec.created_at)}</td>
-                                        <td className="py-4 px-4 text-right"><audio controls className="h-6 w-32 inline-block opacity-40 hover:opacity-100 transition-opacity" src={rec.recording_url} /></td>
+                                    <tr key={rec.id} className="group hover:bg-white/5 transition-colors border-b border-gray-800/50 last:border-0">
+                                        <td className="py-3 px-3 dark:text-white font-num text-xs">{rec.client_personal_id || '-'}</td>
+                                        <td className="py-3 px-3 font-light text-xs">{rec.phone_number || 'Necunoscut'}</td>
+                                        <td className="py-3 px-3"><span className={`px-2 py-0.5 rounded text-[10px] uppercase font-medium ${rec.direction === 'inbound' ? 'text-green-400 bg-green-500/10' : 'text-blue-400 bg-blue-500/10'}`}>{rec.direction === 'inbound' ? 'Primit' : 'Inițiat'}</span></td>
+                                        <td className="py-3 px-3 font-num text-xs">{formatDuration(rec.duration_seconds)}</td>
+                                        <td className="py-3 px-3 text-gray-500 font-light text-xs">{formatDate(rec.created_at)}</td>
+                                        <td className="py-3 px-3 text-right"><audio controls className="h-6 w-28 inline-block opacity-40 hover:opacity-100 transition-opacity" src={rec.recording_url} /></td>
                                     </tr>
                                 ))
                             }
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         </>
