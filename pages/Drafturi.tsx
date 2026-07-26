@@ -741,7 +741,7 @@ const Drafturi = () => {
                                                         <div>
                                                             <label className="text-xs text-gray-500 font-medium mb-1 block">Adresă (Stradă, număr, bloc, etc.)</label>
                                                             <textarea
-                                                                className="w-full text-sm font-medium text-white border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                className="w-full text-sm font-medium text-white bg-[#1a1b23] border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                                                 rows={2}
                                                                 value={addressText}
                                                                 onChange={(e) => setAddressText(e.target.value)}
@@ -753,7 +753,7 @@ const Drafturi = () => {
                                                                 <label className="text-xs text-gray-500 font-medium mb-1 block">Oraș</label>
                                                                 <input
                                                                     type="text"
-                                                                    className="w-full text-sm font-medium text-white border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                    className="w-full text-sm font-medium text-white bg-[#1a1b23] border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                                                     value={orasText}
                                                                     onChange={(e) => setOrasText(e.target.value)}
                                                                     disabled={savingAddress}
@@ -764,7 +764,7 @@ const Drafturi = () => {
                                                                 <input
                                                                     type="text"
                                                                     list="judete-list"
-                                                                    className="w-full text-sm font-medium text-white border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                    className="w-full text-sm font-medium text-white bg-[#1a1b23] border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                                                     value={judetText}
                                                                     onChange={(e) => setJudetText(e.target.value)}
                                                                     disabled={savingAddress}
@@ -989,7 +989,7 @@ const Drafturi = () => {
                                                                                         setEditedProductsList(newList);
                                                                                     }
                                                                                 }}
-                                                                                className="w-14 h-10 text-center text-base font-bold text-white border border-white/10 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                                                                                className="w-14 h-10 text-center text-base font-bold text-white bg-[#1a1b23] border border-white/10 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
                                                                             />
                                                                             <button 
                                                                                 onClick={() => {
@@ -1180,7 +1180,7 @@ const Drafturi = () => {
                                         placeholder="Caută produs (titlu sau SKU)..."
                                         value={productSearchQuery}
                                         onChange={(e) => setProductSearchQuery(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2 border border-white/5 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-shadow text-sm"
+                                        className="w-full pl-10 pr-4 py-2 bg-[#1a1b23] text-white border border-white/5 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-shadow text-sm"
                                         autoFocus
                                     />
                                     {productSearchQuery && (
