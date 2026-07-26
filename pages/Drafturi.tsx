@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { useTelnyx } from '../contexts/TelnyxContext';
+import { supabase } from '../lib/supabaseClient';
 import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages, getAllProducts, updateShopifyLineItemsBulk } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -43,11 +43,11 @@ const TABS: { id: string; label: string }[] = [
 
 const STATUS_STYLES: Record<string, string> = {
     'ON':  'bg-pink-100 text-pink-700 border border-pink-200',
-    'OFF': 'bg-gray-100 text-gray-700 border border-gray-200',
-    'nu-raspunde': 'bg-amber-100 text-amber-700 border border-amber-200',
-    'de-revenit': 'bg-blue-100 text-blue-700 border border-blue-200',
-    'confirmat': 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-    'anulat': 'bg-red-100 text-red-700 border border-red-200',
+    'OFF': 'bg-[#13141a]/5 text-gray-300 border border-white/5',
+    'nu-raspunde': 'bg-amber-100 text-amber-400 border border-amber-500/30',
+    'de-revenit': 'bg-blue-100 text-blue-400 border border-blue-500/30',
+    'confirmat': 'bg-emerald-100 text-emerald-400 border border-emerald-500/30',
+    'anulat': 'bg-red-100 text-red-400 border border-red-500/30',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -60,10 +60,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const QUICK_ACTIONS = [
-    { id: 'confirmat',   label: 'Confirmă',          style: 'bg-[#F0FDF4] border-emerald-200 text-emerald-700 hover:bg-emerald-100', icon: 'check' },
-    { id: 'nu-raspunde', label: 'Nu răspunde',        style: 'bg-[#FFFBEB] border-amber-200 text-amber-700 hover:bg-amber-100',         icon: 'phone_missed' },
-    { id: 'de-revenit',  label: 'Sună mai târziu',   style: 'bg-[#EFF6FF] border-blue-200 text-blue-700 hover:bg-blue-100',             icon: 'schedule' },
-    { id: 'anulat',      label: 'Anulează',          style: 'bg-[#FEF2F2] border-red-200 text-red-700 hover:bg-red-100',                  icon: 'close' },
+    { id: 'confirmat',   label: 'Confirmă',          style: 'bg-[#F0FDF4] border-emerald-500/30 text-emerald-400 hover:bg-emerald-100', icon: 'check' },
+    { id: 'nu-raspunde', label: 'Nu răspunde',        style: 'bg-[#FFFBEB] border-amber-500/30 text-amber-400 hover:bg-amber-100',         icon: 'phone_missed' },
+    { id: 'de-revenit',  label: 'Sună mai târziu',   style: 'bg-[#EFF6FF] border-blue-500/30 text-blue-400 hover:bg-blue-100',             icon: 'schedule' },
+    { id: 'anulat',      label: 'Anulează',          style: 'bg-[#FEF2F2] border-red-500/30 text-red-400 hover:bg-red-100',                  icon: 'close' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -127,6 +127,7 @@ const formatPhoneNumber = (phone: string | null | undefined): string => {
 const Drafturi = () => {
     const { profile } = useAuth();
     const userStores: string[] = profile?.stores || [];
+    const { isReady, callState: telnyxCallState, makeCall, hangup, toggleMute, isMuted: telnyxMuted } = useTelnyx();
 
     // ── Filters
     const [viewMode, setViewMode] = useState<'drafturi' | 'comenzi'>('drafturi');
@@ -168,7 +169,59 @@ const Drafturi = () => {
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
-    const { isReady, callState, makeCall, hangup, toggleMute, isMuted } = useTelnyx();
+    const clientRef = useRef<any>(null);
+    const callRef = useRef<any>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const ringbackOscRef = useRef<any>(null);
+    const audioCtxRef = useRef<any>(null);
+
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [callDurationSeconds, setCallDurationSeconds] = useState(0);
+    const callStateRef = useRef<'idle' | 'calling' | 'active' | 'rejected'>('idle');
+    const userHungUpRef = useRef(false);
+    // callState & isMuted come from TelnyxContext (global)
+    const callState = telnyxCallState as 'idle' | 'calling' | 'active' | 'rejected';
+    const isMuted = telnyxMuted;
+
+    useEffect(() => {
+        let interval: any = null;
+        if (callState === 'active') {
+            setCallDurationSeconds(0);
+            interval = setInterval(() => {
+                setCallDurationSeconds(prev => prev + 1);
+            }, 1000);
+        } else {
+            setCallDurationSeconds(0);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [callState]);
+
+    const formatCallTimer = (sec: number) => {
+        const mins = Math.floor(sec / 60);
+        const remainder = sec % 60;
+        const mm = String(mins).padStart(2, '0');
+        const ss = String(remainder).padStart(2, '0');
+        return `${mm}:${ss}`;
+    };
+
+    // ── Toast helper
+    const showToast = (msg: string) => {
+        setToast(msg);
+        setTimeout(() => setToast(''), 2500);
+    };
+
+    // ── Shopify notification helper
+    const showShopifyNotif = (msg: string, type: 'success' | 'error') => {
+        setShopifyNotif({ msg, type });
+        setTimeout(() => setShopifyNotif(null), type === 'error' ? 10000 : 5000);
+    };
+
+    // ── Init brand
+    useEffect(() => {
+        if (userStores.length > 0 && !selectedBrand) setSelectedBrand(userStores[0]);
+    }, [userStores]);
 
     // ── Load orders
     const loadOrders = useCallback(async () => {
@@ -178,7 +231,7 @@ const Drafturi = () => {
         try {
             const endOfDay = endDate + 'T23:59:59';
             console.log('[Orders] querying store:', selectedBrand, 'from', startDate, 'to', endDate);
-            const { data, error: qErr } = await supabaseAdmin
+            const { data, error: qErr } = await supabase
                 .from('orders')
                 .select('*')
                 .ilike('store_name', selectedBrand)
@@ -248,7 +301,7 @@ const Drafturi = () => {
 
     const updateStatus = async (orderId: number, newStatus: string) => {
         setUpdatingStatus(true);
-        const { error: uErr } = await supabaseAdmin.from('orders').update({ status: newStatus }).eq('id', orderId);
+        const { error: uErr } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
         if (!uErr) {
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
             showToast(STATUS_LABELS[newStatus]);
@@ -307,7 +360,7 @@ const Drafturi = () => {
     const saveNote = async () => {
         if (!selectedOrder) return;
         setSavingNote(true);
-        const { error: nErr } = await supabaseAdmin.from('orders').update({ notes: noteText }).eq('id', selectedOrder.id);
+        const { error: nErr } = await supabase.from('orders').update({ notes: noteText }).eq('id', selectedOrder.id);
         if (!nErr) {
             setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, notes: noteText } : o));
             showToast('Notiță salvată');
@@ -336,7 +389,7 @@ const Drafturi = () => {
         const newAddress = addressText.trim();
         const newOras = orasText.trim();
         const newJudet = judetText.trim();
-        const { error: err } = await supabaseAdmin.from('orders').update({ adresa: newAddress, oras: newOras, judet: newJudet }).eq('id', selectedOrder.id);
+        const { error: err } = await supabase.from('orders').update({ adresa: newAddress, oras: newOras, judet: newJudet }).eq('id', selectedOrder.id);
         if (!err) {
             setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, adresa: newAddress, oras: newOras, judet: newJudet } : o));
             showToast('Adresa a fost actualizată');
@@ -398,7 +451,6 @@ const Drafturi = () => {
         if (callState === 'idle' || callState === 'rejected') {
             if (!isReady) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
             try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { alert('Este nevoie de acces la microfon pentru a suna!'); return; }
-            
             const callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40751064714';
             const cleanDestination = phoneNumber.replace(/\s/g, '');
             makeCall(cleanDestination, callerId);
@@ -414,9 +466,7 @@ const Drafturi = () => {
 
     // ── Render
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-[#F9FAFB] text-gray-900 rounded-tl-3xl shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-t border-gray-200 absolute inset-0 pt-6 px-6">
-
-
+        <div className="flex flex-col h-full overflow-hidden bg-[#0b0c10] text-white rounded-tl-3xl shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-t border-white/5 absolute inset-0 pt-6 px-6">
             {/* Toast */}
             {toast && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm px-5 py-3 rounded-xl shadow-2xl animate-fade-in">
@@ -429,8 +479,8 @@ const Drafturi = () => {
                 <div 
                     className={`fixed top-6 right-6 z-[100] flex items-start gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-sm transition-all duration-300 animate-fade-in ${
                         shopifyNotif.type === 'success' 
-                            ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800' 
-                            : 'bg-red-50/95 border-red-200 text-red-800'
+                            ? 'bg-emerald-50/95 border-emerald-500/30 text-emerald-800' 
+                            : 'bg-red-500/20/95 border-red-500/30 text-red-800'
                     }`}
                     style={{ minWidth: '300px', maxWidth: shopifyNotif.type === 'error' ? '520px' : '420px' }}
                 >
@@ -445,7 +495,7 @@ const Drafturi = () => {
                         </p>
                         <p className="text-[12px] font-medium opacity-80 mt-0.5 break-words whitespace-pre-wrap">{shopifyNotif.msg}</p>
                     </div>
-                    <button onClick={() => setShopifyNotif(null)} className="text-gray-400 hover:text-gray-600 transition-colors ml-1 shrink-0">
+                    <button onClick={() => setShopifyNotif(null)} className="text-gray-400 hover:text-gray-400 transition-colors ml-1 shrink-0">
                         <span className="material-icons-round text-[18px]">close</span>
                     </button>
                 </div>
@@ -454,24 +504,24 @@ const Drafturi = () => {
             {/* ── Top Bar ─────────────────────────────────────────────────── */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0">
                 <div className="flex items-center gap-4 flex-1">
-                    <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
+                    <h1 className="text-2xl font-semibold text-white flex items-center gap-3">
                         Comenzi de sunat 
-                        <span className="bg-indigo-100 text-indigo-700 text-sm font-bold px-2.5 py-0.5 rounded-full">{orders.length}</span>
+                        <span className="bg-indigo-500/20 text-indigo-400 text-sm font-bold px-2.5 py-0.5 rounded-full">{orders.length}</span>
                     </h1>
                     
                     {/* Brand dropdown */}
                     <div className="relative ml-4">
-                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm min-w-[140px] flex justify-between items-center h-[40px] text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
+                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm min-w-[160px] flex justify-between items-center h-[42px] hover:text-white transition-all shadow-sm">
                             <span className="font-medium">{selectedBrand || 'Selectează'}</span>
                             <span className={`material-icons-round text-base text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
                         </button>
                         {isDropdownOpen && (
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                                <div className="absolute left-0 top-full mt-2 w-full rounded-xl bg-white border border-gray-200 shadow-xl z-50 overflow-hidden">
+                                <div className="absolute left-0 top-full mt-2 w-full rounded-xl bg-[#13141a] border border-white/5 shadow-xl z-50 overflow-hidden">
                                     {userStores.map(store => (
-                                        <button key={store} onClick={() => { setSelectedBrand(store); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 transition-colors flex items-center gap-2">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${selectedBrand === store ? 'bg-indigo-600' : 'bg-transparent border border-gray-300'}`} />
+                                        <button key={store} onClick={() => { setSelectedBrand(store); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-indigo-500/20 transition-colors flex items-center gap-2">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${selectedBrand === store ? 'bg-indigo-600' : 'bg-transparent border border-white/10'}`} />
                                             {store}
                                         </button>
                                     ))}
@@ -481,35 +531,35 @@ const Drafturi = () => {
                     </div>
 
                     {/* View Mode Toggle */}
-                    <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
+                    <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner">
                         <button 
                             onClick={() => setViewMode('drafturi')}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'drafturi' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'drafturi' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
                         >
                             Drafturi
                         </button>
                         <button 
                             onClick={() => setViewMode('comenzi')}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'comenzi' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'comenzi' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
                         >
                             Comenzi
                         </button>
                     </div>
                     
                     {/* Operators mock */}
-                    <button className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm flex items-center gap-2 h-[40px] text-gray-700 hover:bg-gray-50 shadow-sm hidden sm:flex">
+                    <button className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 h-[42px] hover:text-white shadow-sm hidden sm:flex">
                         <span>Toți operatorii</span>
                         <span className="material-icons-round text-base text-gray-400">arrow_drop_down</span>
                     </button>
                     
                     {/* Priority mock */}
-                    <button className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm flex items-center gap-2 h-[40px] text-gray-700 hover:bg-gray-50 shadow-sm hidden md:flex">
+                    <button className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 h-[42px] hover:text-white shadow-sm hidden md:flex">
                         <span>Sortează: Prioritate</span>
                         <span className="material-icons-round text-base text-gray-400">arrow_drop_down</span>
                     </button>
                     
                     {/* Filters mock */}
-                    <button className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm flex items-center gap-2 h-[40px] text-gray-700 hover:bg-gray-50 shadow-sm hidden md:flex">
+                    <button className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 h-[42px] hover:text-white shadow-sm hidden md:flex">
                         <span className="material-icons-round text-base text-indigo-500">filter_list</span>
                         Filtre
                     </button>
@@ -519,18 +569,18 @@ const Drafturi = () => {
                     {/* Status indicator */}
                     <div className="flex items-center gap-3 mr-4">
                         {isReady ? (
-                            <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                            <div className="flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-500/30">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Online
                             </div>
                         ) : (
-                            <div className="flex items-center gap-2 text-xs font-medium text-red-700 bg-red-50 px-3 py-1.5 rounded-full border border-red-200">
+                            <div className="flex items-center gap-2 text-xs font-medium text-red-400 bg-red-500/20 px-3 py-1.5 rounded-full border border-red-500/30">
                                 <span className="w-2 h-2 rounded-full bg-red-500"></span> Offline
                             </div>
                         )}
                     </div>
 
                     {/* Dialer toggle */}
-                    <button onClick={() => setDialerOpen(!dialerOpen)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all h-[42px] shadow-sm ${dialerOpen ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-[#5B4FDB] text-white hover:bg-indigo-700'}`}>
+                    <button onClick={() => setDialerOpen(!dialerOpen)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all h-[42px] shadow-sm ${dialerOpen ? 'btn-3d-secondary' : 'btn-3d-primary'}`}>
                         <span className="material-icons-round text-lg">dialpad</span>
                         Dialer
                     </button>
@@ -541,20 +591,20 @@ const Drafturi = () => {
             <div className="flex gap-6 flex-1 min-h-0 pb-6">
 
                 {/* ── Left: List ────────────────────────────────────────────── */}
-                <div className="w-[420px] shrink-0 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="w-[420px] shrink-0 flex flex-col bg-[#13141a] rounded-2xl shadow-sm border border-white/5 overflow-hidden">
                     {/* Tabs */}
-                    <div className="flex border-b border-gray-200 bg-white overflow-x-auto scrollbar-hide px-2">
+                    <div className="flex border-b border-white/5 bg-[#13141a] overflow-x-auto scrollbar-hide px-2">
                         {TABS.map(tab => {
                             const count = typeFilteredOrders.filter(o => o.status === tab.id).length;
                             return (
                                 <button
                                     key={tab.id}
                                     onClick={() => { setActiveTab(tab.id); setActiveSearch(''); setSearchInput(''); }}
-                                    className={`flex items-center gap-2 px-4 py-4 text-sm font-semibold whitespace-nowrap transition-all border-b-2 shrink-0 ${activeTab === tab.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                                    className={`flex items-center gap-2 px-4 py-4 text-sm font-semibold whitespace-nowrap transition-all border-b-2 shrink-0 ${activeTab === tab.id ? 'border-indigo-600 text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-300 hover:border-white/10'}`}
                                 >
                                     {tab.label}
                                     {count > 0 && (
-                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${activeTab === tab.id ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${activeTab === tab.id ? 'bg-indigo-500/20 text-indigo-400' : 'bg-[#13141a]/5 text-gray-500'}`}>
                                             {count}
                                         </span>
                                     )}
@@ -564,24 +614,24 @@ const Drafturi = () => {
                     </div>
 
                     {/* Search */}
-                    <div className="p-3 border-b border-gray-100 bg-gray-50">
+                    <div className="p-3 border-b border-white/5 bg-[#1a1b23]">
                          <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons-round text-gray-400" style={{fontSize:'18px'}}>search</span>
-                            <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && setActiveSearch(searchInput)} placeholder="Caută..." className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-gray-900" />
+                            <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && setActiveSearch(searchInput)} placeholder="Caută..." className="w-full pl-9 pr-4 py-2 bg-[#13141a] border border-white/5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-white" />
                         </div>
                     </div>
 
                     {/* List */}
-                    <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-[#F9FAFB]">
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-[#13141a]">
                         {loading ? (
                             Array.from({ length: 5 }).map((_, i) => (
-                                <div key={i} className="h-24 bg-white rounded-xl border border-gray-200 animate-pulse" />
+                                <div key={i} className="h-24 bg-[#13141a] rounded-xl border border-white/5 animate-pulse" />
                             ))
                         ) : error ? (
                             <div className="flex flex-col items-center justify-center h-full text-red-500 py-16 gap-3 text-center px-4">
                                 <span className="material-icons-round text-4xl">error_outline</span>
                                 <span className="text-sm font-medium">{error}</span>
-                                <button onClick={loadOrders} className="text-sm font-bold text-indigo-600 hover:underline">Reîncearcă</button>
+                                <button onClick={loadOrders} className="text-sm font-bold text-indigo-400 hover:underline">Reîncearcă</button>
                             </div>
                         ) : filteredOrders.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-gray-400 py-16 gap-3">
@@ -593,22 +643,22 @@ const Drafturi = () => {
                                 <button
                                     key={order.id}
                                     onClick={() => { setSelectedId(order.id); setNoteText(order.notes || ''); }}
-                                    className={`w-full text-left p-4 rounded-xl border-2 transition-all shadow-sm relative ${selectedId === order.id ? 'border-indigo-400 bg-indigo-50/30' : 'border-transparent bg-white hover:border-gray-300'}`}
+                                    className={`w-full text-left p-4 rounded-xl border-2 transition-all shadow-sm relative ${selectedId === order.id ? 'border-indigo-400 bg-indigo-500/10' : 'border-transparent bg-[#13141a] hover:border-white/10'}`}
                                 >
                                     <div className="flex justify-between items-start mb-2">
                                         <span className="text-xs font-semibold text-gray-400">#{order.id} <span className="font-normal ml-1 text-gray-400">{fmtDate(order.created_at).split(',')[0]}</span></span>
                                         {(!order.cerere_adresa || order.cerere_adresa.trim() === '' || order.cerere_adresa.trim() === '-') ? (
-                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-700 tracking-wide border border-emerald-200" title="Adresă corectă">ADRESĂ OK</span>
+                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-400 tracking-wide border border-emerald-500/30" title="Adresă corectă">ADRESĂ OK</span>
                                         ) : (
-                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-red-50 text-red-700 tracking-wide border border-red-200" title={`Adresă greșită: ${order.cerere_adresa}`}>ADRESĂ GREȘITĂ</span>
+                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-red-500/20 text-red-400 tracking-wide border border-red-500/30" title={`Adresă greșită: ${order.cerere_adresa}`}>ADRESĂ GREȘITĂ</span>
                                         )}
                                     </div>
                                     <div className="flex justify-between items-center mb-1.5">
-                                        <p className="text-base font-bold text-gray-900 leading-tight truncate pr-2">{order.name || 'Client Nou'}</p>
-                                        <span className="text-base font-bold text-gray-900 shrink-0">{money(order.value)}</span>
+                                        <p className="text-base font-bold text-white leading-tight truncate pr-2">{order.name || 'Client Nou'}</p>
+                                        <span className="text-base font-bold text-white shrink-0">{money(order.value)}</span>
                                     </div>
                                     <p className="text-sm text-gray-500 font-medium mb-1">{formatPhoneNumber(order.phone_number)}</p>
-                                    {order.produse && <p className="text-sm text-indigo-600 font-medium truncate">{produseDisplayText(order.produse)}</p>}
+                                    {order.produse && <p className="text-sm text-indigo-400 font-medium truncate">{produseDisplayText(order.produse)}</p>}
                                 </button>
                             ))
                         )}
@@ -621,7 +671,7 @@ const Drafturi = () => {
                     {/* Order Detail */}
                     <div className="flex-1 overflow-y-auto scrollbar-hide min-w-0 pr-2">
                         {!selectedOrder ? (
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 h-full flex flex-col items-center justify-center text-gray-400 gap-4">
+                            <div className="bg-[#13141a] rounded-2xl shadow-sm border border-white/5 h-full flex flex-col items-center justify-center text-gray-400 gap-4">
                                 <span className="material-icons-round text-6xl text-gray-300">ads_click</span>
                                 <p className="text-lg font-medium text-gray-500">Selectează o comandă pentru detalii.</p>
                             </div>
@@ -630,12 +680,12 @@ const Drafturi = () => {
                                 {/* Header / Title */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <h2 className="text-2xl font-bold text-gray-900">Comanda {selectedOrder.client_personal_id || `#${selectedOrder.id}`}</h2>
+                                        <h2 className="text-2xl font-bold text-white">Comanda {selectedOrder.client_personal_id || `#${selectedOrder.id}`}</h2>
                                         <span className={`text-sm font-bold px-3 py-1.5 rounded-md ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                                        Sursă: <span className="text-gray-900">Facebook Ads</span>
-                                        <button className="ml-2 w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 transition-colors">
+                                        Sursă: <span className="text-white">Facebook Ads</span>
+                                        <button className="ml-2 w-8 h-8 flex items-center justify-center rounded hover:bg-[#13141a]/5 text-gray-400 transition-colors">
                                             <span className="material-icons-round">close</span>
                                         </button>
                                     </div>
@@ -643,15 +693,15 @@ const Drafturi = () => {
 
                                 {/* Main Action buttons */}
                                 <div className="flex gap-4">
-                                    <button onClick={() => callClient(selectedOrder.phone_number)} className="flex-1 flex items-center justify-center gap-2 bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_4px_14px_rgba(34,197,94,0.39)] text-[15px]">
+                                    <button onClick={() => callClient(selectedOrder.phone_number)} className="flex-1 flex items-center justify-center gap-2 btn-3d-primary py-3.5 rounded-xl transition-all shadow-[0_4px_14px_rgba(34,197,94,0.39)] text-[15px]">
                                         <span className="material-icons-round text-xl">call</span>
                                         Suna client
                                     </button>
-                                    <button className="flex-1 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-semibold py-3.5 rounded-xl transition-all shadow-sm text-[15px]">
+                                    <button className="flex-1 flex items-center justify-center gap-2 btn-3d-secondary py-3.5 rounded-xl transition-all shadow-sm text-[15px]">
                                         <span className="material-icons-round text-[#25D366]">chat</span>
                                         WhatsApp
                                     </button>
-                                    <button className="flex-1 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-semibold py-3.5 rounded-xl transition-all shadow-sm text-[15px]">
+                                    <button className="flex-1 flex items-center justify-center gap-2 btn-3d-secondary py-3.5 rounded-xl transition-all shadow-sm text-[15px]">
                                         <span className="material-icons-round">history</span>
                                         Istoric apeluri
                                     </button>
@@ -660,22 +710,22 @@ const Drafturi = () => {
                                 {/* Info Grids */}
                                 <div className="grid grid-cols-5 gap-6">
                                     {/* Client Details */}
-                                    <div className="col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
+                                    <div className="col-span-3 bg-[#13141a] rounded-2xl shadow-sm border border-white/5 p-5 relative">
                                         {editingAddressId !== selectedOrder.id && (
-                                            <button onClick={() => { setEditingAddressId(selectedOrder.id); setAddressText(selectedOrder.adresa || ''); setOrasText(selectedOrder.oras || ''); setJudetText(selectedOrder.judet || ''); }} className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
+                                            <button onClick={() => { setEditingAddressId(selectedOrder.id); setAddressText(selectedOrder.adresa || ''); setOrasText(selectedOrder.oras || ''); setJudetText(selectedOrder.judet || ''); }} className="absolute top-6 right-6 text-indigo-400 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
                                                 <span className="material-icons-round text-[16px]">edit</span> Editează
                                             </button>
                                         )}
-                                        <h3 className="text-base font-bold text-gray-900 mb-6">Date client</h3>
+                                        <h3 className="text-base font-bold text-white mb-6">Date client</h3>
                                         
                                         <div className="space-y-4">
                                             <Field label="Nume" value={selectedOrder.name} />
                                             <div>
                                                 <p className="text-[12px] text-gray-500 font-medium mb-1">Telefon</p>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-base text-gray-900 font-bold">{formatPhoneNumber(selectedOrder.phone_number)}</span>
+                                                    <span className="text-base text-white font-bold">{formatPhoneNumber(selectedOrder.phone_number)}</span>
                                                     {selectedOrder.phone_number && (
-                                                        <button onClick={() => { navigator.clipboard?.writeText(selectedOrder.phone_number); showToast('Copiat!'); }} className="text-gray-400 hover:text-gray-700 transition-colors">
+                                                        <button onClick={() => { navigator.clipboard?.writeText(selectedOrder.phone_number); showToast('Copiat!'); }} className="text-gray-400 hover:text-gray-300 transition-colors">
                                                             <span className="material-icons-round text-[16px]">content_copy</span>
                                                         </button>
                                                     )}
@@ -689,7 +739,7 @@ const Drafturi = () => {
                                                         <div>
                                                             <label className="text-xs text-gray-500 font-medium mb-1 block">Adresă (Stradă, număr, bloc, etc.)</label>
                                                             <textarea
-                                                                className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                className="w-full text-sm font-medium text-white border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                                                 rows={2}
                                                                 value={addressText}
                                                                 onChange={(e) => setAddressText(e.target.value)}
@@ -701,7 +751,7 @@ const Drafturi = () => {
                                                                 <label className="text-xs text-gray-500 font-medium mb-1 block">Oraș</label>
                                                                 <input
                                                                     type="text"
-                                                                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                    className="w-full text-sm font-medium text-white border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                                                     value={orasText}
                                                                     onChange={(e) => setOrasText(e.target.value)}
                                                                     disabled={savingAddress}
@@ -712,7 +762,7 @@ const Drafturi = () => {
                                                                 <input
                                                                     type="text"
                                                                     list="judete-list"
-                                                                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                    className="w-full text-sm font-medium text-white border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                                                     value={judetText}
                                                                     onChange={(e) => setJudetText(e.target.value)}
                                                                     disabled={savingAddress}
@@ -723,7 +773,7 @@ const Drafturi = () => {
                                                             </div>
                                                         </div>
                                                         <div className="flex gap-2 justify-end pt-1">
-                                                            <button onClick={() => setEditingAddressId(null)} disabled={savingAddress} className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">Anulează</button>
+                                                            <button onClick={() => setEditingAddressId(null)} disabled={savingAddress} className="px-3 py-1.5 text-xs font-medium text-gray-400 hover:bg-[#13141a]/5 rounded-lg transition-colors disabled:opacity-50">Anulează</button>
                                                             <button onClick={handleSaveAddress} disabled={savingAddress} className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50">
                                                                 {savingAddress ? 'Se salvează...' : 'Salvează'}
                                                             </button>
@@ -734,20 +784,20 @@ const Drafturi = () => {
                                                         <div className="space-y-3 mt-2">
                                                             <div className="flex flex-col">
                                                                 <span className="text-[12px] text-gray-500 font-medium mb-1">Stradă/Număr</span>
-                                                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[14px] font-medium text-gray-900 leading-relaxed whitespace-pre-line">
+                                                                <div className="bg-[#1a1b23] border border-white/5 rounded-xl p-3 text-[14px] font-medium text-white leading-relaxed whitespace-pre-line">
                                                                     {selectedOrder.adresa || '—'}
                                                                 </div>
                                                             </div>
                                                             <div className="flex gap-4">
                                                                 <div className="flex flex-col flex-1">
                                                                     <span className="text-[12px] text-gray-500 font-medium mb-1">Oraș</span>
-                                                                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[14px] font-medium text-gray-900">
+                                                                    <div className="bg-[#1a1b23] border border-white/5 rounded-xl p-3 text-[14px] font-medium text-white">
                                                                         {selectedOrder.oras || '—'}
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex flex-col flex-1">
                                                                     <span className="text-[12px] text-gray-500 font-medium mb-1">Județ</span>
-                                                                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[14px] font-medium text-gray-900">
+                                                                    <div className="bg-[#1a1b23] border border-white/5 rounded-xl p-3 text-[14px] font-medium text-white">
                                                                         {selectedOrder.judet || '—'}
                                                                     </div>
                                                                 </div>
@@ -763,27 +813,27 @@ const Drafturi = () => {
                                     </div>
 
                                     {/* Order Details */}
-                                    <div className="col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
-                                        <button className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
+                                    <div className="col-span-2 bg-[#13141a] rounded-2xl shadow-sm border border-white/5 p-5 relative">
+                                        <button className="absolute top-6 right-6 text-indigo-400 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
                                             <span className="material-icons-round text-[16px]">edit</span> Editează
                                         </button>
-                                        <h3 className="text-base font-bold text-gray-900 mb-6">Detalii comandă</h3>
+                                        <h3 className="text-base font-bold text-white mb-6">Detalii comandă</h3>
                                         
                                         <div className="space-y-4">
                                             <DL label="Creată" value={fmtDate(selectedOrder.created_at)} />
                                             <DL label="Metodă plată" value="Ramburs" />
                                             <DL label="Metodă livrare" value="Curier rapid" />
                                             
-                                            <div className="pt-4 mt-2 border-t border-gray-100 space-y-3">
+                                            <div className="pt-4 mt-2 border-t border-white/5 space-y-3">
                                                 <DL label="Valoare produse" value={money(selectedOrder.value)} />
                                                 <DL label="Transport" value="0,00 lei" />
-                                                <DL label={<span className="font-bold text-gray-900 text-sm">Total comandă</span>} value={<span className="font-bold text-indigo-600 text-base">{money(selectedOrder.value)}</span>} />
+                                                <DL label={<span className="font-bold text-white text-sm">Total comandă</span>} value={<span className="font-bold text-indigo-400 text-base">{money(selectedOrder.value)}</span>} />
                                             </div>
 
                                             {selectedOrder.cerere && (
-                                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                                <div className="mt-4 pt-4 border-t border-white/5">
                                                     <p className="text-[12px] text-gray-500 font-medium mb-1">Notițe client</p>
-                                                    <p className="text-sm text-gray-900">{selectedOrder.cerere}</p>
+                                                    <p className="text-sm text-white">{selectedOrder.cerere}</p>
                                                 </div>
                                             )}
                                         </div>
@@ -793,7 +843,7 @@ const Drafturi = () => {
                                 {/* Products + Actions Row */}
                                 <div className="grid grid-cols-5 gap-6">
                                     {/* Products */}
-                                    <div className="col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 relative">
+                                    <div className="col-span-3 bg-[#13141a] rounded-2xl shadow-sm border border-white/5 p-5 relative">
                                         {!editingProducts && (
                                             <button 
                                                 onClick={() => {
@@ -805,7 +855,7 @@ const Drafturi = () => {
                                                     setEditingProducts(true);
                                                     setEditedProductsList([...items]);
                                                 }}
-                                                className="absolute top-6 right-6 text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1"
+                                                className="absolute top-6 right-6 text-indigo-400 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1"
                                             >
                                                 <span className="material-icons-round text-[16px]">edit</span> Editează produse
                                             </button>
@@ -814,7 +864,7 @@ const Drafturi = () => {
                                             <div className="absolute top-6 right-6 flex gap-2">
                                                 <button 
                                                     onClick={() => { setEditingProducts(false); setEditedProductsList([]); }}
-                                                    className="text-gray-500 hover:text-gray-700 text-sm font-semibold flex items-center gap-1"
+                                                    className="text-gray-500 hover:text-gray-300 text-sm font-semibold flex items-center gap-1"
                                                 >
                                                     <span className="material-icons-round text-[16px]">close</span> Anulează
                                                 </button>
@@ -826,7 +876,7 @@ const Drafturi = () => {
                                                         const newProduse = JSON.stringify(editedProductsList);
                                                         
                                                         // Save to Supabase
-                                                        const { error: dbErr } = await supabaseAdmin.from('orders').update({ produse: newProduse }).eq('id', selectedOrder.id);
+                                                        const { error: dbErr } = await supabase.from('orders').update({ produse: newProduse }).eq('id', selectedOrder.id);
                                                         if (dbErr) {
                                                             showToast('Eroare la salvare în baza de date');
                                                             setSavingProducts(false);
@@ -875,13 +925,13 @@ const Drafturi = () => {
                                                 </button>
                                             </div>
                                         )}
-                                        <h3 className="text-base font-bold text-gray-900 mb-6">Produse comandate</h3>
+                                        <h3 className="text-base font-bold text-white mb-6">Produse comandate</h3>
                                         
                                         {(() => {
                                             const items = editingProducts ? editedProductsList : parseProduse(selectedOrder.produse);
                                             if (items.length === 0) {
                                                 return (
-                                                    <div className="text-sm font-medium text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                                    <div className="text-sm font-medium text-gray-300 whitespace-pre-wrap leading-relaxed">
                                                         {selectedOrder.produse || <span className="text-gray-400 italic">Niciun produs specificat</span>}
                                                     </div>
                                                 );
@@ -893,9 +943,9 @@ const Drafturi = () => {
                                                         const price = parseFloat(item.price);
                                                         const canRemove = editedProductsList.length > 1;
                                                         return (
-                                                            <div key={item.id || idx} className="flex items-center gap-4 bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                                            <div key={item.id || idx} className="flex items-center gap-4 bg-[#1a1b23] rounded-xl p-4 border border-white/5">
                                                                 {/* Product Image */}
-                                                                <div className="w-16 h-16 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                                                <div className="w-16 h-16 rounded-lg bg-[#13141a] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
                                                                     {productImages[String(item.product_id)] ? (
                                                                         <img 
                                                                             src={productImages[String(item.product_id)]!} 
@@ -907,7 +957,7 @@ const Drafturi = () => {
                                                                     )}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className="text-base font-semibold text-gray-900 truncate">{item.title}</p>
+                                                                    <p className="text-base font-semibold text-white truncate">{item.title}</p>
                                                                     <p className="text-sm text-gray-500">{price.toFixed(2)} lei / buc{item.sku ? ` · ${item.sku}` : ''}</p>
                                                                 </div>
                                                                 {editingProducts ? (
@@ -921,7 +971,7 @@ const Drafturi = () => {
                                                                                         setEditedProductsList(newList);
                                                                                     }
                                                                                 }}
-                                                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
+                                                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#13141a] border border-white/10 text-gray-400 hover:bg-[#13141a]/5 transition-colors font-bold text-lg"
                                                                             >
                                                                                 −
                                                                             </button>
@@ -937,7 +987,7 @@ const Drafturi = () => {
                                                                                         setEditedProductsList(newList);
                                                                                     }
                                                                                 }}
-                                                                                className="w-14 h-10 text-center text-base font-bold text-gray-900 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                                                                                className="w-14 h-10 text-center text-base font-bold text-white border border-white/10 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
                                                                             />
                                                                             <button 
                                                                                 onClick={() => {
@@ -945,7 +995,7 @@ const Drafturi = () => {
                                                                                     newList[idx] = { ...newList[idx], quantity: qty + 1 };
                                                                                     setEditedProductsList(newList);
                                                                                 }}
-                                                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-bold text-lg"
+                                                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#13141a] border border-white/10 text-gray-400 hover:bg-[#13141a]/5 transition-colors font-bold text-lg"
                                                                             >
                                                                                 +
                                                                             </button>
@@ -956,15 +1006,15 @@ const Drafturi = () => {
                                                                                 setEditedProductsList(prev => prev.filter((_, i) => i !== idx));
                                                                             }}
                                                                             disabled={!canRemove}
-                                                                            className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors ${canRemove ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'}`}
+                                                                            className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors ${canRemove ? 'bg-red-500/20 text-red-600 border-red-500/30 hover:bg-red-100' : 'bg-[#1a1b23] text-gray-300 border-white/5 cursor-not-allowed'}`}
                                                                         >
                                                                             <span className="material-icons-round text-[20px]">delete</span>
                                                                         </button>
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-base font-semibold text-gray-600 shrink-0 px-2">x{qty}</span>
+                                                                    <span className="text-base font-semibold text-gray-400 shrink-0 px-2">x{qty}</span>
                                                                 )}
-                                                                <span className="text-base font-bold text-indigo-600 w-24 text-right">
+                                                                <span className="text-base font-bold text-indigo-400 w-24 text-right">
                                                                     {(price * qty).toFixed(2)} lei
                                                                 </span>
                                                             </div>
@@ -975,16 +1025,16 @@ const Drafturi = () => {
                                         })()}
                                         
                                         {selectedOrder.cerere_upsell && (
-                                            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                                                <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-1">Oportunitate Upsell</p>
+                                            <div className="mt-4 bg-amber-50 border border-amber-500/30 rounded-xl p-4">
+                                                <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-1">Oportunitate Upsell</p>
                                                 <p className="text-sm font-medium text-amber-900">{selectedOrder.cerere_upsell}</p>
                                             </div>
                                         )}
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                                        <h3 className="text-base font-bold text-gray-900 mb-5">Acțiuni rapide</h3>
+                                    <div className="col-span-2 bg-[#13141a] rounded-2xl shadow-sm border border-white/5 p-5">
+                                        <h3 className="text-base font-bold text-white mb-5">Acțiuni rapide</h3>
                                         <div className="flex flex-col gap-3">
                                             {QUICK_ACTIONS.map(action => (
                                                 <button
@@ -1002,13 +1052,13 @@ const Drafturi = () => {
                                 </div>
                                 
                                 {/* Notes */}
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                                    <h3 className="text-base font-bold text-gray-900 mb-4">Notițe apel</h3>
+                                <div className="bg-[#13141a] rounded-2xl shadow-sm border border-white/5 p-5">
+                                    <h3 className="text-base font-bold text-white mb-4">Notițe apel</h3>
                                     <textarea
                                         value={noteText}
                                         onChange={e => setNoteText(e.target.value)}
                                         placeholder="Adaugă observații..."
-                                        className="w-full min-h-[100px] bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-900 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
+                                        className="w-full min-h-[100px] bg-[#1a1b23] border border-white/5 rounded-xl p-4 text-sm text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
                                     />
                                     <button onClick={saveNote} disabled={savingNote} className="mt-3 px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50">
                                         {savingNote ? 'Se salvează...' : 'Salvează'}
@@ -1020,37 +1070,37 @@ const Drafturi = () => {
 
                     {/* ── Dialer Panel ───────────────────────────────────────── */}
                     {dialerOpen && (
-                        <div className="w-[340px] shrink-0 bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 flex flex-col items-center h-[590px] justify-between">
+                        <div className="w-[340px] shrink-0 bg-[#13141a] rounded-3xl shadow-2xl border border-white/5 p-6 flex flex-col items-center h-[590px] justify-between">
                             <div className="w-full flex flex-col items-center pt-2">
                                 {/* Reserved fixed height status & timer slot (prevents layout shifts) */}
                                 <div className="h-7 flex items-center justify-center mb-2">
                                     {callState === 'active' ? (
-                                        <div className="text-xs font-bold text-emerald-600 font-mono tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/60 animate-pulse">
+                                        <div className="text-xs font-bold text-emerald-600 font-mono tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-500/30/60 animate-pulse">
                                             {formatCallTimer(callDurationSeconds)}
                                         </div>
                                     ) : callState === 'rejected' ? (
-                                        <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-red-100 text-red-700">
+                                        <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-red-100 text-red-400">
                                             Apel respins
                                         </div>
                                     ) : callState === 'calling' ? (
-                                        <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-amber-100 text-amber-700 animate-pulse">
+                                        <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-amber-100 text-amber-400 animate-pulse">
                                             Apelează...
                                         </div>
                                     ) : null}
                                 </div>
                                 
                                 {/* Phone display */}
-                                <div className="w-full mb-6 min-h-[54px] flex items-center justify-center relative bg-gray-50 rounded-2xl px-3 py-1">
+                                <div className="w-full mb-6 min-h-[54px] flex items-center justify-center relative bg-[#1a1b23] rounded-2xl px-3 py-1">
                                     <input
                                         type="text"
                                         value={phoneNumber}
                                         onChange={e => setPhoneNumber(formatDialerNumber(e.target.value))}
-                                        className="w-full bg-transparent border-none outline-none text-center text-3xl font-semibold text-gray-900 tracking-normal"
+                                        className="w-full bg-transparent border-none outline-none text-center text-3xl font-semibold text-white tracking-normal"
                                         placeholder=" "
                                         autoFocus
                                     />
                                     {phoneNumber && (
-                                        <button onClick={handleDelete} className="absolute right-3 text-gray-400 hover:text-gray-700 transition-colors">
+                                        <button onClick={handleDelete} className="absolute right-3 text-gray-400 hover:text-gray-300 transition-colors">
                                             <span className="material-icons-round">backspace</span>
                                         </button>
                                     )}
@@ -1064,8 +1114,8 @@ const Drafturi = () => {
                                         { key: '7', sub: 'PQRS' }, { key: '8', sub: 'TUV' }, { key: '9', sub: 'WXYZ' },
                                         { key: '*', sub: '' }, { key: '0', sub: '+' }, { key: '#', sub: '' }
                                     ].map(item => (
-                                        <button key={item.key} onClick={() => handleKeypadPress(item.key)} className="flex flex-col items-center justify-center h-16 w-16 rounded-full bg-gray-100 hover:bg-gray-200 shadow-none transition-all active:scale-90 mx-auto">
-                                            <span className="text-2xl font-semibold text-gray-800 leading-none">{item.key}</span>
+                                        <button key={item.key} onClick={() => handleKeypadPress(item.key)} className="flex flex-col items-center justify-center h-16 w-16 rounded-full bg-[#13141a]/5 hover:bg-[#13141a]/10 shadow-none transition-all active:scale-90 mx-auto">
+                                            <span className="text-2xl font-semibold text-gray-200 leading-none">{item.key}</span>
                                             {item.sub && <span className="text-[9px] text-gray-400 font-bold tracking-widest mt-0.5">{item.sub}</span>}
                                         </button>
                                     ))}
@@ -1093,7 +1143,7 @@ const Drafturi = () => {
                                     <button
                                         onClick={toggleMute}
                                         className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
-                                            isMuted ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                            isMuted ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-[#13141a]/5 hover:bg-[#13141a]/10 text-gray-300'
                                         }`}
                                         title={isMuted ? 'Activare microfon' : 'Dezactivare microfon (Mute)'}
                                     >
@@ -1109,17 +1159,17 @@ const Drafturi = () => {
             {/* Add Product Modal */}
             {showAddProductModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
-                            <h2 className="text-lg font-bold text-gray-900">Adaugă produs în comandă</h2>
+                    <div className="bg-[#13141a] rounded-2xl shadow-xl border border-white/5 w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-5 border-b border-white/5 bg-[#1a1b23]/50">
+                            <h2 className="text-lg font-bold text-white">Adaugă produs în comandă</h2>
                             <button 
                                 onClick={() => setShowAddProductModal(false)}
-                                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500 transition-colors"
+                                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#13141a]/10 text-gray-500 transition-colors"
                             >
                                 <span className="material-icons-round text-[20px]">close</span>
                             </button>
                         </div>
-                        <div className="p-5 overflow-y-auto flex-1 bg-white">
+                        <div className="p-5 overflow-y-auto flex-1 bg-[#13141a]">
                             <div className="mb-4">
                                 <div className="relative">
                                     <span className="material-icons-round absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
@@ -1128,13 +1178,13 @@ const Drafturi = () => {
                                         placeholder="Caută produs (titlu sau SKU)..."
                                         value={productSearchQuery}
                                         onChange={(e) => setProductSearchQuery(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-shadow text-sm"
+                                        className="w-full pl-10 pr-4 py-2 border border-white/5 rounded-lg outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-shadow text-sm"
                                         autoFocus
                                     />
                                     {productSearchQuery && (
                                         <button 
                                             onClick={() => setProductSearchQuery('')}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 flex items-center justify-center"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-400 flex items-center justify-center"
                                         >
                                             <span className="material-icons-round text-[16px]">close</span>
                                         </button>
@@ -1176,8 +1226,8 @@ const Drafturi = () => {
                                                 const price = parseFloat(variant.price || '0');
                                                 
                                                 return (
-                                                    <div key={variant.id} className="flex items-center gap-4 bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl p-3 border border-gray-200">
-                                                        <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                                    <div key={variant.id} className="flex items-center gap-4 bg-[#1a1b23] hover:bg-[#13141a]/5 transition-colors rounded-xl p-3 border border-white/5">
+                                                        <div className="w-12 h-12 rounded-lg bg-[#13141a] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
                                                             {imgUrl ? (
                                                                 <img src={imgUrl} alt={prod.title} className="w-full h-full object-cover" />
                                                             ) : (
@@ -1185,7 +1235,7 @@ const Drafturi = () => {
                                                             )}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-semibold text-gray-900 truncate">{prod.title}</p>
+                                                            <p className="text-sm font-semibold text-white truncate">{prod.title}</p>
                                                             <p className="text-xs text-gray-500 truncate">{variant.title !== 'Default Title' ? variant.title : ''} • {price.toFixed(2)} lei</p>
                                                         </div>
                                                         <button
@@ -1212,7 +1262,7 @@ const Drafturi = () => {
                                                                 setShowAddProductModal(false);
                                                                 setProductSearchQuery(''); // reset search
                                                             }}
-                                                            className="shrink-0 bg-white border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 text-sm font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
+                                                            className="shrink-0 bg-[#13141a] border border-white/5 hover:border-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-400 text-gray-400 text-sm font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
                                                         >
                                                             <span className="material-icons-round text-[16px]">add</span> Adaugă
                                                         </button>
@@ -1235,14 +1285,14 @@ const Drafturi = () => {
 const Field = ({ label, value, highlight }: { label: string; value?: string | null; highlight?: boolean }) => (
     <div>
         <p className="text-[12px] text-gray-500 font-medium mb-1">{label}</p>
-        <p className={`text-base font-bold ${highlight ? 'text-amber-600' : 'text-gray-900'}`}>{value || '—'}</p>
+        <p className={`text-base font-bold ${highlight ? 'text-amber-600' : 'text-white'}`}>{value || '—'}</p>
     </div>
 );
 
 const DL = ({ label, value }: { label: string | React.ReactNode; value: React.ReactNode }) => (
     <div className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
         <span className="text-sm font-medium text-gray-500">{label}</span>
-        <span className="text-sm font-semibold text-gray-900 text-right">{value}</span>
+        <span className="text-sm font-semibold text-white text-right">{value}</span>
     </div>
 );
 
