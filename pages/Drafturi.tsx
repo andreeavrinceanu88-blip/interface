@@ -223,6 +223,23 @@ const Drafturi = () => {
         if (userStores.length > 0 && !selectedBrand) setSelectedBrand(userStores[0]);
     }, [userStores]);
 
+    // ── Toast helper
+    const showToast = (msg: string) => {
+        setToast(msg);
+        setTimeout(() => setToast(''), 2500);
+    };
+
+    // ── Shopify notification helper
+    const showShopifyNotif = (msg: string, type: 'success' | 'error') => {
+        setShopifyNotif({ msg, type });
+        setTimeout(() => setShopifyNotif(null), type === 'error' ? 10000 : 5000);
+    };
+
+    // ── Init brand
+    useEffect(() => {
+        if (userStores.length > 0 && !selectedBrand) setSelectedBrand(userStores[0]);
+    }, [userStores]);
+
     // ── Load orders
     const loadOrders = useCallback(async () => {
         if (!selectedBrand) { console.log('[Orders] no brand yet, skipping'); return; }
