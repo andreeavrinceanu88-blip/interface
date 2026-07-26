@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { useTelnyx } from '../contexts/TelnyxContext';
 import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages, getAllProducts, updateShopifyLineItemsBulk } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -164,21 +165,13 @@ const Drafturi = () => {
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [productSearchQuery, setProductSearchQuery] = useState('');
 
+    // ── Telnyx Context
+    const { isReady, callState, makeCall, hangup, toggleMute, isMuted } = useTelnyx();
+
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
-    const clientRef = useRef<any>(null);
-    const callRef = useRef<any>(null);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-    const ringbackOscRef = useRef<any>(null);
-    const audioCtxRef = useRef<any>(null);
-
-    const [isConnecting, setIsConnecting] = useState(false);
-    const [callState, setCallState] = useState<'idle' | 'calling' | 'active' | 'rejected'>('idle');
     const [callDurationSeconds, setCallDurationSeconds] = useState(0);
-    const [isMuted, setIsMuted] = useState(false);
-    const callStateRef = useRef<'idle' | 'calling' | 'active' | 'rejected'>('idle');
-    const userHungUpRef = useRef(false);
 
     useEffect(() => {
         let interval: any = null;
@@ -463,7 +456,7 @@ const Drafturi = () => {
 
     // ── Render
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-[#0b0c10] text-white rounded-tl-3xl shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-t border-white/5 absolute inset-0 pt-6 px-6">
+        <div className="flex flex-col h-full overflow-hidden bg-[#F9FAFB] text-gray-900 rounded-tl-3xl shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-t border-gray-200 absolute inset-0 pt-6 px-6">
             {/* Toast */}
             {toast && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm px-5 py-3 rounded-xl shadow-2xl animate-fade-in">
