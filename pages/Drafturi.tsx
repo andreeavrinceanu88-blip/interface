@@ -302,8 +302,11 @@ const Drafturi = () => {
     }, [selectedId]);
 
     const updateStatus = async (orderId: number, newStatus: string) => {
+        if (editingAddressId === orderId) {
+            await handleSaveAddress();
+        }
         setUpdatingStatus(true);
-        const { error: uErr } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+        const { error: uErr } = await supabaseAdmin.from('orders').update({ status: newStatus }).eq('id', orderId);
         if (!uErr) {
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
             showToast(STATUS_LABELS[newStatus]);
@@ -362,7 +365,7 @@ const Drafturi = () => {
     const saveNote = async () => {
         if (!selectedOrder) return;
         setSavingNote(true);
-        const { error: nErr } = await supabase.from('orders').update({ notes: noteText }).eq('id', selectedOrder.id);
+        const { error: nErr } = await supabaseAdmin.from('orders').update({ notes: noteText }).eq('id', selectedOrder.id);
         if (!nErr) {
             setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, notes: noteText } : o));
             showToast('Notiță salvată');
@@ -391,7 +394,7 @@ const Drafturi = () => {
         const newAddress = addressText.trim();
         const newOras = orasText.trim();
         const newJudet = judetText.trim();
-        const { error: err } = await supabase.from('orders').update({ adresa: newAddress, oras: newOras, judet: newJudet }).eq('id', selectedOrder.id);
+        const { error: err } = await supabaseAdmin.from('orders').update({ adresa: newAddress, oras: newOras, judet: newJudet }).eq('id', selectedOrder.id);
         if (!err) {
             setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, adresa: newAddress, oras: newOras, judet: newJudet } : o));
             showToast('Adresa a fost actualizată');
@@ -401,7 +404,7 @@ const Drafturi = () => {
             if (selectedOrder.type === 'draft') {
                 const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
                 const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
-                syncOrderAddressWithShopify(storeName, shopifyId, newAddress, newOras, newJudet).then(result => {
+                await syncOrderAddressWithShopify(storeName, shopifyId, newAddress, newOras, newJudet).then(result => {
                     if (result.success) {
                         showShopifyNotif('Shopify sincronizat ✓ Adresa a fost actualizată', 'success');
                     } else {
@@ -878,7 +881,7 @@ const Drafturi = () => {
                                                         const newProduse = JSON.stringify(editedProductsList);
                                                         
                                                         // Save to Supabase
-                                                        const { error: dbErr } = await supabase.from('orders').update({ produse: newProduse }).eq('id', selectedOrder.id);
+                                                        const { error: dbErr } = await supabaseAdmin.from('orders').update({ produse: newProduse }).eq('id', selectedOrder.id);
                                                         if (dbErr) {
                                                             showToast('Eroare la salvare în baza de date');
                                                             setSavingProducts(false);
