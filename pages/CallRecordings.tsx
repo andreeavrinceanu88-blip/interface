@@ -299,7 +299,7 @@ export default function CallRecordings() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center justify-end">
-                    <div className="flex items-center gap-2 bg-[#13141a] p-1 rounded-xl border border-white/5 shadow-inner">
+                    <div className="btn-3d-secondary flex items-center gap-2 rounded-xl h-[42px] px-2 shadow-sm font-medium">
                         <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-gray-200 text-sm border-none focus:ring-0 cursor-pointer outline-none" />
                         <span className="text-gray-600">-</span>
                         <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-gray-200 text-sm border-none focus:ring-0 cursor-pointer outline-none" />
