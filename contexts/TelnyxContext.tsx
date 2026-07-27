@@ -220,6 +220,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
     const makeCall = (destination: string, callerId?: string) => {
         if (!clientRef.current) return;
+        
+        // Start synthetic ringback immediately on click to satisfy AudioContext user gesture requirements
+        playRingback();
+        
         const call = clientRef.current.newCall({
             destinationNumber: destination,
             callerNumber: callerId || 'Unknown',
