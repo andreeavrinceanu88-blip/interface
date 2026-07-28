@@ -290,12 +290,20 @@ const Drafturi = () => {
     // ── Selected order
     const selectedOrder = orders.find(o => o.id === selectedId) || null;
 
-    // Auto-select first when tab changes
+    // Auto-select first when tab changes or if current selection is lost
     useEffect(() => {
-        const first = tabOrders[0];
-        if (first) { setSelectedId(first.id); setNoteText(first.notes || ''); }
-        else { setSelectedId(null); setNoteText(''); }
-    }, [activeTab, orders]);
+        const currentStillExists = tabOrders.some(o => o.id === selectedId);
+        if (!currentStillExists) {
+            const first = tabOrders[0];
+            if (first) { 
+                setSelectedId(first.id); 
+                setNoteText(first.notes || ''); 
+            } else { 
+                setSelectedId(null); 
+                setNoteText(''); 
+            }
+        }
+    }, [activeTab, tabOrders, selectedId]);
 
     // ── Fetch product images when selected order changes
     useEffect(() => {
