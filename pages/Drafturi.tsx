@@ -944,9 +944,9 @@ const Drafturi = () => {
                                                             } else {
                                                                 showShopifyNotif('Eroare Shopify — Produsele nu au fost sincronizate', 'error');
                                                             }
-                                                        } catch (err) {
+                                                        } catch (err: any) {
                                                             console.error('[Drafturi] Unhandled error during save:', err);
-                                                            showShopifyNotif('A apărut o eroare neașteptată în browser', 'error');
+                                                            showShopifyNotif(`Eroare JS: ${err.message || String(err)}`, 'error');
                                                         } finally {
                                                             setSavingProducts(false);
                                                             setEditingProducts(false);
