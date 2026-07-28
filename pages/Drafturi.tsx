@@ -898,49 +898,59 @@ const Drafturi = () => {
                                                     disabled={savingProducts}
                                                     onClick={async () => {
                                                         setSavingProducts(true);
-                                                        
-                                                        const newProduse = JSON.stringify(editedProductsList);
-                                                        
-                                                        // Save to Supabase
-                                                        const { error: dbErr } = await supabaseAdmin.from('orders').update({ produse: newProduse }).eq('id', selectedOrder.id);
-                                                        if (dbErr) {
-                                                            showToast('Eroare la salvare în baza de date');
-                                                            setSavingProducts(false);
-                                                            return;
-                                                        }
-                                                        setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, produse: newProduse } : o));
-                                                        setSelectedOrder((prev: any) => prev ? { ...prev, produse: newProduse } : prev);
-                                                        
-                                                        // Sync to Shopify
-                                                        const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
-                                                        const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
-                                                        
-                                                        const shopifyItems = editedProductsList.map((item: any) => {
-                                                            const qty = item.quantity;
-                                                            const discountArrayStr = productsDiscountMap[item.sku];
-                                                            let discountAmount = 0;
-                                                            if (discountArrayStr) {
-                                                                const parts = discountArrayStr.split(',').map(n => parseFloat(n.trim()) || 0);
-                                                                if (parts.length > 0) {
-                                                                    discountAmount = parts[Math.min(qty - 1, parts.length - 1)] || 0;
-                                                                }
+                                                        try {
+                                                            const newProduse = JSON.stringify(editedProductsList);
+                                                            console.log('[Drafturi] Saving to Supabase...', selectedOrder.id);
+                                                            
+                                                            // Save to Supabase
+                                                            const { error: dbErr } = await supabaseAdmin.from('orders').update({ produse: newProduse }).eq('id', selectedOrder.id);
+                                                            if (dbErr) {
+                                                                console.error('[Drafturi] Supabase error:', dbErr);
+                                                                showToast('Eroare la salvare în baza de date');
+                                                                setSavingProducts(false);
+                                                                return;
                                                             }
-                                                            return {
-                                                                variant_id: item.variant_id || item.variantId || item.id,
-                                                                quantity: qty,
-                                                                appliedDiscount: discountAmount > 0 ? discountAmount : undefined
-                                                            };
-                                                        });
-                                                        
-                                                        const result = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems);
-                                                        if (result) {
-                                                            showShopifyNotif('Shopify sincronizat ✓ Lista a fost actualizată', 'success');
-                                                        } else {
-                                                            showShopifyNotif('Eroare Shopify — Produsele nu au fost sincronizate', 'error');
+                                                            console.log('[Drafturi] Supabase saved successfully.');
+                                                            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, produse: newProduse } : o));
+                                                            setSelectedOrder((prev: any) => prev ? { ...prev, produse: newProduse } : prev);
+                                                            
+                                                            // Sync to Shopify
+                                                            const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
+                                                            const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
+                                                            
+                                                            const shopifyItems = editedProductsList.map((item: any) => {
+                                                                const qty = Number(item.quantity) || 1;
+                                                                const discountArrayStr = productsDiscountMap[item.sku];
+                                                                let discountAmount = 0;
+                                                                if (discountArrayStr) {
+                                                                    const parts = discountArrayStr.split(',').map(n => parseFloat(n?.toString().trim()) || 0);
+                                                                    if (parts.length > 0) {
+                                                                        discountAmount = parts[Math.min(Math.max(0, qty - 1), parts.length - 1)] || 0;
+                                                                    }
+                                                                }
+                                                                return {
+                                                                    variant_id: item.variant_id || item.variantId || item.id,
+                                                                    quantity: qty,
+                                                                    appliedDiscount: discountAmount > 0 ? discountAmount : undefined
+                                                                };
+                                                            });
+                                                            
+                                                            console.log('[Drafturi] Calling updateShopifyLineItemsBulk...', { storeName, shopifyId, shopifyItems });
+                                                            const result = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems);
+                                                            console.log('[Drafturi] Shopify result:', result);
+                                                            
+                                                            if (result) {
+                                                                showShopifyNotif('Shopify sincronizat ✓ Lista a fost actualizată', 'success');
+                                                            } else {
+                                                                showShopifyNotif('Eroare Shopify — Produsele nu au fost sincronizate', 'error');
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('[Drafturi] Unhandled error during save:', err);
+                                                            showShopifyNotif('A apărut o eroare neașteptată în browser', 'error');
+                                                        } finally {
+                                                            setSavingProducts(false);
+                                                            setEditingProducts(false);
                                                         }
-                                                        
-                                                        setSavingProducts(false);
-                                                        setEditingProducts(false);
                                                     }}
                                                     className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50"
                                                 >
