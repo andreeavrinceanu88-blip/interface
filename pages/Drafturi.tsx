@@ -909,6 +909,7 @@ const Drafturi = () => {
                                                             return;
                                                         }
                                                         setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, produse: newProduse } : o));
+                                                        setSelectedOrder((prev: any) => prev ? { ...prev, produse: newProduse } : prev);
                                                         
                                                         // Sync to Shopify
                                                         const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();

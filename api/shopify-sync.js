@@ -15,7 +15,7 @@ function getStoreConfig(storeName) {
     }
     // Default to Tamtrend
     return {
-        url: process.env.VITE_TAMTREND_SHOPIFY_URL || 'https://k7agxh-7y.myshopify.com',
+        url: process.env.VITE_TAMTREND_SHOPIFY_URL || 'https://z10zqc-mz.myshopify.com',
         clientId: process.env.VITE_TAMTREND_SHOPIFY_CLIENT_ID,
         clientSecret: process.env.VITE_TAMTREND_SHOPIFY_CLIENT_SECRET,
     };
