@@ -924,7 +924,8 @@ const Drafturi = () => {
                                                                 if (discountArrayStr) {
                                                                     const parts = discountArrayStr.split(',').map(n => parseFloat(n?.toString().trim()) || 0);
                                                                     if (parts.length > 0) {
-                                                                        discountAmount = parts[Math.min(Math.max(0, qty - 1), parts.length - 1)] || 0;
+                                                                        const totalDiscount = parts[Math.min(Math.max(0, qty - 1), parts.length - 1)] || 0;
+                                                                        discountAmount = totalDiscount / qty;
                                                                     }
                                                                 }
                                                                 return {
