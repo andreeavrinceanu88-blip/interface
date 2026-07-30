@@ -48,9 +48,9 @@ export default function StatisticiProduse() {
         supabaseAdmin
             .from('products')
             .select('*')
-            .eq('user_id', profile.id)
-            .eq('store', selectedBrand)
+            .ilike('store', selectedBrand)
             .then(({ data, error }) => {
+                console.log('StatisticiProduse fetch:', { data, error, selectedBrand, profileId: profile.id });
                 if (error) {
                     console.error('Error fetching products:', error);
                 } else if (data) {
