@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        const { action, storeName, orderId, address, city, province, status, note, productIds } = req.body;
+        const { action, storeName, orderId, address, city, province, status, note, productIds, name } = req.body;
 
         if (!storeName) {
             return res.status(400).json({ error: 'storeName is required' });
@@ -160,6 +160,12 @@ export default async function handler(req, res) {
             const shippingAddress = { address1: address || '' };
             if (city) shippingAddress.city = city;
             if (province) shippingAddress.province = province;
+            
+            if (name) {
+                const parts = name.trim().split(' ');
+                shippingAddress.lastName = parts.pop() || '';
+                shippingAddress.firstName = parts.join(' ') || '';
+            }
             
             const billingAddress = { ...shippingAddress };
 

@@ -151,6 +151,7 @@ const Drafturi = () => {
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
     const [addressText, setAddressText] = useState('');
+    const [nameText, setNameText] = useState('');
     const [orasText, setOrasText] = useState('');
     const [judetText, setJudetText] = useState('');
     const [savingAddress, setSavingAddress] = useState(false);
@@ -427,11 +428,12 @@ const Drafturi = () => {
         if (!selectedOrder) return;
         setSavingAddress(true);
         const newAddress = addressText.trim();
+        const newName = nameText.trim();
         const newOras = orasText.trim();
         const newJudet = judetText.trim();
-        const { error: err } = await supabaseAdmin.from('orders').update({ adresa: newAddress, oras: newOras, judet: newJudet }).eq('id', selectedOrder.id);
+        const { error: err } = await supabaseAdmin.from('orders').update({ name: newName, adresa: newAddress, oras: newOras, judet: newJudet }).eq('id', selectedOrder.id);
         if (!err) {
-            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, adresa: newAddress, oras: newOras, judet: newJudet } : o));
+            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, name: newName, adresa: newAddress, oras: newOras, judet: newJudet } : o));
             showToast('Adresa a fost actualizată');
             setEditingAddressId(null);
             
@@ -439,7 +441,7 @@ const Drafturi = () => {
             if (selectedOrder.type === 'draft') {
                 const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
                 const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
-                await syncOrderAddressWithShopify(storeName, shopifyId, newAddress, newOras, newJudet).then(result => {
+                await syncOrderAddressWithShopify(storeName, shopifyId, newAddress, newOras, newJudet, newName).then(result => {
                     if (result.success) {
                         showShopifyNotif('Shopify sincronizat ✓ Adresa a fost actualizată', 'success');
                     } else {
@@ -774,7 +776,7 @@ const Drafturi = () => {
                                     {/* Client Details */}
                                     <div className="col-span-3 bg-[#13141a] rounded-2xl shadow-sm border border-white/5 p-5 relative">
                                         {editingAddressId !== selectedOrder.id && (
-                                            <button onClick={() => { setEditingAddressId(selectedOrder.id); setAddressText(selectedOrder.adresa || ''); setOrasText(selectedOrder.oras || ''); setJudetText(selectedOrder.judet || ''); }} className="absolute top-6 right-6 text-indigo-400 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
+                                            <button onClick={() => { setEditingAddressId(selectedOrder.id); setAddressText(selectedOrder.adresa || ''); setNameText(selectedOrder.name || ''); setOrasText(selectedOrder.oras || ''); setJudetText(selectedOrder.judet || ''); }} className="absolute top-6 right-6 text-indigo-400 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
                                                 <span className="material-icons-round text-[16px]">edit</span> Editează
                                             </button>
                                         )}
@@ -798,6 +800,16 @@ const Drafturi = () => {
                                                 <p className="text-[12px] text-gray-500 font-medium mb-1">Adresă livrare</p>
                                                 {editingAddressId === selectedOrder.id ? (
                                                     <div className="mt-2 space-y-3 relative z-10">
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 font-medium mb-1 block">Nume complet</label>
+                                                            <input
+                                                                type="text"
+                                                                className="w-full text-sm font-medium text-white bg-[#1a1b23] border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                                value={nameText}
+                                                                onChange={(e) => setNameText(e.target.value)}
+                                                                disabled={savingAddress}
+                                                            />
+                                                        </div>
                                                         <div>
                                                             <label className="text-xs text-gray-500 font-medium mb-1 block">Adresă (Stradă, număr, bloc, etc.)</label>
                                                             <textarea
