@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 
 export default function StatisticiProduse() {
     const { profile } = useAuth();
@@ -18,7 +18,7 @@ export default function StatisticiProduse() {
     const handleSaveCell = async () => {
         if (!previewCell || !previewCell.rowId) return;
         setIsSaving(true);
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('products')
             .update({ [previewCell.col]: editVal })
             .eq('id', previewCell.rowId);
@@ -45,7 +45,7 @@ export default function StatisticiProduse() {
         if (!profile?.id || !selectedBrand) return;
         
         setLoading(true);
-        supabase
+        supabaseAdmin
             .from('products')
             .select('*')
             .eq('user_id', profile.id)

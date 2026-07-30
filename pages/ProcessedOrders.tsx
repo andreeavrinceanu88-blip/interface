@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 
 export default function ProcessedOrders() {
     const { profile } = useAuth();
@@ -18,7 +18,7 @@ export default function ProcessedOrders() {
     const handleSaveCell = async () => {
         if (!previewCell || !previewCell.rowId) return;
         setIsSaving(true);
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('orders')
             .update({ [previewCell.col]: editVal })
             .eq('id', previewCell.rowId);
@@ -45,11 +45,10 @@ export default function ProcessedOrders() {
         if (!profile?.id || !selectedBrand) return;
         
         setLoading(true);
-        supabase
+        supabaseAdmin
             .from('orders')
             .select('*')
-            .eq('user_id', profile.id)
-            .eq('store', selectedBrand)
+            .eq('store_name', selectedBrand)
             .then(({ data, error }) => {
                 if (error) {
                     console.error('Error fetching orders:', error);
