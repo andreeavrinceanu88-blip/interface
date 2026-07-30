@@ -256,7 +256,7 @@ export default function StatisticiProduse() {
                 </div>
             </div>
 
-            <div className="card-depth p-1 rounded-2xl overflow-hidden min-h-[400px] border border-white/5 relative">
+            <div className="bg-[#13141a] p-1 rounded-2xl overflow-hidden min-h-[400px] border border-white/5 relative shadow-xl">
                 {loading && (
                     <div className="flex items-center justify-center h-48 text-gray-600 text-sm gap-2">
                         <span className="material-icons-round animate-spin text-base">autorenew</span> Se încarcă...
