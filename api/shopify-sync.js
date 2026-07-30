@@ -160,6 +160,8 @@ export default async function handler(req, res) {
             const shippingAddress = { address1: address || '' };
             if (city) shippingAddress.city = city;
             if (province) shippingAddress.province = province;
+            
+            const billingAddress = { ...shippingAddress };
 
             const gqlRes = await fetch(graphqlUrl, {
                 method: 'POST',
@@ -168,7 +170,7 @@ export default async function handler(req, res) {
                     query: updateMut,
                     variables: {
                         id: gid,
-                        input: { shippingAddress }
+                        input: { shippingAddress, billingAddress }
                     }
                 })
             });
