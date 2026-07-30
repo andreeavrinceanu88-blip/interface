@@ -26,6 +26,7 @@ interface Order {
     notes: string;
     tags: string;
     type: string;
+    order_state?: string;
     health: string;
     istoric: string;
     client_personal_id: string;
@@ -278,7 +279,15 @@ const Drafturi = () => {
     useEffect(() => { loadOrders(); }, [loadOrders]);
 
     // ── Filtered list for current tab + search
-    const typeFilteredOrders = orders.filter(o => viewMode === 'drafturi' ? o.type === 'draft' : o.type !== 'draft');
+    const typeFilteredOrders = orders.filter(o => {
+        if (viewMode === 'drafturi') {
+            if (o.type !== 'draft') return false;
+            if (draftStatus === 'open' && o.order_state !== 'open') return false;
+            if (draftStatus === 'complete' && o.order_state !== 'completed') return false;
+            return true;
+        }
+        return o.type !== 'draft';
+    });
     const tabOrders = typeFilteredOrders.filter(o => o.status === activeTab);
     const filteredOrders = activeSearch
         ? tabOrders.filter(o =>
