@@ -783,7 +783,20 @@ const Drafturi = () => {
                                         <h3 className="text-base font-bold text-white mb-6">Date client</h3>
                                         
                                         <div className="space-y-4">
-                                            <Field label="Nume" value={selectedOrder.name} />
+                                            {editingAddressId === selectedOrder.id ? (
+                                                <div className="relative z-10">
+                                                    <label className="text-[12px] text-gray-500 font-medium mb-1 block">Nume</label>
+                                                    <input
+                                                        type="text"
+                                                        className="w-full text-sm font-medium text-white bg-[#1a1b23] border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                        value={nameText}
+                                                        onChange={(e) => setNameText(e.target.value)}
+                                                        disabled={savingAddress}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <Field label="Nume" value={selectedOrder.name} />
+                                            )}
                                             <div>
                                                 <p className="text-[12px] text-gray-500 font-medium mb-1">Telefon</p>
                                                 <div className="flex items-center gap-2">
@@ -800,16 +813,6 @@ const Drafturi = () => {
                                                 <p className="text-[12px] text-gray-500 font-medium mb-1">Adresă livrare</p>
                                                 {editingAddressId === selectedOrder.id ? (
                                                     <div className="mt-2 space-y-3 relative z-10">
-                                                        <div>
-                                                            <label className="text-xs text-gray-500 font-medium mb-1 block">Nume complet</label>
-                                                            <input
-                                                                type="text"
-                                                                className="w-full text-sm font-medium text-white bg-[#1a1b23] border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                                                value={nameText}
-                                                                onChange={(e) => setNameText(e.target.value)}
-                                                                disabled={savingAddress}
-                                                            />
-                                                        </div>
                                                         <div>
                                                             <label className="text-xs text-gray-500 font-medium mb-1 block">Adresă (Stradă, număr, bloc, etc.)</label>
                                                             <textarea
