@@ -131,6 +131,7 @@ const Drafturi = () => {
 
     // ── Filters
     const [viewMode, setViewMode] = useState<'drafturi' | 'comenzi'>('drafturi');
+    const [draftStatus, setDraftStatus] = useState<'open' | 'complete'>('open');
     const [selectedBrand, setSelectedBrand] = useState<string>('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<string>('ON');
@@ -579,6 +580,24 @@ const Drafturi = () => {
                             Comenzi
                         </button>
                     </div>
+
+                    {/* Dummy Draft Status Toggle */}
+                    {viewMode === 'drafturi' && (
+                        <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner ml-2 hidden sm:flex">
+                            <button 
+                                onClick={() => setDraftStatus('open')}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'open' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                            >
+                                Open
+                            </button>
+                            <button 
+                                onClick={() => setDraftStatus('complete')}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'complete' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                            >
+                                Complete
+                            </button>
+                        </div>
+                    )}
                     
                     {/* Operators mock */}
                     <button className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 h-[42px] hover:text-white shadow-sm hidden sm:flex">
@@ -929,10 +948,10 @@ const Drafturi = () => {
                                                                 const qty = Number(item.quantity) || 1;
                                                                 const discountArrayStr = productsDiscountMap[item.sku];
                                                                 let discountAmount = 0;
-                                                                if (discountArrayStr) {
+                                                                if (discountArrayStr && qty > 1) {
                                                                     const parts = discountArrayStr.split(',').map(n => parseFloat(n?.toString().trim()) || 0);
                                                                     if (parts.length > 0) {
-                                                                        const totalDiscount = parts[Math.min(Math.max(0, qty - 1), parts.length - 1)] || 0;
+                                                                        const totalDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
                                                                         discountAmount = totalDiscount / qty;
                                                                     }
                                                                 }
@@ -1075,10 +1094,10 @@ const Drafturi = () => {
                                                                     {(() => {
                                                                         const discountArrayStr = productsDiscountMap[item.sku];
                                                                         let discountAmount = 0;
-                                                                        if (discountArrayStr) {
+                                                                        if (discountArrayStr && qty > 1) {
                                                                             const parts = discountArrayStr.split(',').map(n => parseFloat(n.trim()) || 0);
                                                                             if (parts.length > 0) {
-                                                                                discountAmount = parts[Math.min(qty - 1, parts.length - 1)] || 0;
+                                                                                discountAmount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
                                                                             }
                                                                         }
                                                                         return ((price * qty) - discountAmount).toFixed(2);
