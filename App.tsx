@@ -53,7 +53,7 @@ export default function App() {
 
                             <Header userEmail={session.user.email} />
 
-                            <div className="flex-1 overflow-y-auto p-4 md:p-8 z-10 scroll-smooth pb-20 md:pb-8">
+                            <div className="flex-1 overflow-y-auto max-md:overflow-x-auto p-4 md:p-8 z-10 scroll-smooth pb-20 md:pb-8">
                                 <Routes>
                                     <Route path="/" element={<Index />} />
                                     <Route path="/call-recordings" element={<CallRecordings />} />
