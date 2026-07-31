@@ -768,7 +768,14 @@ const Drafturi = () => {
                                         <span className="material-icons-round text-xl">call</span>
                                         Suna client
                                     </button>
-                                    <button className="flex-1 flex items-center justify-center gap-2 btn-3d-secondary py-3.5 rounded-xl transition-all shadow-sm text-[15px]">
+                                    <button 
+                                        onClick={() => {
+                                            const phone = selectedOrder.phone_number?.replace(/\D/g, '') || '';
+                                            const text = 'Buna ziua, am incercat sa va contactez pentru comanda dumneavoastra de creme anti lipoame';
+                                            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+                                        }}
+                                        className="flex-1 flex items-center justify-center gap-2 btn-3d-secondary py-3.5 rounded-xl transition-all shadow-sm text-[15px]"
+                                    >
                                         <span className="material-icons-round text-[#25D366]">chat</span>
                                         WhatsApp
                                     </button>
