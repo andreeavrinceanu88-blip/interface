@@ -771,7 +771,9 @@ const Drafturi = () => {
                                     <button 
                                         onClick={() => {
                                             const phone = selectedOrder.phone_number?.replace(/\D/g, '') || '';
-                                            const text = 'Buna ziua, am incercat sa va contactez pentru comanda dumneavoastra de creme anti lipoame';
+                                            const items = parseProduse(selectedOrder.produse);
+                                            const productsText = items.map(it => it.title).join(', ') || 'produsul dorit';
+                                            const text = `Buna ziua ${selectedOrder.name || ''}! Am incercat sa va contactez in legatura cu confirmarea comenzii cu ${productsText}. Ramane comanda?`;
                                             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
                                         }}
                                         className="flex-1 flex items-center justify-center gap-2 btn-3d-secondary py-3.5 rounded-xl transition-all shadow-sm text-[15px]"
