@@ -222,6 +222,13 @@ const Drafturi = () => {
         setTimeout(() => setShopifyNotif(null), type === 'error' ? 10000 : 5000);
     };
 
+    useEffect(() => {
+        if (callState === 'rejected') {
+            showShopifyNotif('Apelul a fost respins sau nu a răspuns', 'error');
+        }
+    }, [callState]);
+
+
     // ── Init brand
     useEffect(() => {
         if (userStores.length > 0 && !selectedBrand) setSelectedBrand(userStores[0]);
