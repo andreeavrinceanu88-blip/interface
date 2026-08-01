@@ -798,32 +798,50 @@ const Drafturi = () => {
                                         )}
                                         <h3 className="text-base font-bold text-white mb-6">Date client</h3>
                                         
-                                        <div className="space-y-4">
+                                        <div className="space-y-3">
                                             {editingAddressId === selectedOrder.id ? (
-                                                <div className="relative z-10">
-                                                    <label className="text-[12px] text-gray-500 font-medium mb-1 block">Nume</label>
-                                                    <input
-                                                        type="text"
-                                                        className="w-full text-sm font-medium text-white bg-[#1a1b23] border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                                                        value={nameText}
-                                                        onChange={(e) => setNameText(e.target.value)}
-                                                        disabled={savingAddress}
-                                                    />
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div className="relative z-10 flex-1">
+                                                        <label className="text-[12px] text-gray-500 font-medium mb-1 block">Nume</label>
+                                                        <input
+                                                            type="text"
+                                                            className="w-full text-sm font-medium text-white bg-[#1a1b23] border border-white/10 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                                            value={nameText}
+                                                            onChange={(e) => setNameText(e.target.value)}
+                                                            disabled={savingAddress}
+                                                        />
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <p className="text-[12px] text-gray-500 font-medium mb-1">Telefon</p>
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <span className="text-lg text-white font-bold">{formatPhoneNumber(selectedOrder.phone_number)}</span>
+                                                            {selectedOrder.phone_number && (
+                                                                <button onClick={() => { navigator.clipboard?.writeText(selectedOrder.phone_number); showToast('Copiat!'); }} className="text-gray-400 hover:text-gray-300 transition-colors">
+                                                                    <span className="material-icons-round text-[16px]">content_copy</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ) : (
-                                                <Field label="Nume" value={selectedOrder.name} />
-                                            )}
-                                            <div>
-                                                <p className="text-[12px] text-gray-500 font-medium mb-1">Telefon</p>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-base text-white font-bold">{formatPhoneNumber(selectedOrder.phone_number)}</span>
-                                                    {selectedOrder.phone_number && (
-                                                        <button onClick={() => { navigator.clipboard?.writeText(selectedOrder.phone_number); showToast('Copiat!'); }} className="text-gray-400 hover:text-gray-300 transition-colors">
-                                                            <span className="material-icons-round text-[16px]">content_copy</span>
-                                                        </button>
-                                                    )}
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div className="flex-1">
+                                                        <p className="text-[12px] text-gray-500 font-medium mb-1">Nume</p>
+                                                        <p className="text-lg text-white font-bold">{selectedOrder.name || '—'}</p>
+                                                    </div>
+                                                    <div className="text-right shrink-0">
+                                                        <p className="text-[12px] text-gray-500 font-medium mb-1">Telefon</p>
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <span className="text-lg text-white font-bold">{formatPhoneNumber(selectedOrder.phone_number)}</span>
+                                                            {selectedOrder.phone_number && (
+                                                                <button onClick={() => { navigator.clipboard?.writeText(selectedOrder.phone_number); showToast('Copiat!'); }} className="text-gray-400 hover:text-gray-300 transition-colors">
+                                                                    <span className="material-icons-round text-[16px]">content_copy</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
                                             <Field label="Email" value={selectedOrder.email || 'nespecificat'} />
                                             <div>
                                                 <p className="text-[12px] text-gray-500 font-medium mb-1">Adresă livrare</p>
