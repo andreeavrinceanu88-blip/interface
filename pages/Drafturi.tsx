@@ -644,11 +644,7 @@ const Drafturi = () => {
                         )}
                     </div>
 
-                    {/* Dialer toggle */}
-                    <button onClick={() => setDialerOpen(!dialerOpen)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all h-[42px] shadow-sm ${dialerOpen ? 'btn-3d-secondary' : 'btn-3d-primary'}`}>
-                        <span className="material-icons-round text-lg">dialpad</span>
-                        Dialer
-                    </button>
+
                 </div>
             </div>
 
@@ -748,9 +744,13 @@ const Drafturi = () => {
                                         <h2 className="text-2xl font-bold text-white">Comanda {selectedOrder.client_personal_id || `#${selectedOrder.id}`}</h2>
                                         <span className={`text-sm font-bold px-3 py-1.5 rounded-md ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                                        Sursă: <span className="text-white">Facebook Ads</span>
-                                        <button className="ml-2 w-8 h-8 flex items-center justify-center rounded hover:bg-[#13141a]/5 text-gray-400 transition-colors">
+                                    <div className="flex items-center gap-3 text-sm text-gray-500 font-medium">
+                                        {/* Dialer toggle */}
+                                        <button onClick={() => setDialerOpen(!dialerOpen)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all h-[36px] shadow-sm ${dialerOpen ? 'btn-3d-secondary' : 'btn-3d-primary'}`}>
+                                            <span className="material-icons-round text-lg">dialpad</span>
+                                            Dialer
+                                        </button>
+                                        <button onClick={() => setSelectedOrder(null)} className="ml-2 w-8 h-8 flex items-center justify-center rounded hover:bg-[#13141a]/5 text-gray-400 transition-colors">
                                             <span className="material-icons-round">close</span>
                                         </button>
                                     </div>
