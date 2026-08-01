@@ -564,7 +564,7 @@ const Drafturi = () => {
                     
                     {/* Brand dropdown */}
                     <div className="relative ml-4">
-                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm min-w-[160px] flex justify-between items-center h-[42px] hover:text-white transition-all shadow-sm">
+                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm min-w-[130px] flex justify-between items-center h-[38px] hover:text-white transition-all shadow-sm">
                             <span className="font-medium">{selectedBrand || 'Selectează'}</span>
                             <span className={`material-icons-round text-base text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
                         </button>
@@ -587,13 +587,13 @@ const Drafturi = () => {
                     <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner">
                         <button 
                             onClick={() => setViewMode('drafturi')}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'drafturi' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'drafturi' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
                         >
                             Drafturi
                         </button>
                         <button 
                             onClick={() => setViewMode('comenzi')}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'comenzi' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'comenzi' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
                         >
                             Comenzi
                         </button>
@@ -603,13 +603,13 @@ const Drafturi = () => {
                     <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner ml-2 hidden sm:flex">
                         <button 
                             onClick={() => setDraftStatus('open')}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'open' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'open' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
                         >
                             Open
                         </button>
                         <button 
                             onClick={() => setDraftStatus('complete')}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'complete' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'complete' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
                         >
                             Complete
                         </button>
