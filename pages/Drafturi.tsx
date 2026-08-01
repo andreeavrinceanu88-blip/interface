@@ -1149,7 +1149,30 @@ const Drafturi = () => {
                                                 </div>
                                             );
                                         })()}
-                                        
+
+                                        {/* Shipping row */}
+                                        {(() => {
+                                            const items = parseProduse(selectedOrder.produse);
+                                            if (items.length === 0) return null;
+                                            const productTotal = items.reduce((sum, it) => sum + parseFloat(it.price) * it.quantity, 0);
+                                            const shippingCost = Math.max(0, (Number(selectedOrder.value) || 0) - productTotal);
+                                            return (
+                                                <div className="mt-3 flex items-center gap-4 bg-[#1a1b23]/60 rounded-xl p-4 border border-white/5 border-dashed">
+                                                    <div className="w-16 h-16 rounded-lg bg-[#13141a] border border-white/5 shrink-0 flex items-center justify-center">
+                                                        <span className="material-icons-round text-indigo-400 text-2xl">local_shipping</span>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-base font-semibold text-white">Livrare Rapidă</p>
+                                                        <p className="text-sm text-gray-500">Curier · Ramburs</p>
+                                                    </div>
+                                                    <span className="text-base font-bold text-indigo-400 w-24 text-right">
+                                                        {shippingCost > 0 ? `${shippingCost.toFixed(2)} lei` : 'Gratuit'}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
+
+
                                         {selectedOrder.cerere_upsell && (
                                             <div className="mt-4 bg-amber-50 border border-amber-500/30 rounded-xl p-4">
                                                 <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-1">Oportunitate Upsell</p>
