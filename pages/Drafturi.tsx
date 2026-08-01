@@ -600,22 +600,20 @@ const Drafturi = () => {
                     </div>
 
                     {/* Dummy Draft Status Toggle */}
-                    {viewMode === 'drafturi' && (
-                        <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner ml-2 hidden sm:flex">
-                            <button 
-                                onClick={() => setDraftStatus('open')}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'open' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                            >
-                                Open
-                            </button>
-                            <button 
-                                onClick={() => setDraftStatus('complete')}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'complete' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                            >
-                                Complete
-                            </button>
-                        </div>
-                    )}
+                    <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner ml-2 hidden sm:flex">
+                        <button 
+                            onClick={() => setDraftStatus('open')}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'open' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            Open
+                        </button>
+                        <button 
+                            onClick={() => setDraftStatus('complete')}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'complete' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            Complete
+                        </button>
+                    </div>
                     
 
                     
