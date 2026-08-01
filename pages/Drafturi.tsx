@@ -617,11 +617,7 @@ const Drafturi = () => {
                         </div>
                     )}
                     
-                    {/* Operators mock */}
-                    <button className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 h-[42px] hover:text-white shadow-sm hidden sm:flex">
-                        <span>Toți operatorii</span>
-                        <span className="material-icons-round text-base text-gray-400">arrow_drop_down</span>
-                    </button>
+
                     
                     {/* Priority mock */}
                     <button className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 h-[42px] hover:text-white shadow-sm hidden md:flex">
