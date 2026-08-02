@@ -359,6 +359,38 @@ const Drafturi = () => {
             if (orderToSync) {
                 const shopifyId = orderToSync.order_id || orderToSync.id.toString();
                 const storeName = orderToSync.store_name || selectedBrand || 'Tamtrend';
+
+                // If confirming a draft, apply discounts first based on qty + discountCode
+                if (newStatus === 'confirmat' && orderToSync.type === 'draft') {
+                    const items = parseProduse(orderToSync.produse);
+                    if (items.length > 0) {
+                        const lineItemsWithDiscount = items.map(item => {
+                            const qty = item.quantity;
+                            const discountArrayStr = productsDiscountMap[item.sku];
+                            let appliedDiscount = 0;
+                            if (discountArrayStr && qty > 1) {
+                                const parts = discountArrayStr.split(',').map((n: string) => parseFloat(n.trim()) || 0);
+                                if (parts.length > 0) {
+                                    appliedDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
+                                }
+                            }
+                            return {
+                                variant_id: item.variant_id,
+                                quantity: qty,
+                                appliedDiscount: appliedDiscount > 0 ? appliedDiscount : undefined,
+                            };
+                        });
+
+                        console.log('[Confirmare] Aplicare discount pe draft:', lineItemsWithDiscount);
+                        const discountResult = await updateShopifyLineItemsBulk(storeName, shopifyId, lineItemsWithDiscount);
+                        if (discountResult) {
+                            showShopifyNotif('Discount aplicat pe draft ✓', 'success');
+                        } else {
+                            showShopifyNotif('Eroare la aplicarea discountului pe draft', 'error');
+                        }
+                    }
+                }
+
                 // We call it in the background to not block the UI completely, 
                 // but we can await it if we want to show a toast.
                 syncOrderStatusWithShopify(storeName, shopifyId, newStatus, orderToSync.notes || undefined)
