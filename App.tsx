@@ -16,6 +16,7 @@ import OnboardingPage from "./pages/OnboardingPage";
 import VerificareApeluri from "./pages/VerificareApeluri";
 import Drafturi from "./pages/Drafturi";
 import ProcessedOrders from "./pages/ProcessedOrders";
+import Flow from "./pages/Flow";
 import { TelnyxProvider } from './contexts/TelnyxContext';
 import IncomingCallBanner from './components/IncomingCallBanner';
 
@@ -67,6 +68,7 @@ export default function App() {
                                     <Route path="/verificare-apeluri" element={<VerificareApeluri />} />
                                     <Route path="/drafturi" element={<Drafturi />} />
                                     <Route path="/processed-orders" element={<ProcessedOrders />} />
+                                    <Route path="/flow" element={<Flow />} />
                                     <Route path="*" element={<PlaceholderPage />} />
                                 </Routes>
                             </div>
@@ -295,6 +297,7 @@ function Sidebar() {
                         <li><SidebarLink to="/customers" icon="people" label="Clienți" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/drafturi" icon="edit" label="Draft" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/script-vanzare" icon="description" label="Script vanzare" collapsed={collapsed} /></li>
+                        <li><SidebarLink to="/flow" icon="account_tree" label="Flow" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/setup" icon="add_circle" label="Adaugă magazin" collapsed={collapsed} /></li>
                     </ul>
                 </div>
@@ -413,6 +416,7 @@ function MobileBottomNav() {
         { to: '/drafturi', icon: 'edit', label: 'Draft' },
         { to: '/whatsapp', icon: null, label: 'Whatsapp', customIcon: whatsappIcon },
         { to: '/script-vanzare', icon: 'description', label: 'Script vânzare' },
+        { to: '/flow', icon: 'account_tree', label: 'Flow' },
         { to: '/control-robot', icon: 'settings_remote', label: 'Control Robot' },
         { to: '/verificare-apeluri', icon: 'fact_check', label: 'Verificare apeluri' },
         { to: '/setup', icon: 'add_circle', label: 'Adaugă magazin' },
