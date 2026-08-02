@@ -157,6 +157,8 @@ const Drafturi = () => {
     const [savingAddress, setSavingAddress] = useState(false);
     const [toast, setToast] = useState<string>('');
     const [productsDiscountMap, setProductsDiscountMap] = useState<Record<string, string>>({});
+    // transport map: SKU -> array of transport costs per qty index (index 0 = 1 buc, index 1 = 2 buc, etc.)
+    const [productsTransportMap, setProductsTransportMap] = useState<Record<string, (string | null)[]>>({});
     const [shopifyNotif, setShopifyNotif] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
     // ── Product editing
@@ -257,17 +259,28 @@ const Drafturi = () => {
             // Fetch products discount mapping
             const { data: pData } = await supabaseAdmin
                 .from('products')
-                .select('sku, discountCode')
+                .select('sku, discountCode, transport_1_bucata, transport_2_bucati, transport_3_bucati, transport_4_bucati, transport_5_bucati')
                 .eq('store', selectedBrand)
                 .eq('user_id', profile?.id);
                 
             const pMap: Record<string, string> = {};
+            const tMap: Record<string, (string | null)[]> = {};
             if (pData) {
                 pData.forEach(p => {
                     if (p.sku && p.discountCode) pMap[p.sku] = p.discountCode;
+                    if (p.sku) {
+                        tMap[p.sku] = [
+                            p.transport_1_bucata ?? null,
+                            p.transport_2_bucati ?? null,
+                            p.transport_3_bucati ?? null,
+                            p.transport_4_bucati ?? null,
+                            p.transport_5_bucati ?? null,
+                        ];
+                    }
                 });
             }
             setProductsDiscountMap(pMap);
+            setProductsTransportMap(tMap);
 
             const all: Order[] = (data || []).map(o => ({
                 ...o,
@@ -364,6 +377,22 @@ const Drafturi = () => {
                 if (newStatus === 'confirmat' && orderToSync.type === 'draft') {
                     const items = parseProduse(orderToSync.produse);
                     if (items.length > 0) {
+                        // Calculate shipping: take transport cost from first product's transport map
+                        // based on total qty (or per-item qty for mixed carts)
+                        // We use the first product's transport as the shipping line
+                        let shippingPrice: number | undefined = undefined;
+                        const firstItem = items[0];
+                        const transportArr = productsTransportMap[firstItem.sku];
+                        if (transportArr) {
+                            const qtyIdx = Math.min(Math.max(0, firstItem.quantity - 1), transportArr.length - 1);
+                            const transportVal = transportArr[qtyIdx];
+                            const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
+                            if (!isGratuit) {
+                                const parsed = parseFloat(transportVal!.replace(',', '.'));
+                                if (!isNaN(parsed) && parsed > 0) shippingPrice = parsed;
+                            }
+                        }
+
                         const lineItemsWithDiscount = items.map(item => {
                             const qty = item.quantity;
                             const discountArrayStr = productsDiscountMap[item.sku];
@@ -381,10 +410,10 @@ const Drafturi = () => {
                             };
                         });
 
-                        console.log('[Confirmare] Aplicare discount pe draft:', lineItemsWithDiscount);
-                        const discountResult = await updateShopifyLineItemsBulk(storeName, shopifyId, lineItemsWithDiscount);
+                        console.log('[Confirmare] Aplicare discount pe draft:', lineItemsWithDiscount, 'Transport:', shippingPrice);
+                        const discountResult = await updateShopifyLineItemsBulk(storeName, shopifyId, lineItemsWithDiscount, shippingPrice);
                         if (discountResult) {
-                            showShopifyNotif('Discount aplicat pe draft ✓', 'success');
+                            showShopifyNotif('Discount' + (shippingPrice ? ` + transport (${shippingPrice} lei)` : '') + ' aplicat pe draft ✓', 'success');
                         } else {
                             showShopifyNotif('Eroare la aplicarea discountului pe draft', 'error');
                         }

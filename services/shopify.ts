@@ -212,7 +212,7 @@ export async function getAllProducts(storeName: string): Promise<any[] | null> {
     }
 }
 
-export async function updateShopifyLineItemsBulk(storeName: string, orderId: number | string, items: { variant_id: number | string, quantity: number, appliedDiscount?: number }[]): Promise<any | null> {
+export async function updateShopifyLineItemsBulk(storeName: string, orderId: number | string, items: { variant_id: number | string, quantity: number, appliedDiscount?: number }[], shippingPrice?: number): Promise<any | null> {
     try {
         const res = await fetch(API_ENDPOINT, {
             method: 'POST',
@@ -221,7 +221,8 @@ export async function updateShopifyLineItemsBulk(storeName: string, orderId: num
                 action: 'update-draft-order-line-items',
                 storeName,
                 orderId,
-                items
+                items,
+                shippingPrice,
             })
         });
         const data = await res.json();

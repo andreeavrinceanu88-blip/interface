@@ -495,7 +495,7 @@ export default async function handler(req, res) {
 
         // ── ACTION: update-draft-order-line-items ──
         if (action === 'update-draft-order-line-items') {
-            const { items } = req.body;
+            const { items, shippingPrice } = req.body;
             if (!items || !Array.isArray(items)) {
                 return res.status(400).json({ error: 'items array is required' });
             }
@@ -537,6 +537,22 @@ export default async function handler(req, res) {
                 return res;
             });
 
+            const input = { lineItems: lineItemsInput };
+
+            // Add shipping line if shippingPrice is provided and > 0
+            if (shippingPrice && parseFloat(shippingPrice) > 0) {
+                input.shippingLine = {
+                    title: 'Livrare Rapida',
+                    price: parseFloat(shippingPrice).toFixed(2)
+                };
+            } else {
+                // Gratuit
+                input.shippingLine = {
+                    title: 'Livrare Gratuita',
+                    price: '0.00'
+                };
+            }
+
             const gqlRes = await fetch(graphqlUrl, {
                 method: 'POST',
                 headers,
@@ -544,7 +560,7 @@ export default async function handler(req, res) {
                     query: mutation,
                     variables: {
                         id: gid,
-                        input: { lineItems: lineItemsInput }
+                        input
                     }
                 })
             });
