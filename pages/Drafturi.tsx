@@ -415,6 +415,7 @@ const Drafturi = () => {
                             return {
                                 variant_id: item.variant_id,
                                 quantity: qty,
+                                price: item.price,
                                 appliedDiscount: appliedDiscount > 0 ? appliedDiscount : undefined,
                             };
                         });

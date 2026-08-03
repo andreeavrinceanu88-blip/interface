@@ -523,11 +523,15 @@ export default async function handler(req, res) {
             `;
             
             const lineItemsInput = items.map(item => {
-                const variantGid = String(item.variant_id).includes('gid://') ? item.variant_id : `gid://shopify/ProductVariant/${item.variant_id}`;
                 const res = {
-                    variantId: variantGid,
                     quantity: item.quantity
                 };
+                if (item.variant_id && item.variant_id !== 'null' && item.variant_id !== 'undefined') {
+                    res.variantId = String(item.variant_id).includes('gid://') ? item.variant_id : `gid://shopify/ProductVariant/${item.variant_id}`;
+                }
+                if (item.price) {
+                    res.originalUnitPrice = item.price.toString();
+                }
                 if (item.appliedDiscount) {
                     res.appliedDiscount = {
                         value: parseFloat(item.appliedDiscount),
