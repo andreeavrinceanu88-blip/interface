@@ -303,16 +303,13 @@ const Drafturi = () => {
     const typeFilteredOrders = orders.filter(o => {
         if (viewMode === 'drafturi') {
             if (o.type !== 'draft') return false;
-            // A draft is "completed" if its status is 'confirmat' (confirmed in Shopify)
-            // order_state from Supabase is never updated for drafts, so we derive it from status
-            const isCompleted = o.status === 'confirmat';
-            if (draftStatus === 'open' && isCompleted) return false;
-            if (draftStatus === 'complete' && !isCompleted) return false;
+            if (draftStatus === 'open' && o.order_state !== 'open') return false;
+            if (draftStatus === 'complete' && o.order_state !== 'completed') return false;
             return true;
         }
         return o.type !== 'draft';
     });
-    // For completed drafts, status is 'confirmat' so skip the ON/OFF tab filter
+    // For completed drafts, skip the ON/OFF tab filter
     const tabOrders = (viewMode === 'drafturi' && draftStatus === 'complete')
         ? typeFilteredOrders
         : typeFilteredOrders.filter(o => o.status === activeTab);
@@ -368,9 +365,15 @@ const Drafturi = () => {
             await handleSaveAddress();
         }
         setUpdatingStatus(true);
-        const { error: uErr } = await supabaseAdmin.from('orders').update({ status: newStatus }).eq('id', orderId);
+        // If confirming a draft, also mark order_state as 'completed'
+        const orderToUpdate = orders.find(o => o.id === orderId);
+        const updatePayload: any = { status: newStatus };
+        if (newStatus === 'confirmat' && orderToUpdate?.type === 'draft') {
+            updatePayload.order_state = 'completed';
+        }
+        const { error: uErr } = await supabaseAdmin.from('orders').update(updatePayload).eq('id', orderId);
         if (!uErr) {
-            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updatePayload } : o));
             showToast(STATUS_LABELS[newStatus]);
 
             // Sync with Shopify
