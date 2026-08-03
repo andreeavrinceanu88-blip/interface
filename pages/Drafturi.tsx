@@ -303,13 +303,19 @@ const Drafturi = () => {
     const typeFilteredOrders = orders.filter(o => {
         if (viewMode === 'drafturi') {
             if (o.type !== 'draft') return false;
-            if (draftStatus === 'open' && o.order_state !== 'open') return false;
-            if (draftStatus === 'complete' && o.order_state !== 'completed') return false;
+            // A draft is "completed" if its status is 'confirmat' (confirmed in Shopify)
+            // order_state from Supabase is never updated for drafts, so we derive it from status
+            const isCompleted = o.status === 'confirmat';
+            if (draftStatus === 'open' && isCompleted) return false;
+            if (draftStatus === 'complete' && !isCompleted) return false;
             return true;
         }
         return o.type !== 'draft';
     });
-    const tabOrders = typeFilteredOrders.filter(o => o.status === activeTab);
+    // For completed drafts, status is 'confirmat' so skip the ON/OFF tab filter
+    const tabOrders = (viewMode === 'drafturi' && draftStatus === 'complete')
+        ? typeFilteredOrders
+        : typeFilteredOrders.filter(o => o.status === activeTab);
     const filteredOrders = activeSearch
         ? tabOrders.filter(o =>
             o.name?.toLowerCase().includes(activeSearch.toLowerCase()) ||
