@@ -927,6 +927,7 @@ const Drafturi = () => {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                         <h2 className="text-2xl font-bold text-white">Comanda {selectedOrder.client_personal_id || `#${selectedOrder.id}`}</h2>
+                                        <span className="text-sm font-medium text-gray-400 bg-white/5 px-3 py-1.5 rounded-md border border-white/10">{fmtDate(selectedOrder.created_at)}</span>
                                         {selectedOrder.status !== 'ON' && (
                                             <span className={`text-sm font-bold px-3 py-1.5 rounded-md ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
                                         )}
@@ -1113,7 +1114,6 @@ const Drafturi = () => {
                                         <h3 className="text-base font-bold text-white mb-6">Detalii comandă</h3>
                                         
                                         <div className="space-y-4">
-                                            <DL label="Creată" value={fmtDate(selectedOrder.created_at)} />
                                             <DL label="Metodă plată" value="Ramburs" />
                                             <DL label="Metodă livrare" value="Curier rapid" />
                                             
@@ -1346,6 +1346,29 @@ const Drafturi = () => {
                                                             </div>
                                                         );
                                                     })}
+                                                    
+                                                    <div className="pt-4 mt-4 border-t border-white/5 flex justify-between items-center">
+                                                        <span className="font-bold text-white text-sm">Total comandă</span>
+                                                        <span className="font-bold text-indigo-400 text-base">
+                                                            {(() => {
+                                                                let total = 0;
+                                                                items.forEach(item => {
+                                                                    const qty = item.quantity;
+                                                                    const price = parseFloat(item.price);
+                                                                    const discountArrayStr = productsDiscountMap[item.sku];
+                                                                    let discountAmount = 0;
+                                                                    if (discountArrayStr && qty > 1) {
+                                                                        const parts = discountArrayStr.split(',').map(n => parseFloat(n.trim()) || 0);
+                                                                        if (parts.length > 0) {
+                                                                            discountAmount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
+                                                                        }
+                                                                    }
+                                                                    total += (price * qty) - discountAmount;
+                                                                });
+                                                                return money(total);
+                                                            })()}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             );
                                         })()}
