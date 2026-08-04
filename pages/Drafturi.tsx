@@ -449,15 +449,10 @@ const Drafturi = () => {
                             // discountCode conține discount-ul TOTAL pentru linia întreagă
                             const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
                             const basePrice = parseFloat(item.price) || 0;
-                            let finalPrice = basePrice;
-                            if (basePrice > 0 && perUnitDiscount > 0) {
-                                finalPrice -= perUnitDiscount;
-                                if (finalPrice < 0) finalPrice = 0;
-                            }
                             
                             if (discountArrayStr) {
                                 showShopifyNotif(
-                                    `💰 Discount ${item.title}: code="${discountArrayStr}", qty=${qty}\nPreț Bază: ${basePrice}, Discount Per Unitate: ${perUnitDiscount.toFixed(2)} → Preț Final: ${finalPrice.toFixed(2)}`,
+                                    `💰 Discount ${item.title}: code="${discountArrayStr}", qty=${qty}\nDiscount Per Unitate: ${perUnitDiscount.toFixed(2)}`,
                                     'info'
                                 );
                             }
@@ -465,7 +460,8 @@ const Drafturi = () => {
                             return {
                                 variant_id: item.variant_id,
                                 quantity: qty,
-                                price: finalPrice > 0 ? finalPrice.toFixed(2) : undefined
+                                price: item.price,
+                                appliedDiscount: perUnitDiscount > 0 ? perUnitDiscount : undefined
                             };
                         });
 
@@ -1188,10 +1184,12 @@ const Drafturi = () => {
                                                                 const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
                                                                 const basePrice = parseFloat(item.price) || 0;
                                                                 let finalPrice = basePrice;
+                                                                // Use basePrice as finalPrice for UI total estimation (which might be 0 here, but we show what we have)
                                                                 if (basePrice > 0 && perUnitDiscount > 0) {
                                                                     finalPrice -= perUnitDiscount;
                                                                     if (finalPrice < 0) finalPrice = 0;
                                                                 }
+                                                                // For UI newProductTotal, we accumulate finalPrice. If it was 0, it stays 0.
                                                                 newProductTotal += finalPrice * qty;
                                                             });
 
@@ -1239,17 +1237,12 @@ const Drafturi = () => {
                                                                     }
                                                                 }
                                                                 const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
-                                                                const basePrice = parseFloat(item.price) || 0;
-                                                                let finalPrice = basePrice;
-                                                                if (basePrice > 0 && perUnitDiscount > 0) {
-                                                                    finalPrice -= perUnitDiscount;
-                                                                    if (finalPrice < 0) finalPrice = 0;
-                                                                }
                                                                 
                                                                 return {
                                                                     variant_id: item.variant_id || item.variantId || item.id,
                                                                     quantity: qty,
-                                                                    price: finalPrice > 0 ? finalPrice.toFixed(2) : undefined
+                                                                    price: item.price,
+                                                                    appliedDiscount: perUnitDiscount > 0 ? perUnitDiscount : undefined
                                                                 };
                                                             });
                                                             

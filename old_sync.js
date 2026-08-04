@@ -1,4 +1,4 @@
-// Vercel Serverless Function — Shopify Proxy
+﻿// Vercel Serverless Function ΓÇö Shopify Proxy
 // Handles address update and status/tag sync from the frontend
 // This avoids CORS by making server-side calls to Shopify Admin API
 
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         };
         const graphqlUrl = `${config.url}/admin/api/${API_VERSION}/graphql.json`;
 
-        // ── ACTION: get-product-images (no orderId needed) ──
+        // ΓöÇΓöÇ ACTION: get-product-images (no orderId needed) ΓöÇΓöÇ
         if (action === 'get-product-images') {
             if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
                 return res.status(400).json({ error: 'productIds array is required' });
@@ -104,7 +104,7 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, images });
         }
 
-        // ── ACTION: get-all-products (no orderId needed) ──
+        // ΓöÇΓöÇ ACTION: get-all-products (no orderId needed) ΓöÇΓöÇ
         if (action === 'get-all-products') {
             const query = `
                 query getAllProducts {
@@ -147,7 +147,7 @@ export default async function handler(req, res) {
         }
         const gid = String(orderId).includes('gid://') ? orderId : `gid://shopify/DraftOrder/${orderId}`;
 
-        // ── ACTION: update-address ──
+        // ΓöÇΓöÇ ACTION: update-address ΓöÇΓöÇ
         if (action === 'update-address') {
             const updateMut = `
                 mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
@@ -186,7 +186,7 @@ export default async function handler(req, res) {
                 gqlData = JSON.parse(gqlText);
             } catch (parseErr) {
                 console.error('[shopify-sync] update-address non-JSON response:', gqlText);
-                return res.status(500).json({ success: false, errorMessage: `Shopify a returnat un răspuns invalid: ${gqlText.substring(0, 300)}` });
+                return res.status(500).json({ success: false, errorMessage: `Shopify a returnat un r─âspuns invalid: ${gqlText.substring(0, 300)}` });
             }
             
             // Check for GraphQL-level errors
@@ -202,7 +202,7 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true });
         }
 
-        // ── ACTION: update-note ──
+        // ΓöÇΓöÇ ACTION: update-note ΓöÇΓöÇ
         if (action === 'update-note') {
             const updateMut = `
                 mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
@@ -240,7 +240,7 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true });
         }
 
-        // ── ACTION: update-status ──
+        // ΓöÇΓöÇ ACTION: update-status ΓöÇΓöÇ
         if (action === 'update-status') {
             // 1. Get current tags
             const getQuery = `
@@ -269,7 +269,7 @@ export default async function handler(req, res) {
             if (!updatedTags.includes(statusTag)) updatedTags.push(statusTag);
 
             let newNote = draftOrder.note2 ? draftOrder.note2 + '\n' : '';
-            newNote += `[Status platformă: ${statusTag}]`;
+            newNote += `[Status platform─â: ${statusTag}]`;
             if (note) newNote += ` - ${note}`;
 
             // 2. Update tags + note
@@ -348,7 +348,7 @@ export default async function handler(req, res) {
 
                 // Check if the mutation returned no data at all
                 if (!completeData?.data?.draftOrderComplete) {
-                    return res.status(400).json({ success: false, errorMessage: 'Shopify nu a returnat date valide. Verifică dacă draft-ul există.', raw: completeData });
+                    return res.status(400).json({ success: false, errorMessage: 'Shopify nu a returnat date valide. Verific─â dac─â draft-ul exist─â.', raw: completeData });
                 }
 
                 const resultOrder = completeData?.data?.draftOrderComplete?.draftOrder;
@@ -366,7 +366,7 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true });
         }
 
-        // ── ACTION: get-line-items ──
+        // ΓöÇΓöÇ ACTION: get-line-items ΓöÇΓöÇ
         if (action === 'get-line-items') {
             const query = `
                 query getDraftOrderLineItems($id: ID!) {
@@ -418,7 +418,7 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, lineItems, draftName: draftOrder.name });
         }
 
-        // ── ACTION: update-line-item-quantity ──
+        // ΓöÇΓöÇ ACTION: update-line-item-quantity ΓöÇΓöÇ
         if (action === 'update-line-item-quantity') {
             const { lineItems: updatedLineItems } = req.body;
             if (!updatedLineItems || !Array.isArray(updatedLineItems)) {
@@ -493,7 +493,7 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, lineItems: resultItems });
         }
 
-        // ── ACTION: update-draft-order-line-items ──
+        // ΓöÇΓöÇ ACTION: update-draft-order-line-items ΓöÇΓöÇ
         if (action === 'update-draft-order-line-items') {
             const { items, shippingPrice } = req.body;
             if (!items || !Array.isArray(items)) {
@@ -502,7 +502,7 @@ export default async function handler(req, res) {
             
             console.log('[shopify-sync] update-draft-order-line-items called with:', JSON.stringify({ orderId: gid, items, shippingPrice }));
 
-            // ── Step 1: Fetch actual variant prices from Shopify ──
+            // ΓöÇΓöÇ Step 1: Fetch actual variant prices from Shopify ΓöÇΓöÇ
             // Products sold via call center often have catalog price=0 and compareAtPrice=real price
             const variantGids = items
                 .filter(item => item.variant_id && item.variant_id !== 'null' && item.variant_id !== 'undefined')
@@ -544,7 +544,7 @@ export default async function handler(req, res) {
                 console.log('[shopify-sync] Variant prices map:', JSON.stringify(variantPrices));
             }
 
-            // ── Step 2: Also fetch current draft line items to see existing prices ──
+            // ΓöÇΓöÇ Step 2: Also fetch current draft line items to see existing prices ΓöÇΓöÇ
             const currentDraftQuery = `
                 query getDraftOrder($id: ID!) {
                     draftOrder(id: $id) {
@@ -578,7 +578,7 @@ export default async function handler(req, res) {
                 variantCompareAt: e.node.variant?.compareAtPrice
             }))));
 
-            // ── Step 3: Build line items with correct prices ──
+            // ΓöÇΓöÇ Step 3: Build line items with correct prices ΓöÇΓöÇ
             const mutation = `
                 mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
                     draftOrderUpdate(id: $id, input: $input) {
@@ -612,14 +612,10 @@ export default async function handler(req, res) {
                 }
                 
                 // Determine the correct price to use:
-                // Priority: item.price (from client) > compareAtPrice > variant price
-                // This ensures we respect the exact forced price calculated by the frontend (including discounts)
+                // Priority: compareAtPrice > variant price > item.price (from client)
+                // This handles products with catalog price=0 and compareAtPrice=real price
                 let resolvedPrice = null;
-                
-                if (item.price !== undefined && item.price !== null && parseFloat(item.price) > 0) {
-                    resolvedPrice = parseFloat(item.price).toString();
-                    console.log(`[shopify-sync] Using client-provided forced price=${resolvedPrice} for variant ${variantGid}`);
-                } else if (variantGid && variantPrices[variantGid]) {
+                if (variantGid && variantPrices[variantGid]) {
                     const vp = variantPrices[variantGid];
                     if (vp.compareAtPrice && parseFloat(vp.compareAtPrice) > 0) {
                         resolvedPrice = vp.compareAtPrice;
@@ -631,14 +627,21 @@ export default async function handler(req, res) {
                         console.log(`[shopify-sync] WARNING: Both price (${vp.price}) and compareAtPrice (${vp.compareAtPrice}) are 0 or null for ${vp.title}`);
                     }
                 }
+                
+                // Fallback to client-provided price if it's > 0
+                if (!resolvedPrice && item.price && parseFloat(item.price) > 0) {
+                    resolvedPrice = item.price.toString();
+                    console.log(`[shopify-sync] Using client-provided price=${resolvedPrice} for variant ${variantGid}`);
+                }
 
-                if (resolvedPrice !== null) {
+                if (resolvedPrice) {
                     let finalPrice = parseFloat(resolvedPrice);
+                    // Subtract discount directly from the unit price instead of applying it as a separate discount line
                     if (item.appliedDiscount && parseFloat(item.appliedDiscount) > 0) {
                         finalPrice -= parseFloat(item.appliedDiscount);
-                        console.log(`[shopify-sync] Subtracted appliedDiscount (${item.appliedDiscount}) from unit price: ${resolvedPrice} -> ${finalPrice}`);
+                        if (finalPrice < 0) finalPrice = 0;
+                        console.log(`[shopify-sync] Applied discount directly to unit price: ${resolvedPrice} -> ${finalPrice}`);
                     }
-                    if (finalPrice < 0) finalPrice = 0;
                     lineItem.originalUnitPrice = finalPrice.toFixed(2);
                 } else {
                     console.log(`[shopify-sync] WARNING: No price resolved for variant ${variantGid}, Shopify will use variant catalog price`);
