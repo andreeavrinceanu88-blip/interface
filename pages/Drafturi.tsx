@@ -877,7 +877,7 @@ const Drafturi = () => {
 
                                 {/* Main Action buttons */}
                                 <div className="flex gap-4">
-                                    <button onClick={() => callClient(selectedOrder.phone_number)} className="flex-1 flex items-center justify-center gap-1.5 btn-3d-primary py-2 rounded-lg transition-all shadow-[0_2px_8px_rgba(34,197,94,0.15)] text-sm font-medium">
+                                    <button onClick={() => callClient(selectedOrder.phone_number)} className="flex-1 flex items-center justify-center gap-1.5 btn-3d-primary py-2 rounded-full transition-all shadow-[0_2px_8px_rgba(34,197,94,0.15)] text-sm font-medium">
                                         <span className="material-icons-round text-lg">call</span>
                                         Sună client
                                     </button>
