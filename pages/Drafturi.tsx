@@ -1192,12 +1192,11 @@ const Drafturi = () => {
                                                             const shopifyItems = editedProductsList.map((item: any) => {
                                                                 const qty = Number(item.quantity) || 1;
                                                                 const discountArrayStr = productsDiscountMap[item.sku];
-                                                                let discountAmount = 0;
+                                                                let totalDiscount = 0;
                                                                 if (discountArrayStr && qty > 1) {
                                                                     const parts = discountArrayStr.split(',').map(n => parseFloat(n?.toString().trim()) || 0);
                                                                     if (parts.length > 0) {
-                                                                        const totalDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
-                                                                        discountAmount = totalDiscount / qty;
+                                                                        totalDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
                                                                     }
                                                                 }
                                                                 const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
