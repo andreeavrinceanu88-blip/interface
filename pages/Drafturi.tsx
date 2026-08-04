@@ -159,7 +159,8 @@ const Drafturi = () => {
     const [productsDiscountMap, setProductsDiscountMap] = useState<Record<string, string>>({});
     // transport map: SKU -> array of transport costs per qty index (index 0 = 1 buc, index 1 = 2 buc, etc.)
     const [productsTransportMap, setProductsTransportMap] = useState<Record<string, (string | null)[]>>({});
-    const [shopifyNotif, setShopifyNotif] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+    const [shopifyNotifs, setShopifyNotifs] = useState<{ id: number; msg: string; type: 'success' | 'error' | 'info' }[]>([]);
+    const notifIdRef = useRef(0);
 
     // ── Product editing
     const [editingProducts, setEditingProducts] = useState(false);
@@ -218,10 +219,12 @@ const Drafturi = () => {
         setTimeout(() => setToast(''), 2500);
     };
 
-    // ── Shopify notification helper
-    const showShopifyNotif = (msg: string, type: 'success' | 'error') => {
-        setShopifyNotif({ msg, type });
-        setTimeout(() => setShopifyNotif(null), type === 'error' ? 10000 : 5000);
+    // ── Shopify notification helper (stacked)
+    const showShopifyNotif = (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
+        const id = ++notifIdRef.current;
+        setShopifyNotifs(prev => [...prev.slice(-9), { id, msg, type }]); // max 10 notifications
+        const timeout = type === 'error' ? 20000 : type === 'info' ? 12000 : 8000;
+        setTimeout(() => setShopifyNotifs(prev => prev.filter(n => n.id !== id)), timeout);
     };
 
     useEffect(() => {
@@ -385,21 +388,32 @@ const Drafturi = () => {
                 // If confirming a draft, apply discounts first based on qty + discountCode
                 if (newStatus === 'confirmat' && orderToSync.type === 'draft') {
                     const items = parseProduse(orderToSync.produse);
+                    showShopifyNotif(`🔄 Confirmare draft #${shopifyId}...\n${items.length} produse din Supabase`, 'info');
+
+                    // Log raw product data from Supabase
+                    items.forEach((item, i) => {
+                        showShopifyNotif(
+                            `📦 Produs [${i+1}]: ${item.title}\nSKU: ${item.sku} | Variant: ${item.variant_id}\nQty: ${item.quantity} | Preț Supabase: ${item.price}`,
+                            'info'
+                        );
+                    });
+
                     if (items.length > 0) {
                         // Calculate shipping: take transport cost from first product's transport map
-                        // based on total qty (or per-item qty for mixed carts)
-                        // We use the first product's transport as the shipping line
                         let shippingPrice: number | undefined = undefined;
                         const firstItem = items[0];
                         const transportArr = productsTransportMap[firstItem.sku];
                         if (transportArr) {
                             const qtyIdx = Math.min(Math.max(0, firstItem.quantity - 1), transportArr.length - 1);
                             const transportVal = transportArr[qtyIdx];
+                            showShopifyNotif(`🚚 Transport SKU=${firstItem.sku}: idx=${qtyIdx}, val="${transportVal}"`, 'info');
                             const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
                             if (!isGratuit) {
                                 const parsed = parseFloat(transportVal!.replace(',', '.'));
                                 if (!isNaN(parsed) && parsed > 0) shippingPrice = parsed;
                             }
+                        } else {
+                            showShopifyNotif(`🚚 Transport: nu există map pentru SKU=${firstItem.sku}`, 'info');
                         }
 
                         const lineItemsWithDiscount = items.map(item => {
@@ -411,44 +425,55 @@ const Drafturi = () => {
                                 if (parts.length > 0) {
                                     appliedDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
                                 }
+                                showShopifyNotif(`💰 Discount ${item.title}: discountCode="${discountArrayStr}", qty=${qty}, aplicat=${appliedDiscount}`, 'info');
                             }
+                            // NU trimitem price din Supabase (e de obicei 0 — preț custom pe draft).
+                            // Server-ul va lua compareAtPrice din varianta Shopify ca preț real.
                             return {
                                 variant_id: item.variant_id,
                                 quantity: qty,
-                                // Nu trimitem price — lăsăm Shopify să folosească prețul standard al variantei.
-                                // Prețul din draft (item.price) poate fi un preț custom (ex: 1 leu) setat manual pe draft
-                                // și nu trebuie să suprascrie prețul de catalog.
                                 appliedDiscount: appliedDiscount > 0 ? appliedDiscount : undefined,
                             };
                         });
 
+                        showShopifyNotif(
+                            `📤 Trimit la Shopify updateShopifyLineItemsBulk:\n${JSON.stringify(lineItemsWithDiscount, null, 1)}\nTransport: ${shippingPrice ?? 'gratuit'}`,
+                            'info'
+                        );
                         console.log('[Confirmare] Aplicare discount pe draft:', lineItemsWithDiscount, 'Transport:', shippingPrice);
                         const discountResult = await updateShopifyLineItemsBulk(storeName, shopifyId, lineItemsWithDiscount, shippingPrice);
                         if (discountResult) {
-                            showShopifyNotif('Discount' + (shippingPrice ? ` + transport (${shippingPrice} lei)` : '') + ' aplicat pe draft ✓', 'success');
+                            // Log the returned line items from Shopify
+                            const returnedItems = discountResult.lineItems?.edges || [];
+                            const itemsSummary = returnedItems.map((e: any) => 
+                                `${e.node?.title}: ${e.node?.originalUnitPriceSet?.presentmentMoney?.amount ?? '?'} x${e.node?.quantity}`
+                            ).join('\n');
+                            showShopifyNotif(
+                                `✅ Update line items OK!\n${itemsSummary || JSON.stringify(discountResult).substring(0, 300)}`,
+                                'success'
+                            );
                         } else {
-                            showShopifyNotif('Eroare la aplicarea discountului pe draft', 'error');
+                            showShopifyNotif('❌ Eroare la aplicarea discountului pe draft — null response', 'error');
                         }
                     }
                 }
 
-                // We call it in the background to not block the UI completely, 
-                // but we can await it if we want to show a toast.
+                // Sync status with Shopify (tags + draftOrderComplete)
+                showShopifyNotif(`🔄 Sincronizare status "${newStatus}" cu Shopify...`, 'info');
                 syncOrderStatusWithShopify(storeName, shopifyId, newStatus, orderToSync.notes || undefined)
                     .then(result => {
                         if (result.success) {
                             if (result.confirmed && result.orderName) {
                                 const total = result.orderTotal ? ` · ${parseFloat(result.orderTotal).toFixed(2)} ${result.currency || 'RON'}` : '';
-                                showShopifyNotif(`✓ Comandă creată: ${result.orderName}${total}`, 'success');
+                                showShopifyNotif(`✅ Comandă creată: ${result.orderName}${total}`, 'success');
                             } else {
-                                showShopifyNotif('Shopify sincronizat ✓ Tag-ul a fost adăugat', 'success');
+                                showShopifyNotif('✅ Shopify sincronizat — Tag-ul a fost adăugat', 'success');
                             }
                         } else {
                             let errMsg = (result as any).errorMessage
                                 || result.errors?.map((e: any) => `${e.field ? e.field + ': ' : ''}${e.message}`).join(' | ');
                                 
                             if (!errMsg) {
-                                // Fallback to raw JSON if we couldn't extract a friendly message
                                 try {
                                     const rawToDisplay = result.raw || result;
                                     errMsg = typeof rawToDisplay === 'string' ? rawToDisplay : JSON.stringify(rawToDisplay, null, 2);
@@ -456,13 +481,12 @@ const Drafturi = () => {
                                     errMsg = 'Eroare necunoscută de la Shopify';
                                 }
                             } else if (result.raw) {
-                                // Even if we have a friendly message, optionally append the raw JSON for full debugging context if it's there
                                 try {
                                     errMsg += '\n\n' + JSON.stringify(result.raw, null, 2);
                                 } catch(e) {}
                             }
                             
-                            showShopifyNotif(`Eroare Shopify:\n${errMsg}`, 'error');
+                            showShopifyNotif(`❌ Eroare Shopify:\n${errMsg}`, 'error');
                         }
                     });
             }
@@ -600,30 +624,44 @@ const Drafturi = () => {
                 </div>
             )}
 
-            {/* Shopify Notification Popup */}
-            {shopifyNotif && (
-                <div 
-                    className={`fixed top-6 right-6 z-[100] flex items-start gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-sm transition-all duration-300 animate-fade-in ${
-                        shopifyNotif.type === 'success' 
-                            ? 'bg-emerald-50/95 border-emerald-500/30 text-emerald-800' 
-                            : 'bg-red-500/20/95 border-red-500/30 text-red-800'
-                    }`}
-                    style={{ minWidth: '300px', maxWidth: shopifyNotif.type === 'error' ? '520px' : '420px' }}
-                >
-                    <span className={`material-icons-round text-xl mt-0.5 shrink-0 ${
-                        shopifyNotif.type === 'success' ? 'text-emerald-600' : 'text-red-500'
-                    }`}>
-                        {shopifyNotif.type === 'success' ? 'cloud_done' : 'cloud_off'}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-bold leading-tight">
-                            {shopifyNotif.type === 'success' ? 'Sincronizare reușită' : 'Eroare sincronizare'}
-                        </p>
-                        <p className="text-[12px] font-medium opacity-80 mt-0.5 break-words whitespace-pre-wrap">{shopifyNotif.msg}</p>
-                    </div>
-                    <button onClick={() => setShopifyNotif(null)} className="text-gray-400 hover:text-gray-400 transition-colors ml-1 shrink-0">
-                        <span className="material-icons-round text-[18px]">close</span>
-                    </button>
+            {/* Shopify Notification Stack */}
+            {shopifyNotifs.length > 0 && (
+                <div className="fixed top-6 right-6 z-[100] flex flex-col gap-2 max-h-[85vh] overflow-y-auto scrollbar-hide" style={{ maxWidth: '480px', minWidth: '320px' }}>
+                    {/* Clear all button */}
+                    {shopifyNotifs.length > 1 && (
+                        <button 
+                            onClick={() => setShopifyNotifs([])}
+                            className="self-end text-[11px] font-bold text-gray-400 hover:text-white bg-gray-800/80 px-3 py-1 rounded-lg border border-white/10 backdrop-blur-sm transition-colors"
+                        >
+                            Șterge toate ({shopifyNotifs.length})
+                        </button>
+                    )}
+                    {shopifyNotifs.map(notif => (
+                        <div 
+                            key={notif.id}
+                            className={`flex items-start gap-3 px-4 py-3 rounded-xl shadow-xl border backdrop-blur-sm animate-fade-in ${
+                                notif.type === 'success' 
+                                    ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-200' 
+                                    : notif.type === 'error'
+                                    ? 'bg-red-950/90 border-red-500/30 text-red-200'
+                                    : 'bg-indigo-950/90 border-indigo-500/30 text-indigo-200'
+                            }`}
+                        >
+                            <span className={`material-icons-round text-lg mt-0.5 shrink-0 ${
+                                notif.type === 'success' ? 'text-emerald-400' 
+                                : notif.type === 'error' ? 'text-red-400' 
+                                : 'text-indigo-400'
+                            }`}>
+                                {notif.type === 'success' ? 'check_circle' : notif.type === 'error' ? 'error' : 'info'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-mono opacity-90 break-words whitespace-pre-wrap leading-relaxed">{notif.msg}</p>
+                            </div>
+                            <button onClick={() => setShopifyNotifs(prev => prev.filter(n => n.id !== notif.id))} className="text-gray-500 hover:text-white transition-colors ml-1 shrink-0">
+                                <span className="material-icons-round text-[16px]">close</span>
+                            </button>
+                        </div>
+                    ))}
                 </div>
             )}
 

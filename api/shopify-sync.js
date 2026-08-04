@@ -500,6 +500,85 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: 'items array is required' });
             }
             
+            console.log('[shopify-sync] update-draft-order-line-items called with:', JSON.stringify({ orderId: gid, items, shippingPrice }));
+
+            // ── Step 1: Fetch actual variant prices from Shopify ──
+            // Products sold via call center often have catalog price=0 and compareAtPrice=real price
+            const variantGids = items
+                .filter(item => item.variant_id && item.variant_id !== 'null' && item.variant_id !== 'undefined')
+                .map(item => String(item.variant_id).includes('gid://') ? item.variant_id : `gid://shopify/ProductVariant/${item.variant_id}`);
+            
+            let variantPrices = {};
+            if (variantGids.length > 0) {
+                const variantQuery = `
+                    query getVariants($ids: [ID!]!) {
+                        nodes(ids: $ids) {
+                            ... on ProductVariant {
+                                id
+                                price
+                                compareAtPrice
+                                title
+                                product { title }
+                            }
+                        }
+                    }
+                `;
+                const variantRes2 = await fetch(graphqlUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ query: variantQuery, variables: { ids: variantGids } })
+                });
+                const variantData = await variantRes2.json();
+                console.log('[shopify-sync] Variant prices raw response:', JSON.stringify(variantData));
+                
+                const nodes = variantData?.data?.nodes || [];
+                nodes.forEach(node => {
+                    if (node && node.id) {
+                        variantPrices[node.id] = {
+                            price: node.price,
+                            compareAtPrice: node.compareAtPrice,
+                            title: node.product?.title || node.title
+                        };
+                    }
+                });
+                console.log('[shopify-sync] Variant prices map:', JSON.stringify(variantPrices));
+            }
+
+            // ── Step 2: Also fetch current draft line items to see existing prices ──
+            const currentDraftQuery = `
+                query getDraftOrder($id: ID!) {
+                    draftOrder(id: $id) {
+                        id
+                        lineItems(first: 50) {
+                            edges {
+                                node {
+                                    id
+                                    title
+                                    quantity
+                                    originalUnitPriceSet { shopMoney { amount currencyCode } }
+                                    variant { id price compareAtPrice }
+                                }
+                            }
+                        }
+                    }
+                }
+            `;
+            const currentDraftRes = await fetch(graphqlUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ query: currentDraftQuery, variables: { id: gid } })
+            });
+            const currentDraftData = await currentDraftRes.json();
+            const currentLineItems = currentDraftData?.data?.draftOrder?.lineItems?.edges || [];
+            console.log('[shopify-sync] Current draft line items:', JSON.stringify(currentLineItems.map(e => ({
+                title: e.node.title,
+                qty: e.node.quantity,
+                price: e.node.originalUnitPriceSet?.shopMoney?.amount,
+                variantPrice: e.node.variant?.price,
+                variantCompareAt: e.node.variant?.compareAtPrice
+            }))));
+
+            // ── Step 3: Build line items with correct prices ──
             const mutation = `
                 mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
                     draftOrderUpdate(id: $id, input: $input) {
@@ -511,8 +590,8 @@ export default async function handler(req, res) {
                                         id
                                         title
                                         quantity
-                                        originalUnitPriceSet { presentmentMoney { amount } }
-                                        variant { id product { id } }
+                                        originalUnitPriceSet { shopMoney { amount currencyCode } presentmentMoney { amount } }
+                                        variant { id price compareAtPrice product { id } }
                                     }
                                 }
                             }
@@ -523,22 +602,53 @@ export default async function handler(req, res) {
             `;
             
             const lineItemsInput = items.map(item => {
-                const res = {
+                const lineItem = {
                     quantity: item.quantity
                 };
+                let variantGid = null;
                 if (item.variant_id && item.variant_id !== 'null' && item.variant_id !== 'undefined') {
-                    res.variantId = String(item.variant_id).includes('gid://') ? item.variant_id : `gid://shopify/ProductVariant/${item.variant_id}`;
+                    variantGid = String(item.variant_id).includes('gid://') ? item.variant_id : `gid://shopify/ProductVariant/${item.variant_id}`;
+                    lineItem.variantId = variantGid;
                 }
-                if (item.price) {
-                    res.originalUnitPrice = item.price.toString();
+                
+                // Determine the correct price to use:
+                // Priority: compareAtPrice > variant price > item.price (from client)
+                // This handles products with catalog price=0 and compareAtPrice=real price
+                let resolvedPrice = null;
+                if (variantGid && variantPrices[variantGid]) {
+                    const vp = variantPrices[variantGid];
+                    if (vp.compareAtPrice && parseFloat(vp.compareAtPrice) > 0) {
+                        resolvedPrice = vp.compareAtPrice;
+                        console.log(`[shopify-sync] Using compareAtPrice=${resolvedPrice} for variant ${variantGid} (${vp.title})`);
+                    } else if (vp.price && parseFloat(vp.price) > 0) {
+                        resolvedPrice = vp.price;
+                        console.log(`[shopify-sync] Using variant price=${resolvedPrice} for variant ${variantGid} (${vp.title})`);
+                    } else {
+                        console.log(`[shopify-sync] WARNING: Both price (${vp.price}) and compareAtPrice (${vp.compareAtPrice}) are 0 or null for ${vp.title}`);
+                    }
                 }
+                
+                // Fallback to client-provided price if it's > 0
+                if (!resolvedPrice && item.price && parseFloat(item.price) > 0) {
+                    resolvedPrice = item.price.toString();
+                    console.log(`[shopify-sync] Using client-provided price=${resolvedPrice} for variant ${variantGid}`);
+                }
+
+                if (resolvedPrice) {
+                    lineItem.originalUnitPrice = resolvedPrice.toString();
+                } else {
+                    console.log(`[shopify-sync] WARNING: No price resolved for variant ${variantGid}, Shopify will use variant catalog price`);
+                }
+                
                 if (item.appliedDiscount) {
-                    res.appliedDiscount = {
+                    lineItem.appliedDiscount = {
                         value: parseFloat(item.appliedDiscount),
                         valueType: "FIXED_AMOUNT"
                     };
                 }
-                return res;
+
+                console.log(`[shopify-sync] Final line item:`, JSON.stringify(lineItem));
+                return lineItem;
             });
 
             const input = { lineItems: lineItemsInput };
@@ -557,6 +667,8 @@ export default async function handler(req, res) {
                 };
             }
 
+            console.log('[shopify-sync] Final mutation input:', JSON.stringify(input, null, 2));
+
             const gqlRes = await fetch(graphqlUrl, {
                 method: 'POST',
                 headers,
@@ -570,6 +682,8 @@ export default async function handler(req, res) {
             });
             const gqlData = await gqlRes.json();
             
+            console.log('[shopify-sync] draftOrderUpdate response:', JSON.stringify(gqlData));
+            
             // Check for GraphQL-level errors
             if (gqlData?.errors && gqlData.errors.length > 0) {
                 const errMsg = gqlData.errors.map(e => e.message).join('; ');
@@ -580,7 +694,20 @@ export default async function handler(req, res) {
             if (errors && errors.length > 0) {
                 return res.status(400).json({ success: false, errors });
             }
-            return res.status(200).json({ success: true, draftOrder: gqlData?.data?.draftOrderUpdate?.draftOrder });
+            
+            const resultDraft = gqlData?.data?.draftOrderUpdate?.draftOrder;
+            
+            // Log the resulting line items for debugging
+            const resultItems = resultDraft?.lineItems?.edges || [];
+            console.log('[shopify-sync] Result line items after update:', JSON.stringify(resultItems.map(e => ({
+                title: e.node.title,
+                qty: e.node.quantity,
+                price: e.node.originalUnitPriceSet?.shopMoney?.amount,
+                variantPrice: e.node.variant?.price,
+                variantCompareAt: e.node.variant?.compareAtPrice
+            }))));
+            
+            return res.status(200).json({ success: true, draftOrder: resultDraft });
         }
 
         return res.status(400).json({ error: `Unknown action: ${action}` });
