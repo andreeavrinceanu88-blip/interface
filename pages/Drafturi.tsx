@@ -76,6 +76,13 @@ const fmtDate = (d: string) => {
     catch { return d; }
 };
 
+const buildUpdateQuery = (payload: any, order: any) => {
+    let query = supabaseAdmin.from('orders').update(payload);
+    if (order?.order_id && order.order_id.toString().trim() !== '') return query.eq('order_id', order.order_id);
+    if (order?.client_personal_id && order.client_personal_id.toString().trim() !== '') return query.eq('client_personal_id', order.client_personal_id);
+    return query.eq('id', order?.id);
+};
+
 interface ProduseItem {
     id: number;
     variant_id: number;
@@ -374,7 +381,7 @@ const Drafturi = () => {
         if (newStatus === 'confirmat' && orderToUpdate?.type === 'draft') {
             updatePayload.order_state = 'completed';
         }
-        const { error: uErr } = await supabaseAdmin.from('orders').update(updatePayload).eq('id', orderId);
+        const { error: uErr } = await buildUpdateQuery(updatePayload, orderToUpdate);
         if (!uErr) {
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updatePayload } : o));
             showToast(STATUS_LABELS[newStatus]);
@@ -513,7 +520,7 @@ const Drafturi = () => {
     const saveNote = async () => {
         if (!selectedOrder) return;
         setSavingNote(true);
-        const { error: nErr } = await supabaseAdmin.from('orders').update({ notes: noteText }).eq('id', selectedOrder.id);
+        const { error: nErr } = await buildUpdateQuery({ notes: noteText }, selectedOrder);
         if (!nErr) {
             setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, notes: noteText } : o));
             showToast('Notiță salvată');
@@ -543,7 +550,7 @@ const Drafturi = () => {
         const newName = nameText.trim();
         const newOras = orasText.trim();
         const newJudet = judetText.trim();
-        const { error: err } = await supabaseAdmin.from('orders').update({ name: newName, adresa: newAddress, oras: newOras, judet: newJudet }).eq('id', selectedOrder.id);
+        const { error: err } = await buildUpdateQuery({ name: newName, adresa: newAddress, oras: newOras, judet: newJudet }, selectedOrder);
         if (!err) {
             setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, name: newName, adresa: newAddress, oras: newOras, judet: newJudet } : o));
             showToast('Adresa a fost actualizată');
@@ -1103,7 +1110,7 @@ const Drafturi = () => {
                                                             console.log('[Drafturi] Saving to Supabase...', selectedOrder.id);
                                                             
                                                             // Save to Supabase
-                                                            const { error: dbErr } = await supabaseAdmin.from('orders').update({ produse: newProduse }).eq('id', selectedOrder.id);
+                                                            const { error: dbErr } = await buildUpdateQuery({ produse: newProduse }, selectedOrder);
                                                             if (dbErr) {
                                                                 console.error('[Drafturi] Supabase error:', dbErr);
                                                                 showToast('Eroare la salvare în baza de date');
