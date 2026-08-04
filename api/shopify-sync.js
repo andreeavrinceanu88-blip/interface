@@ -635,16 +635,16 @@ export default async function handler(req, res) {
                 }
 
                 if (resolvedPrice) {
-                    lineItem.originalUnitPrice = resolvedPrice.toString();
+                    let finalPrice = parseFloat(resolvedPrice);
+                    // Subtract discount directly from the unit price instead of applying it as a separate discount line
+                    if (item.appliedDiscount && parseFloat(item.appliedDiscount) > 0) {
+                        finalPrice -= parseFloat(item.appliedDiscount);
+                        if (finalPrice < 0) finalPrice = 0;
+                        console.log(`[shopify-sync] Applied discount directly to unit price: ${resolvedPrice} -> ${finalPrice}`);
+                    }
+                    lineItem.originalUnitPrice = finalPrice.toFixed(2);
                 } else {
                     console.log(`[shopify-sync] WARNING: No price resolved for variant ${variantGid}, Shopify will use variant catalog price`);
-                }
-                
-                if (item.appliedDiscount) {
-                    lineItem.appliedDiscount = {
-                        value: parseFloat(item.appliedDiscount),
-                        valueType: "FIXED_AMOUNT"
-                    };
                 }
 
                 console.log(`[shopify-sync] Final line item:`, JSON.stringify(lineItem));
