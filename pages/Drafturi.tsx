@@ -223,7 +223,7 @@ const Drafturi = () => {
     const showShopifyNotif = (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
         const id = ++notifIdRef.current;
         setShopifyNotifs(prev => [...prev.slice(-9), { id, msg, type }]); // max 10 notifications
-        const timeout = type === 'error' ? 20000 : type === 'info' ? 12000 : 8000;
+        const timeout = type === 'error' ? 20000 : 10000;
         setTimeout(() => setShopifyNotifs(prev => prev.filter(n => n.id !== id)), timeout);
     };
 
