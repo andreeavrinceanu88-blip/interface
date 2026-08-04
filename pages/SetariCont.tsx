@@ -10,7 +10,7 @@ interface TeamMember {
     created_at?: string; // If we want to show it, though it might not be in profiles. We can use auth.users but we only have profiles access.
 }
 
-export default function SetariEchipa() {
+export default function SetariCont() {
     const { profile, session } = useAuth();
     const [members, setMembers] = useState<TeamMember[]>([]);
     const [loading, setLoading] = useState(false);
@@ -115,32 +115,72 @@ export default function SetariEchipa() {
         }
     };
 
-    if (!isOwner) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[70vh] text-center">
-                <span className="material-icons-round text-6xl text-red-500 mb-4 p-4 rounded-full bg-surface-dark-lighter border border-white/5">lock</span>
-                <h2 className="text-2xl font-light text-white mb-2">Acces Interzis</h2>
-                <p className="text-gray-500 max-w-md font-light">Această pagină este destinată doar administratorului principal al contului.</p>
-            </div>
-        );
-    }
-
     return (
-        <div className="max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h2 className="text-2xl md:text-3xl font-light dark:text-white tracking-tight">Echipa Mea</h2>
-                    <p className="text-gray-400 font-light mt-1 text-sm md:text-base">Gestionează membrii care au acces la acest Workspace.</p>
-                </div>
-                <button 
-                    onClick={() => setShowModal(true)}
-                    className="btn-3d-primary px-4 py-2.5 rounded-xl text-white text-sm font-medium flex items-center gap-2"
-                >
-                    <span className="material-icons-round text-lg">person_add</span>
-                    Adaugă Membru
-                </button>
+        <div className="max-w-6xl mx-auto space-y-8">
+            <div>
+                <h2 className="text-2xl md:text-3xl font-light dark:text-white tracking-tight">Setări Cont</h2>
+                <p className="text-gray-400 font-light mt-1 text-sm md:text-base">Gestionează preferințele și profilul tău.</p>
             </div>
 
+            {/* Dummy Settings Section */}
+            <div className="bg-[#13141a] rounded-2xl border border-white/5 p-6 shadow-xl">
+                <h3 className="text-lg text-white font-light mb-4">Profilul Meu</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Nume Complet</label>
+                        <input 
+                            type="text" 
+                            defaultValue={profile?.full_name || ''}
+                            className="w-full bg-[#0a0b14] border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                            disabled
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Adresă Email</label>
+                        <input 
+                            type="email" 
+                            defaultValue={session?.user?.email || ''}
+                            className="w-full bg-[#0a0b14] border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                            disabled
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Notificări Browser</label>
+                        <select className="w-full bg-[#0a0b14] border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all cursor-not-allowed" disabled>
+                            <option>Active</option>
+                            <option>Inactive</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Sunet Notificări</label>
+                        <select className="w-full bg-[#0a0b14] border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all cursor-not-allowed" disabled>
+                            <option>Clopoțel (Default)</option>
+                            <option>Scurt</option>
+                            <option>Fără sunet</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="mt-6">
+                    <button className="btn-3d-secondary px-4 py-2 rounded-xl text-sm font-medium opacity-50 cursor-not-allowed">Salvează Modificările</button>
+                </div>
+            </div>
+
+            {/* Team Section (Only for Owners) */}
+            {isOwner && (
+                <div>
+                    <div className="flex justify-between items-center mb-6 mt-12">
+                        <div>
+                            <h3 className="text-xl text-white font-light">Echipa Mea</h3>
+                            <p className="text-gray-400 font-light mt-1 text-sm">Gestionează membrii care au acces la acest Workspace.</p>
+                        </div>
+                        <button 
+                            onClick={() => setShowModal(true)}
+                            className="btn-3d-primary px-4 py-2.5 rounded-xl text-white text-sm font-medium flex items-center gap-2"
+                        >
+                            <span className="material-icons-round text-lg">person_add</span>
+                            Adaugă Membru
+                        </button>
+                    </div>
             {loading ? (
                 <div className="flex justify-center p-12">
                     <span className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></span>
@@ -270,6 +310,8 @@ export default function SetariEchipa() {
                             </div>
                         </form>
                     </div>
+                </div>
+            )}
                 </div>
             )}
         </div>

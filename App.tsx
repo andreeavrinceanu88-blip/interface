@@ -17,7 +17,7 @@ import VerificareApeluri from "./pages/VerificareApeluri";
 import Drafturi from "./pages/Drafturi";
 import ProcessedOrders from "./pages/ProcessedOrders";
 import Flow from "./pages/Flow";
-import SetariEchipa from "./pages/SetariEchipa";
+import SetariCont from "./pages/SetariCont";
 import { TelnyxProvider } from './contexts/TelnyxContext';
 import IncomingCallBanner from './components/IncomingCallBanner';
 
@@ -66,7 +66,7 @@ export default function App() {
 
                                     <Route path="/statistici-adrese" element={<StatisticiAdrese />} />
                                     <Route path="/setup" element={<OnboardingPage />} />
-                                    <Route path="/echipa" element={<SetariEchipa />} />
+                                    <Route path="/setari" element={<SetariCont />} />
                                     <Route path="/verificare-apeluri" element={<VerificareApeluri />} />
                                     <Route path="/drafturi" element={<Drafturi />} />
                                     <Route path="/processed-orders" element={<ProcessedOrders />} />
@@ -303,9 +303,6 @@ function Sidebar() {
 
                         <li><SidebarLink to="/flow" icon="account_tree" label="Flow" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/setup" icon="add_circle" label="Adaugă magazin" collapsed={collapsed} /></li>
-                        {!profile?.parent_id && (
-                            <li><SidebarLink to="/echipa" icon="group" label="Echipa" collapsed={collapsed} /></li>
-                        )}
                     </ul>
                 </div>
                 <div>
@@ -321,7 +318,7 @@ function Sidebar() {
 
             {/* Footer — always full structure, text slides in */}
             <div className="border-t border-gray-200 dark:border-gray-800 p-2 shrink-0">
-                <div className="flex items-center gap-3 p-2 rounded-xl glass-panel-3d overflow-hidden">
+                <NavLink to="/setari" className="flex items-center gap-3 p-2 rounded-xl glass-panel-3d overflow-hidden hover:ring-1 hover:ring-white/10 transition-all cursor-pointer group">
                     <div className="relative flex-shrink-0">
                         {profile?.avatar_url ? (
                             <img
@@ -337,13 +334,13 @@ function Sidebar() {
                         <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#161822] rounded-full"></div>
                     </div>
                     <div className={`flex-1 min-w-0 overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${collapsed ? 'max-w-0 opacity-0' : 'max-w-[120px] opacity-100'}`}>
-                        <p className="text-sm font-normal text-gray-900 dark:text-white truncate">{profile?.full_name || userEmail || 'Utilizator'}</p>
+                        <p className="text-sm font-normal text-gray-900 dark:text-white truncate group-hover:text-primary transition-colors">{profile?.full_name || userEmail || 'Utilizator'}</p>
                         <p className={`text-xs truncate font-medium ${isSubAccount ? 'text-amber-400' : 'text-cyan-400'}`}>{displayRole}</p>
                     </div>
                     <button
                         onClick={handleLogout}
                         disabled={isLoggingOut}
-                        className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 transition-all focus:outline-none active:scale-95 overflow-hidden ${collapsed ? 'max-w-0 opacity-0 border-0 p-0' : 'max-w-[40px] opacity-100'} ${isLoggingOut ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400'}`}
+                        className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 transition-all focus:outline-none active:scale-95 overflow-hidden z-10 ${collapsed ? 'max-w-0 opacity-0 border-0 p-0' : 'max-w-[40px] opacity-100'} ${isLoggingOut ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400'}`}
                         title="Deconectare"
                         type="button"
                     >
@@ -352,7 +349,7 @@ function Sidebar() {
                             : <span className="material-icons-round text-lg">logout</span>
                         }
                     </button>
-                </div>
+                </NavLink>
             </div>
         </aside>
     );
