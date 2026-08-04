@@ -1346,29 +1346,6 @@ const Drafturi = () => {
                                                             </div>
                                                         );
                                                     })}
-                                                    
-                                                    <div className="pt-4 mt-4 border-t border-white/5 flex justify-between items-center">
-                                                        <span className="font-bold text-white text-sm">Total comandă</span>
-                                                        <span className="font-bold text-indigo-400 text-base">
-                                                            {(() => {
-                                                                let total = 0;
-                                                                items.forEach(item => {
-                                                                    const qty = item.quantity;
-                                                                    const price = parseFloat(item.price);
-                                                                    const discountArrayStr = productsDiscountMap[item.sku];
-                                                                    let discountAmount = 0;
-                                                                    if (discountArrayStr && qty > 1) {
-                                                                        const parts = discountArrayStr.split(',').map(n => parseFloat(n.trim()) || 0);
-                                                                        if (parts.length > 0) {
-                                                                            discountAmount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
-                                                                        }
-                                                                    }
-                                                                    total += (price * qty) - discountAmount;
-                                                                });
-                                                                return money(total);
-                                                            })()}
-                                                        </span>
-                                                    </div>
                                                 </div>
                                             );
                                         })()}
@@ -1395,7 +1372,40 @@ const Drafturi = () => {
                                             );
                                         })()}
 
+                                        {/* Total Row */}
+                                        {(() => {
+                                            const items = editingProducts ? editedProductsList : parseProduse(selectedOrder.produse);
+                                            if (items.length === 0) return null;
+                                            
+                                            let total = 0;
+                                            items.forEach(item => {
+                                                const qty = item.quantity;
+                                                const price = parseFloat(item.price);
+                                                const discountArrayStr = productsDiscountMap[item.sku];
+                                                let discountAmount = 0;
+                                                if (discountArrayStr && qty > 1) {
+                                                    const parts = discountArrayStr.split(',').map(n => parseFloat(n.trim()) || 0);
+                                                    if (parts.length > 0) {
+                                                        discountAmount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
+                                                    }
+                                                }
+                                                total += (price * qty) - discountAmount;
+                                            });
 
+                                            // Add shipping cost to total
+                                            const originalItems = parseProduse(selectedOrder.produse);
+                                            const productTotal = originalItems.reduce((sum, it) => sum + parseFloat(it.price) * it.quantity, 0);
+                                            const shippingCost = Math.max(0, (Number(selectedOrder.value) || 0) - productTotal);
+                                            
+                                            return (
+                                                <div className="pt-4 mt-4 border-t border-white/5 flex justify-between items-center">
+                                                    <span className="font-bold text-white text-sm">Total comandă</span>
+                                                    <span className="font-bold text-indigo-400 text-base">
+                                                        {money(total + shippingCost)}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
                                         {selectedOrder.cerere_upsell && (
                                             <div className="mt-4 bg-amber-50 border border-amber-500/30 rounded-xl p-4">
                                                 <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-1">Oportunitate Upsell</p>
