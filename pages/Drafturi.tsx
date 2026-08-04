@@ -142,6 +142,11 @@ const Drafturi = () => {
     const [draftStatus, setDraftStatus] = useState<'open' | 'complete'>('open');
     const [selectedBrand, setSelectedBrand] = useState<string>('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    
+    // ── Dummy feature toggles
+    const [turboEnabled, setTurboEnabled] = useState(false);
+    const [recordEnabled, setRecordEnabled] = useState(false);
+    const [showTurboPopup, setShowTurboPopup] = useState(false);
     const [activeTab, setActiveTab] = useState<string>('ON');
     const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split('T')[0]; });
     const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -741,6 +746,37 @@ const Drafturi = () => {
                         </button>
                     </div>
                     
+                    {/* Dummy Switches */}
+                    <div className="flex items-center gap-4 ml-4 hidden lg:flex">
+                        <label className="flex items-center gap-2 cursor-pointer group" onClick={(e) => e.preventDefault()}>
+                            <div 
+                                className={`relative w-10 h-5.5 rounded-full transition-all duration-300 ${turboEnabled ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
+                                onClick={() => {
+                                    if (!turboEnabled) setShowTurboPopup(true);
+                                    else setTurboEnabled(false);
+                                }}
+                            >
+                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${turboEnabled ? 'translate-x-[18px]' : ''}`}></div>
+                            </div>
+                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 group-hover:text-white transition-colors flex items-center gap-1">
+                                <span className="material-icons-round text-sm text-amber-500">bolt</span>
+                                Turbo
+                            </span>
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer group" onClick={(e) => e.preventDefault()}>
+                            <div 
+                                className={`relative w-10 h-5.5 rounded-full transition-all duration-300 ${recordEnabled ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
+                                onClick={() => setRecordEnabled(!recordEnabled)}
+                            >
+                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${recordEnabled ? 'translate-x-[18px]' : ''}`}></div>
+                            </div>
+                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 group-hover:text-white transition-colors flex items-center gap-1">
+                                <span className="material-icons-round text-sm text-red-500">mic</span>
+                                Rec
+                            </span>
+                        </label>
+                    </div>
 
                     
                     {/* Priority mock */}
@@ -1562,6 +1598,45 @@ const Drafturi = () => {
                                     </div>
                                 );
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* ── Turbo Confirmation Modal ────────────────────────────────────── */}
+            {showTurboPopup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowTurboPopup(false)}></div>
+                    <div className="relative bg-[#161822] border border-white/10 p-6 md:p-8 rounded-2xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl text-amber-400 font-bold flex items-center gap-2">
+                                <span className="material-icons-round">warning</span>
+                                Atenție!
+                            </h3>
+                            <button onClick={() => setShowTurboPopup(false)} className="text-gray-500 hover:text-white transition-colors">
+                                <span className="material-icons-round">close</span>
+                            </button>
+                        </div>
+                        
+                        <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+                            Acesta este un apelator automat care sună încontinuu până răspunde cineva. Ești sigur că vrei să îl activezi?
+                        </p>
+
+                        <div className="flex gap-3 justify-end">
+                            <button 
+                                onClick={() => setShowTurboPopup(false)}
+                                className="px-4 py-2 rounded-xl text-gray-400 hover:text-white transition-colors text-sm font-medium"
+                            >
+                                Anulează
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setTurboEnabled(true);
+                                    setShowTurboPopup(false);
+                                }}
+                                className="btn-3d-primary bg-amber-500 hover:bg-amber-400 px-6 py-2 rounded-xl text-white text-sm font-medium"
+                            >
+                                Da, Activează
+                            </button>
                         </div>
                     </div>
                 </div>
