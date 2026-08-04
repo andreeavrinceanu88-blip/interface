@@ -1251,6 +1251,13 @@ const Drafturi = () => {
                                                                 console.log(`- Computed Total Discount for line: ${totalDiscount}`);
                                                                 console.log(`- Computed Per-Unit Discount: ${perUnitDiscount}`);
 
+                                                                if (discountArrayStr) {
+                                                                    showShopifyNotif(
+                                                                        `💰 Editare Discount ${item.title}: code="${discountArrayStr}", qty=${qty}\nDiscount Per Unitate: ${perUnitDiscount.toFixed(2)}`,
+                                                                        'info'
+                                                                    );
+                                                                }
+
                                                                 return {
                                                                     variant_id: item.variant_id || item.variantId || item.id,
                                                                     quantity: qty,
