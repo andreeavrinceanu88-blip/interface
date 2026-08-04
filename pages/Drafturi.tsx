@@ -450,6 +450,13 @@ const Drafturi = () => {
                             const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
                             const basePrice = parseFloat(item.price) || 0;
                             
+                            console.log(`[Drafturi] DISCOUNT LOG for ${item.title}:`);
+                            console.log(`- Qty: ${qty}`);
+                            console.log(`- DB Discount Code String: "${discountArrayStr || ''}"`);
+                            console.log(`- Computed Total Discount for line: ${totalDiscount}`);
+                            console.log(`- Computed Per-Unit Discount: ${perUnitDiscount}`);
+                            console.log(`- Base price from frontend state: ${basePrice}`);
+
                             if (discountArrayStr) {
                                 showShopifyNotif(
                                     `💰 Discount ${item.title}: code="${discountArrayStr}", qty=${qty}\nDiscount Per Unitate: ${perUnitDiscount.toFixed(2)}`,
@@ -1238,6 +1245,12 @@ const Drafturi = () => {
                                                                 }
                                                                 const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
                                                                 
+                                                                console.log(`[Drafturi] EDIT DISCOUNT LOG for item ID ${item.variant_id || item.variantId || item.id}:`);
+                                                                console.log(`- Qty: ${qty}`);
+                                                                console.log(`- DB Discount Code String: "${discountArrayStr || ''}"`);
+                                                                console.log(`- Computed Total Discount for line: ${totalDiscount}`);
+                                                                console.log(`- Computed Per-Unit Discount: ${perUnitDiscount}`);
+
                                                                 return {
                                                                     variant_id: item.variant_id || item.variantId || item.id,
                                                                     quantity: qty,

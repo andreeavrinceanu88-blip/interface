@@ -618,30 +618,39 @@ export default async function handler(req, res) {
                 
                 if (item.price !== undefined && item.price !== null && parseFloat(item.price) > 0) {
                     resolvedPrice = parseFloat(item.price).toString();
-                    console.log(`[shopify-sync] Using client-provided forced price=${resolvedPrice} for variant ${variantGid}`);
+                    console.log(`[shopify-sync] DISCOUNT LOG: Using client-provided item.price=${resolvedPrice} for variant ${variantGid}`);
                 } else if (variantGid && variantPrices[variantGid]) {
                     const vp = variantPrices[variantGid];
                     if (vp.compareAtPrice && parseFloat(vp.compareAtPrice) > 0) {
                         resolvedPrice = vp.compareAtPrice;
-                        console.log(`[shopify-sync] Using compareAtPrice=${resolvedPrice} for variant ${variantGid} (${vp.title})`);
+                        console.log(`[shopify-sync] DISCOUNT LOG: Fallback to compareAtPrice=${resolvedPrice} for variant ${variantGid} (${vp.title})`);
                     } else if (vp.price && parseFloat(vp.price) > 0) {
                         resolvedPrice = vp.price;
-                        console.log(`[shopify-sync] Using variant price=${resolvedPrice} for variant ${variantGid} (${vp.title})`);
+                        console.log(`[shopify-sync] DISCOUNT LOG: Fallback to variant price=${resolvedPrice} for variant ${variantGid} (${vp.title})`);
                     } else {
-                        console.log(`[shopify-sync] WARNING: Both price (${vp.price}) and compareAtPrice (${vp.compareAtPrice}) are 0 or null for ${vp.title}`);
+                        console.log(`[shopify-sync] DISCOUNT LOG: WARNING: Both price (${vp.price}) and compareAtPrice (${vp.compareAtPrice}) are 0 or null for ${vp.title}`);
                     }
+                } else {
+                    console.log(`[shopify-sync] DISCOUNT LOG: No client price and no variant info found for variant ${variantGid}`);
                 }
 
                 if (resolvedPrice !== null) {
                     let finalPrice = parseFloat(resolvedPrice);
                     if (item.appliedDiscount && parseFloat(item.appliedDiscount) > 0) {
+                        const originalPriceBeforeDiscount = finalPrice;
                         finalPrice -= parseFloat(item.appliedDiscount);
-                        console.log(`[shopify-sync] Subtracted appliedDiscount (${item.appliedDiscount}) from unit price: ${resolvedPrice} -> ${finalPrice}`);
+                        console.log(`[shopify-sync] DISCOUNT LOG: Applied per-unit discount of ${item.appliedDiscount}! Unit Price calculated: ${originalPriceBeforeDiscount} - ${item.appliedDiscount} = ${finalPrice}`);
+                    } else {
+                        console.log(`[shopify-sync] DISCOUNT LOG: No appliedDiscount provided by client for variant ${variantGid}. Unit Price remains: ${finalPrice}`);
                     }
-                    if (finalPrice < 0) finalPrice = 0;
+                    if (finalPrice < 0) {
+                        console.log(`[shopify-sync] DISCOUNT LOG: Final price was less than 0 (${finalPrice}), clamped to 0.`);
+                        finalPrice = 0;
+                    }
                     lineItem.originalUnitPrice = finalPrice.toFixed(2);
+                    console.log(`[shopify-sync] DISCOUNT LOG: Forcing originalUnitPrice to ${lineItem.originalUnitPrice}`);
                 } else {
-                    console.log(`[shopify-sync] WARNING: No price resolved for variant ${variantGid}, Shopify will use variant catalog price`);
+                    console.log(`[shopify-sync] DISCOUNT LOG: WARNING: No price resolved for variant ${variantGid}, Shopify will fallback to variant catalog price`);
                 }
 
                 console.log(`[shopify-sync] Final line item:`, JSON.stringify(lineItem));
