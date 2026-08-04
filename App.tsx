@@ -62,7 +62,7 @@ export default function App() {
                                     <Route path="/chat" element={<ChatPage />} />
                                     <Route path="/control-robot" element={<ControlRobotPage />} />
                                     <Route path="/statistici-produse" element={<StatisticiProduse />} />
-                                    <Route path="/script-vanzare" element={<ScriptVanzare />} />
+
                                     <Route path="/statistici-adrese" element={<StatisticiAdrese />} />
                                     <Route path="/setup" element={<OnboardingPage />} />
                                     <Route path="/verificare-apeluri" element={<VerificareApeluri />} />
@@ -298,7 +298,7 @@ function Sidebar() {
                         <li><SidebarLink to="/processed-orders" icon="shopping_cart" label="Comenzi procesate" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/customers" icon="people" label="Clienți" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/drafturi" icon="edit" label="Draft" collapsed={collapsed} /></li>
-                        <li><SidebarLink to="/script-vanzare" icon="description" label="Script vanzare" collapsed={collapsed} /></li>
+
                         <li><SidebarLink to="/flow" icon="account_tree" label="Flow" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/setup" icon="add_circle" label="Adaugă magazin" collapsed={collapsed} /></li>
                     </ul>
