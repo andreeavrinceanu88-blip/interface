@@ -927,7 +927,9 @@ const Drafturi = () => {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                         <h2 className="text-2xl font-bold text-white">Comanda {selectedOrder.client_personal_id || `#${selectedOrder.id}`}</h2>
-                                        <span className={`text-sm font-bold px-3 py-1.5 rounded-md ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
+                                        {selectedOrder.status !== 'ON' && (
+                                            <span className={`text-sm font-bold px-3 py-1.5 rounded-md ${STATUS_STYLES[selectedOrder.status]}`}>{STATUS_LABELS[selectedOrder.status]}</span>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <button onClick={() => setSelectedOrder(null)} className="w-8 h-8 flex items-center justify-center rounded hover:bg-white/5 text-gray-400 transition-colors">
