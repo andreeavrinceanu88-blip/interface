@@ -688,7 +688,7 @@ const Drafturi = () => {
             {/* ── Top Bar ─────────────────────────────────────────────────── */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0">
                 <div className="flex items-center gap-4 flex-1">
-                    <h1 className="text-2xl font-semibold text-white flex items-center gap-3">
+                    <h1 className="text-lg font-semibold text-white flex items-center gap-3">
                         Comenzi de sunat 
                         <span className="bg-indigo-500/20 text-indigo-400 text-sm font-bold px-2.5 py-0.5 rounded-full">{orders.length}</span>
                     </h1>
@@ -750,13 +750,13 @@ const Drafturi = () => {
                     <div className="flex items-center gap-4 ml-4 hidden lg:flex">
                         <label className="flex items-center gap-2 cursor-pointer group" onClick={(e) => e.preventDefault()}>
                             <div 
-                                className={`relative w-10 h-5.5 rounded-full transition-all duration-300 ${turboEnabled ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
+                                className={`relative w-9 h-5 rounded-full transition-all duration-300 ${turboEnabled ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
                                 onClick={() => {
                                     if (!turboEnabled) setShowTurboPopup(true);
                                     else setTurboEnabled(false);
                                 }}
                             >
-                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${turboEnabled ? 'translate-x-[18px]' : ''}`}></div>
+                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${turboEnabled ? 'translate-x-4' : ''}`}></div>
                             </div>
                             <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 group-hover:text-white transition-colors flex items-center gap-1">
                                 <span className="material-icons-round text-sm text-amber-500">bolt</span>
@@ -766,10 +766,10 @@ const Drafturi = () => {
 
                         <label className="flex items-center gap-2 cursor-pointer group" onClick={(e) => e.preventDefault()}>
                             <div 
-                                className={`relative w-10 h-5.5 rounded-full transition-all duration-300 ${recordEnabled ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
+                                className={`relative w-9 h-5 rounded-full transition-all duration-300 ${recordEnabled ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
                                 onClick={() => setRecordEnabled(!recordEnabled)}
                             >
-                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${recordEnabled ? 'translate-x-[18px]' : ''}`}></div>
+                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${recordEnabled ? 'translate-x-4' : ''}`}></div>
                             </div>
                             <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 group-hover:text-white transition-colors flex items-center gap-1">
                                 <span className="material-icons-round text-sm text-red-500">mic</span>
