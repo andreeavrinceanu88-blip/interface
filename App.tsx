@@ -17,6 +17,7 @@ import VerificareApeluri from "./pages/VerificareApeluri";
 import Drafturi from "./pages/Drafturi";
 import ProcessedOrders from "./pages/ProcessedOrders";
 import Flow from "./pages/Flow";
+import SetariEchipa from "./pages/SetariEchipa";
 import { TelnyxProvider } from './contexts/TelnyxContext';
 import IncomingCallBanner from './components/IncomingCallBanner';
 
@@ -65,6 +66,7 @@ export default function App() {
 
                                     <Route path="/statistici-adrese" element={<StatisticiAdrese />} />
                                     <Route path="/setup" element={<OnboardingPage />} />
+                                    <Route path="/echipa" element={<SetariEchipa />} />
                                     <Route path="/verificare-apeluri" element={<VerificareApeluri />} />
                                     <Route path="/drafturi" element={<Drafturi />} />
                                     <Route path="/processed-orders" element={<ProcessedOrders />} />
@@ -301,6 +303,9 @@ function Sidebar() {
 
                         <li><SidebarLink to="/flow" icon="account_tree" label="Flow" collapsed={collapsed} /></li>
                         <li><SidebarLink to="/setup" icon="add_circle" label="Adaugă magazin" collapsed={collapsed} /></li>
+                        {!profile?.parent_id && (
+                            <li><SidebarLink to="/echipa" icon="group" label="Echipa" collapsed={collapsed} /></li>
+                        )}
                     </ul>
                 </div>
                 <div>
