@@ -419,20 +419,28 @@ const Drafturi = () => {
                         const lineItemsWithDiscount = items.map(item => {
                             const qty = item.quantity;
                             const discountArrayStr = productsDiscountMap[item.sku];
-                            let appliedDiscount = 0;
+                            let totalDiscount = 0;
                             if (discountArrayStr && qty > 1) {
                                 const parts = discountArrayStr.split(',').map((n: string) => parseFloat(n.trim()) || 0);
                                 if (parts.length > 0) {
-                                    appliedDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
+                                    totalDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
                                 }
-                                showShopifyNotif(`💰 Discount ${item.title}: discountCode="${discountArrayStr}", qty=${qty}, aplicat=${appliedDiscount}`, 'info');
+                            }
+                            // discountCode conține discount-ul TOTAL pentru linia întreagă
+                            // Shopify aplică FIXED_AMOUNT per bucată, deci trebuie împărțit la qty
+                            const perUnitDiscount = totalDiscount > 0 ? Math.round((totalDiscount / qty) * 100) / 100 : 0;
+                            if (discountArrayStr) {
+                                showShopifyNotif(
+                                    `💰 Discount ${item.title}: code="${discountArrayStr}", qty=${qty}\nTotal discount: ${totalDiscount} lei → Per bucată: ${perUnitDiscount} lei`,
+                                    'info'
+                                );
                             }
                             // NU trimitem price din Supabase (e de obicei 0 — preț custom pe draft).
                             // Server-ul va lua compareAtPrice din varianta Shopify ca preț real.
                             return {
                                 variant_id: item.variant_id,
                                 quantity: qty,
-                                appliedDiscount: appliedDiscount > 0 ? appliedDiscount : undefined,
+                                appliedDiscount: perUnitDiscount > 0 ? perUnitDiscount : undefined,
                             };
                         });
 
