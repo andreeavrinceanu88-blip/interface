@@ -447,20 +447,25 @@ const Drafturi = () => {
                                 }
                             }
                             // discountCode conține discount-ul TOTAL pentru linia întreagă
-                            // Shopify aplică FIXED_AMOUNT per bucată, deci trebuie împărțit la qty
-                            const perUnitDiscount = totalDiscount > 0 ? Math.round((totalDiscount / qty) * 100) / 100 : 0;
+                            const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
+                            const basePrice = parseFloat(item.price) || 0;
+                            let finalPrice = basePrice;
+                            if (basePrice > 0 && perUnitDiscount > 0) {
+                                finalPrice -= perUnitDiscount;
+                                if (finalPrice < 0) finalPrice = 0;
+                            }
+                            
                             if (discountArrayStr) {
                                 showShopifyNotif(
-                                    `💰 Discount ${item.title}: code="${discountArrayStr}", qty=${qty}\nTotal discount: ${totalDiscount} lei → Per bucată: ${perUnitDiscount} lei`,
+                                    `💰 Discount ${item.title}: code="${discountArrayStr}", qty=${qty}\nPreț Bază: ${basePrice}, Discount Per Unitate: ${perUnitDiscount.toFixed(2)} → Preț Final: ${finalPrice.toFixed(2)}`,
                                     'info'
                                 );
                             }
-                            // NU trimitem price din Supabase (e de obicei 0 — preț custom pe draft).
-                            // Server-ul va lua compareAtPrice din varianta Shopify ca preț real.
+
                             return {
                                 variant_id: item.variant_id,
                                 quantity: qty,
-                                appliedDiscount: perUnitDiscount > 0 ? perUnitDiscount : undefined,
+                                price: finalPrice > 0 ? finalPrice.toFixed(2) : undefined
                             };
                         });
 
@@ -1195,10 +1200,18 @@ const Drafturi = () => {
                                                                         discountAmount = totalDiscount / qty;
                                                                     }
                                                                 }
+                                                                const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
+                                                                const basePrice = parseFloat(item.price) || 0;
+                                                                let finalPrice = basePrice;
+                                                                if (basePrice > 0 && perUnitDiscount > 0) {
+                                                                    finalPrice -= perUnitDiscount;
+                                                                    if (finalPrice < 0) finalPrice = 0;
+                                                                }
+                                                                
                                                                 return {
                                                                     variant_id: item.variant_id || item.variantId || item.id,
                                                                     quantity: qty,
-                                                                    appliedDiscount: discountAmount > 0 ? discountAmount : undefined
+                                                                    price: finalPrice > 0 ? finalPrice.toFixed(2) : undefined
                                                                 };
                                                             });
                                                             

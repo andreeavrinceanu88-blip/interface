@@ -612,10 +612,14 @@ export default async function handler(req, res) {
                 }
                 
                 // Determine the correct price to use:
-                // Priority: compareAtPrice > variant price > item.price (from client)
-                // This handles products with catalog price=0 and compareAtPrice=real price
+                // Priority: item.price (from client) > compareAtPrice > variant price
+                // This ensures we respect the exact forced price calculated by the frontend (including discounts)
                 let resolvedPrice = null;
-                if (variantGid && variantPrices[variantGid]) {
+                
+                if (item.price !== undefined && item.price !== null) {
+                    resolvedPrice = parseFloat(item.price).toString();
+                    console.log(`[shopify-sync] Using client-provided forced price=${resolvedPrice} for variant ${variantGid}`);
+                } else if (variantGid && variantPrices[variantGid]) {
                     const vp = variantPrices[variantGid];
                     if (vp.compareAtPrice && parseFloat(vp.compareAtPrice) > 0) {
                         resolvedPrice = vp.compareAtPrice;
@@ -627,21 +631,10 @@ export default async function handler(req, res) {
                         console.log(`[shopify-sync] WARNING: Both price (${vp.price}) and compareAtPrice (${vp.compareAtPrice}) are 0 or null for ${vp.title}`);
                     }
                 }
-                
-                // Fallback to client-provided price if it's > 0
-                if (!resolvedPrice && item.price && parseFloat(item.price) > 0) {
-                    resolvedPrice = item.price.toString();
-                    console.log(`[shopify-sync] Using client-provided price=${resolvedPrice} for variant ${variantGid}`);
-                }
 
-                if (resolvedPrice) {
+                if (resolvedPrice !== null) {
                     let finalPrice = parseFloat(resolvedPrice);
-                    // Subtract discount directly from the unit price instead of applying it as a separate discount line
-                    if (item.appliedDiscount && parseFloat(item.appliedDiscount) > 0) {
-                        finalPrice -= parseFloat(item.appliedDiscount);
-                        if (finalPrice < 0) finalPrice = 0;
-                        console.log(`[shopify-sync] Applied discount directly to unit price: ${resolvedPrice} -> ${finalPrice}`);
-                    }
+                    if (finalPrice < 0) finalPrice = 0;
                     lineItem.originalUnitPrice = finalPrice.toFixed(2);
                 } else {
                     console.log(`[shopify-sync] WARNING: No price resolved for variant ${variantGid}, Shopify will use variant catalog price`);
