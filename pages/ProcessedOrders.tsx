@@ -42,12 +42,13 @@ export default function ProcessedOrders() {
     }, [userStores, selectedBrand]);
 
     useEffect(() => {
-        if (!profile?.id || !selectedBrand) return;
+        if (!profile?.effectiveUserId || !selectedBrand) return;
         
         setLoading(true);
         supabaseAdmin
             .from('orders')
             .select('*')
+            .eq('user_id', profile.effectiveUserId)
             .ilike('store_name', selectedBrand)
             .then(({ data, error }) => {
                 console.log('ProcessedOrders fetch:', { data, error, selectedBrand });

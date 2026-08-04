@@ -109,7 +109,7 @@ export default function StatisticiAdrese() {
     }, []);
 
     const fetchOrders = useCallback(async () => {
-        if (!selectedBrand || !profile?.id) return;
+        if (!selectedBrand || !profile?.effectiveUserId) return;
         setLoadingData(true);
         try {
             const endOfDay = endDate + 'T23:59:59';
@@ -128,7 +128,7 @@ export default function StatisticiAdrese() {
         } finally {
             setLoadingData(false);
         }
-    }, [selectedBrand, startDate, endDate, profile?.id]);
+    }, [selectedBrand, startDate, endDate, profile?.effectiveUserId]);
 
     useEffect(() => {
         fetchOrders();

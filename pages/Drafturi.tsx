@@ -299,7 +299,7 @@ const Drafturi = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedBrand, startDate, endDate, profile?.id]);
+    }, [selectedBrand, startDate, endDate, profile?.effectiveUserId]);
 
     useEffect(() => { loadOrders(); }, [loadOrders]);
 

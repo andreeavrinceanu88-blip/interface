@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const Index = () => {
     const { profile, loading: authLoading } = useAuth();
-    const userId = profile?.id || '';
+    const userId = profile?.effectiveUserId || '';
     const userStores = profile?.stores || [];
     
     const [selectedBrand, setSelectedBrand] = useState<string>('');

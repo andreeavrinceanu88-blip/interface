@@ -85,10 +85,7 @@ async function fetchMetricsHistory(userId: string, storeName: string, days: numb
   }
 }
 
-export function useDashboardMetrics({ storeName }: UseDashboardMetricsProps = {}) {
-  const { profile } = useAuth();
-  const userId = profile?.effectiveUserId; // Use effectiveUserId for Workspace sharing
-
+export const useDashboardMetrics = (userId: string, storeName: string) => {
   const latestQuery = useQuery({
     queryKey: queryKeys.dashboard.latest(userId!, storeName!),
     queryFn: () => fetchLatestMetrics(userId!, storeName!),

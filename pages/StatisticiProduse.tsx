@@ -42,12 +42,13 @@ export default function StatisticiProduse() {
     }, [userStores, selectedBrand]);
 
     useEffect(() => {
-        if (!profile?.id || !selectedBrand) return;
+        if (!profile?.effectiveUserId || !selectedBrand) return;
         
         setLoading(true);
         supabaseAdmin
             .from('products')
             .select('*')
+            .eq('user_id', profile.effectiveUserId)
             .ilike('store', selectedBrand)
             .then(({ data, error }) => {
                 console.log('StatisticiProduse fetch:', { data, error, selectedBrand, profileId: profile.id });
