@@ -467,6 +467,8 @@ const Drafturi = () => {
                             return {
                                 variant_id: item.variant_id,
                                 quantity: qty,
+                                title: item.title,
+                                sku: item.sku,
                                 price: item.price,
                                 appliedDiscount: perUnitDiscount > 0 ? perUnitDiscount : undefined
                             };
@@ -1261,6 +1263,8 @@ const Drafturi = () => {
                                                                 return {
                                                                     variant_id: item.variant_id || item.variantId || item.id,
                                                                     quantity: qty,
+                                                                    title: item.title,
+                                                                    sku: item.sku,
                                                                     price: item.price,
                                                                     appliedDiscount: perUnitDiscount > 0 ? perUnitDiscount : undefined
                                                                 };

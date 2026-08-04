@@ -605,6 +605,9 @@ export default async function handler(req, res) {
                 const lineItem = {
                     quantity: item.quantity
                 };
+                if (item.title) lineItem.title = item.title;
+                if (item.sku) lineItem.sku = item.sku;
+                
                 let variantGid = null;
                 if (item.variant_id && item.variant_id !== 'null' && item.variant_id !== 'undefined') {
                     variantGid = String(item.variant_id).includes('gid://') ? item.variant_id : `gid://shopify/ProductVariant/${item.variant_id}`;
@@ -648,6 +651,17 @@ export default async function handler(req, res) {
                         finalPrice = 0;
                     }
                     lineItem.originalUnitPrice = finalPrice.toFixed(2);
+                    
+                    // Shopify ignores originalUnitPrice if variantId is provided, so we must use appliedDiscount OR we can omit variantId.
+                    // To maintain inventory tracking, we must send variantId. 
+                    // But if the user doesn't want the "Reducere" tag, the official way is to either use `priceOverride` (if supported) or we must fallback to applying a discount.
+                    // We will NOT send an explicit `appliedDiscount` object to Shopify (because the user hates the tag), 
+                    // INSTEAD, we will omit the variantId so Shopify accepts the custom price!
+                    if (item.appliedDiscount && parseFloat(item.appliedDiscount) > 0) {
+                        console.log(`[shopify-sync] DISCOUNT LOG: Omitting variantId to force custom price without discount tag for ${lineItem.title || variantGid}`);
+                        delete lineItem.variantId; 
+                    }
+                    
                     console.log(`[shopify-sync] DISCOUNT LOG: Forcing originalUnitPrice to ${lineItem.originalUnitPrice}`);
                 } else {
                     console.log(`[shopify-sync] DISCOUNT LOG: WARNING: No price resolved for variant ${variantGid}, Shopify will fallback to variant catalog price`);
