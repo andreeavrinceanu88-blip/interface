@@ -415,7 +415,9 @@ const Drafturi = () => {
                             return {
                                 variant_id: item.variant_id,
                                 quantity: qty,
-                                price: item.price,
+                                // Nu trimitem price — lăsăm Shopify să folosească prețul standard al variantei.
+                                // Prețul din draft (item.price) poate fi un preț custom (ex: 1 leu) setat manual pe draft
+                                // și nu trebuie să suprascrie prețul de catalog.
                                 appliedDiscount: appliedDiscount > 0 ? appliedDiscount : undefined,
                             };
                         });
