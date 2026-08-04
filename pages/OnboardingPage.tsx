@@ -78,7 +78,7 @@ export default function OnboardingPage() {
             const { error: metricsErr } = await supabase
                 .from('call_metrics')
                 .insert({
-                    user_id: profile.id,
+                    user_id: profile.effectiveUserId,
                     store_name: nickname,
                     total_apeluri: 0,
                     apeluri_initiate: 0,

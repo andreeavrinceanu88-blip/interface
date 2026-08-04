@@ -252,6 +252,7 @@ const Drafturi = () => {
             const { data, error: qErr } = await supabaseAdmin
                 .from('orders')
                 .select('*')
+                .eq('user_id', profile?.effectiveUserId)
                 .ilike('store_name', selectedBrand)
                 .gte('created_at', startDate + 'T00:00:00')
                 .lte('created_at', endOfDay)
@@ -264,7 +265,7 @@ const Drafturi = () => {
                 .from('products')
                 .select('sku, discountCode, transport_1_bucata, transport_2_bucati, transport_3_bucati, transport_4_bucati, transport_5_bucati')
                 .eq('store', selectedBrand)
-                .eq('user_id', profile?.id);
+                .eq('user_id', profile?.effectiveUserId);
                 
             const pMap: Record<string, string> = {};
             const tMap: Record<string, (string | null)[]> = {};

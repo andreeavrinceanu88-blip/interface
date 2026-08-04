@@ -5,6 +5,8 @@ import { getProfile } from '../services/api';
 
 export interface UserProfile {
   id: string; 
+  parent_id?: string | null;
+  effectiveUserId: string; // The ID to use for fetching data (parent_id if exists, else id)
   role: 'admin' | 'user';
   full_name?: string | null;
   avatar_url?: string | null;
@@ -38,8 +40,11 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
       // We don't block the UI for this fetch anymore
       const profileData = await getProfile(authUserId);
       if (profileData) {
+        const parentId = profileData.parent_id;
         setProfile({
           id: profileData.id, 
+          parent_id: parentId,
+          effectiveUserId: parentId || profileData.id,
           email: email,
           role: (profileData.role as 'admin' | 'user') ?? 'user',
           full_name: profileData.full_name,
@@ -48,12 +53,12 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
         });
         console.log('✅ [AuthContext] Profile loaded.');
       } else {
-        setProfile({ id: authUserId, email, role: 'user', stores: [] });
+        setProfile({ id: authUserId, effectiveUserId: authUserId, email, role: 'user', stores: [] });
       }
     } catch (error) {
       console.error('❌ [AuthContext] Profile fetch error:', error);
       // Fallback to basic profile so UI doesn't break
-      setProfile({ id: authUserId, email, role: 'user', stores: [] });
+      setProfile({ id: authUserId, effectiveUserId: authUserId, email, role: 'user', stores: [] });
     }
   };
 

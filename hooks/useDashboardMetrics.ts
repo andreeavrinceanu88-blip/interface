@@ -1,6 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabaseAdmin } from '../lib/supabaseClient';
 import { queryKeys } from '../lib/queryClient';
+import { useAuth } from '../contexts/AuthContext';
+
+export interface UseDashboardMetricsProps {
+  storeName?: string;
+}
 
 export interface CallMetrics {
   id: number;
@@ -80,10 +85,13 @@ async function fetchMetricsHistory(userId: string, storeName: string, days: numb
   }
 }
 
-export const useDashboardMetrics = (userId: string, storeName: string) => {
+export function useDashboardMetrics({ storeName }: UseDashboardMetricsProps = {}) {
+  const { profile } = useAuth();
+  const userId = profile?.effectiveUserId; // Use effectiveUserId for Workspace sharing
+
   const latestQuery = useQuery({
-    queryKey: queryKeys.dashboard.latest(userId, storeName),
-    queryFn: () => fetchLatestMetrics(userId, storeName),
+    queryKey: queryKeys.dashboard.latest(userId!, storeName!),
+    queryFn: () => fetchLatestMetrics(userId!, storeName!),
     enabled: !!userId && !!storeName,
     staleTime: 30_000, 
     retry: 1, 

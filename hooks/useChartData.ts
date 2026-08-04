@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabaseAdmin } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 export type ChartPeriod = 'day' | 'week' | 'month';
 

@@ -239,7 +239,7 @@ function Header({ userEmail }: { userEmail?: string }) {
 }
 
 function Sidebar() {
-    const { session, signOut } = useAuth();
+    const { session, profile, signOut } = useAuth();
     const userEmail = session?.user?.email;
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
@@ -268,6 +268,8 @@ function Sidebar() {
     );
 
     const collapsed = !isHovered;
+    const isSubAccount = profile?.parent_id ? true : false;
+    const displayRole = isSubAccount ? 'Team Member' : (profile?.role === 'admin' ? 'Admin' : 'Owner');
 
     return (
         <aside
@@ -316,16 +318,22 @@ function Sidebar() {
             <div className="border-t border-gray-200 dark:border-gray-800 p-2 shrink-0">
                 <div className="flex items-center gap-3 p-2 rounded-xl glass-panel-3d overflow-hidden">
                     <div className="relative flex-shrink-0">
-                        <img
-                            alt="User Profile"
-                            className="w-9 h-9 rounded-full ring-2 ring-cyan-500/50 shadow-lg"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBU74HU2GRRRCYR-y4C1o61_xlf-GzgQpiMNTsr3T3-zTKJvGn7N3WilTiZKPnPS_5A_Br7ktYW-DlTNeX9zU5rGJSDSh8g5Z-Qp2Fk_CPVxEYAq4wiZbjIIgViNUU8XHUi67qBn09PAjmrocgGdbNKg9e8rR1vQ6ht3YUPh5sP9DOyuxBRmzpgiJN28BA9jOm-jgx7ldZI1RocbOo5bhIkHaQIEQcSRJ2XovxY079dty-_nwbSz-VMbWbo4Uo3vOJ7V8BnBEo-cT_z"
-                        />
+                        {profile?.avatar_url ? (
+                            <img
+                                alt="User Profile"
+                                className="w-9 h-9 rounded-full ring-2 ring-cyan-500/50 shadow-lg object-cover"
+                                src={profile.avatar_url}
+                            />
+                        ) : (
+                            <div className="w-9 h-9 rounded-full ring-2 ring-cyan-500/50 shadow-lg bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-white font-bold text-sm">
+                                {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : userEmail?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                        )}
                         <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#161822] rounded-full"></div>
                     </div>
                     <div className={`flex-1 min-w-0 overflow-hidden transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${collapsed ? 'max-w-0 opacity-0' : 'max-w-[120px] opacity-100'}`}>
-                        <p className="text-sm font-normal text-gray-900 dark:text-white truncate">{userEmail || 'Admin'}</p>
-                        <p className="text-xs text-gray-500 truncate font-light">Online</p>
+                        <p className="text-sm font-normal text-gray-900 dark:text-white truncate">{profile?.full_name || userEmail || 'Utilizator'}</p>
+                        <p className={`text-xs truncate font-medium ${isSubAccount ? 'text-amber-400' : 'text-cyan-400'}`}>{displayRole}</p>
                     </div>
                     <button
                         onClick={handleLogout}

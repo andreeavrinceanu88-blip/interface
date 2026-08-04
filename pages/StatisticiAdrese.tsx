@@ -117,7 +117,7 @@ export default function StatisticiAdrese() {
                 .from('orders')
                 .select('id, judet, oras')
                 .ilike('store_name', selectedBrand)
-                .eq('user_id', profile.id)
+                .eq('user_id', profile.effectiveUserId)
                 .gte('created_at', startDate + 'T00:00:00')
                 .lte('created_at', endOfDay);
 

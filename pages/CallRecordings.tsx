@@ -8,7 +8,7 @@ export default function CallRecordings() {
     const { profile, loading: authLoading } = useAuth();
 
     // Explicitly derive ID and Stores
-    const userId = profile?.id || '';
+    const userId = profile?.effectiveUserId || '';
     const userStores = profile?.stores || [];
 
     const [selectedBrand, setSelectedBrand] = useState<string>('');
