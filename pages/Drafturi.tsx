@@ -753,12 +753,12 @@ const Drafturi = () => {
                     {/* Status indicator */}
                     <div className="flex items-center gap-3 mr-4">
                         {isReady ? (
-                            <div className="flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-500/30">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Online
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20 uppercase tracking-wider">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ON
                             </div>
                         ) : (
-                            <div className="flex items-center gap-2 text-xs font-medium text-red-400 bg-red-500/20 px-3 py-1.5 rounded-full border border-red-500/30">
-                                <span className="w-2 h-2 rounded-full bg-red-500"></span> Offline
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20 uppercase tracking-wider">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> OFF
                             </div>
                         )}
                     </div>
@@ -877,9 +877,9 @@ const Drafturi = () => {
 
                                 {/* Main Action buttons */}
                                 <div className="flex gap-4">
-                                    <button onClick={() => callClient(selectedOrder.phone_number)} className="flex-1 flex items-center justify-center gap-2 btn-3d-primary py-3.5 rounded-xl transition-all shadow-[0_4px_14px_rgba(34,197,94,0.39)] text-[15px]">
-                                        <span className="material-icons-round text-xl">call</span>
-                                        Suna client
+                                    <button onClick={() => callClient(selectedOrder.phone_number)} className="flex-1 flex items-center justify-center gap-1.5 btn-3d-primary py-2 rounded-lg transition-all shadow-[0_2px_8px_rgba(34,197,94,0.15)] text-sm font-medium">
+                                        <span className="material-icons-round text-lg">call</span>
+                                        Sună client
                                     </button>
                                     <button 
                                         onClick={() => {
