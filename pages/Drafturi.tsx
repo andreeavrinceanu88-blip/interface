@@ -1420,6 +1420,14 @@ const Drafturi = () => {
                                         type="text"
                                         value={phoneNumber}
                                         onChange={e => setPhoneNumber(formatDialerNumber(e.target.value))}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                if (phoneNumber && (callState === 'idle' || callState === 'rejected')) {
+                                                    handleCallAction();
+                                                }
+                                            }
+                                        }}
                                         className="w-full bg-transparent border-none outline-none text-center text-3xl font-semibold text-white tracking-normal"
                                         placeholder=" "
                                         autoFocus
