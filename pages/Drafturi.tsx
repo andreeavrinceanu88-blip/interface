@@ -737,14 +737,14 @@ const Drafturi = () => {
 
                     
                     {/* Priority mock */}
-                    <button className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 h-[42px] hover:text-white shadow-sm hidden md:flex">
-                        <span>Sortează: Prioritate</span>
-                        <span className="material-icons-round text-base text-gray-400">arrow_drop_down</span>
+                    <button className="btn-3d-secondary px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 h-[34px] hover:text-white shadow-sm hidden md:flex">
+                        <span>Sortează</span>
+                        <span className="material-icons-round text-sm text-gray-400">arrow_drop_down</span>
                     </button>
                     
                     {/* Filters mock */}
-                    <button className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 h-[42px] hover:text-white shadow-sm hidden md:flex">
-                        <span className="material-icons-round text-base text-indigo-500">filter_list</span>
+                    <button className="btn-3d-secondary px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 h-[34px] hover:text-white shadow-sm hidden md:flex">
+                        <span className="material-icons-round text-sm text-indigo-500">filter_list</span>
                         Filtre
                     </button>
                 </div>
