@@ -152,6 +152,7 @@ const Drafturi = () => {
     const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [searchInput, setSearchInput] = useState('');
     const [activeSearch, setActiveSearch] = useState('');
+    const [displayLimit, setDisplayLimit] = useState(50);
 
     // ── Data
     const [orders, setOrders] = useState<Order[]>([]);
@@ -335,6 +336,13 @@ const Drafturi = () => {
             o.client_personal_id?.includes(activeSearch)
         )
         : tabOrders;
+
+    const displayedOrders = filteredOrders.slice(0, displayLimit);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setDisplayLimit(50);
+    }, [activeTab, activeSearch, selectedBrand, viewMode, draftStatus]);
 
     // ── Selected order
     const selectedOrder = orders.find(o => o.id === selectedId) || null;
@@ -867,28 +875,38 @@ const Drafturi = () => {
                                 <span className="text-sm">Nicio comandă aici.</span>
                             </div>
                         ) : (
-                            filteredOrders.map(order => (
-                                <button
-                                    key={order.id}
-                                    onClick={() => { setSelectedId(order.id); setNoteText(order.notes || ''); }}
-                                    className={`w-full text-left p-4 rounded-xl border-2 transition-all shadow-sm relative ${selectedId === order.id ? 'border-indigo-400 bg-indigo-500/10' : 'border-transparent bg-[#13141a] hover:border-white/10'}`}
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className="text-xs font-semibold text-gray-400">#{order.id} <span className="font-normal ml-1 text-gray-400">{fmtDate(order.created_at).split(',')[0]}</span></span>
-                                        {(!order.cerere_adresa || order.cerere_adresa.trim() === '' || order.cerere_adresa.trim() === '-') ? (
-                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-400 tracking-wide border border-emerald-500/30" title="Adresă corectă">ADRESĂ OK</span>
-                                        ) : (
-                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-red-500/20 text-red-400 tracking-wide border border-red-500/30" title={`Adresă greșită: ${order.cerere_adresa}`}>ADRESĂ GREȘITĂ</span>
-                                        )}
-                                    </div>
-                                    <div className="flex justify-between items-center mb-1.5">
-                                        <p className="text-base font-bold text-white leading-tight truncate pr-2">{order.name || 'Client Nou'}</p>
-                                        <span className="text-base font-bold text-white shrink-0">{money(order.value)}</span>
-                                    </div>
-                                    <p className="text-sm text-gray-500 font-medium mb-1">{formatPhoneNumber(order.phone_number)}</p>
-                                    {order.produse && <p className="text-sm text-indigo-400 font-medium truncate">{produseDisplayText(order.produse)}</p>}
-                                </button>
-                            ))
+                            <>
+                                {displayedOrders.map(order => (
+                                    <button
+                                        key={order.id}
+                                        onClick={() => { setSelectedId(order.id); setNoteText(order.notes || ''); }}
+                                        className={`w-full text-left p-4 rounded-xl border-2 transition-all shadow-sm relative ${selectedId === order.id ? 'border-indigo-400 bg-indigo-500/10' : 'border-transparent bg-[#13141a] hover:border-white/10'}`}
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="text-xs font-semibold text-gray-400">#{order.id} <span className="font-normal ml-1 text-gray-400">{fmtDate(order.created_at).split(',')[0]}</span></span>
+                                            {(!order.cerere_adresa || order.cerere_adresa.trim() === '' || order.cerere_adresa.trim() === '-') ? (
+                                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-400 tracking-wide border border-emerald-500/30" title="Adresă corectă">ADRESĂ OK</span>
+                                            ) : (
+                                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-red-500/20 text-red-400 tracking-wide border border-red-500/30" title={`Adresă greșită: ${order.cerere_adresa}`}>ADRESĂ GREȘITĂ</span>
+                                            )}
+                                        </div>
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <p className="text-base font-bold text-white leading-tight truncate pr-2">{order.name || 'Client Nou'}</p>
+                                            <span className="text-base font-bold text-white shrink-0">{money(order.value)}</span>
+                                        </div>
+                                        <p className="text-sm text-gray-500 font-medium mb-1">{formatPhoneNumber(order.phone_number)}</p>
+                                        {order.produse && <p className="text-sm text-indigo-400 font-medium truncate">{produseDisplayText(order.produse)}</p>}
+                                    </button>
+                                ))}
+                                {filteredOrders.length > displayLimit && (
+                                    <button 
+                                        onClick={() => setDisplayLimit(prev => prev + 50)}
+                                        className="w-full py-3 mt-2 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition-colors text-sm font-semibold"
+                                    >
+                                        Afișează mai multe ({filteredOrders.length - displayLimit} rămase)
+                                    </button>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
