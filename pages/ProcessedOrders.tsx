@@ -48,7 +48,6 @@ export default function ProcessedOrders() {
         supabaseAdmin
             .from('orders')
             .select('*')
-            .eq('user_id', profile.effectiveUserId)
             .ilike('store_name', selectedBrand)
             .then(({ data, error }) => {
                 console.log('ProcessedOrders fetch:', { data, error, selectedBrand });

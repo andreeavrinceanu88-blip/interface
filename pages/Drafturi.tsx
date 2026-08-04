@@ -252,7 +252,6 @@ const Drafturi = () => {
             const { data, error: qErr } = await supabaseAdmin
                 .from('orders')
                 .select('*')
-                .eq('user_id', profile?.effectiveUserId)
                 .ilike('store_name', selectedBrand)
                 .gte('created_at', startDate + 'T00:00:00')
                 .lte('created_at', endOfDay)
