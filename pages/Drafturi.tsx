@@ -1171,11 +1171,50 @@ const Drafturi = () => {
                                                     onClick={async () => {
                                                         setSavingProducts(true);
                                                         try {
+                                                            // Calculate new total and shipping
+                                                            let newProductTotal = 0;
+                                                            let newShippingCost = 0;
+                                                            
+                                                            editedProductsList.forEach((item: any) => {
+                                                                const qty = Number(item.quantity) || 1;
+                                                                const discountArrayStr = productsDiscountMap[item.sku];
+                                                                let totalDiscount = 0;
+                                                                if (discountArrayStr && qty > 1) {
+                                                                    const parts = discountArrayStr.split(',').map(n => parseFloat(n?.toString().trim()) || 0);
+                                                                    if (parts.length > 0) {
+                                                                        totalDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
+                                                                    }
+                                                                }
+                                                                const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
+                                                                const basePrice = parseFloat(item.price) || 0;
+                                                                let finalPrice = basePrice;
+                                                                if (basePrice > 0 && perUnitDiscount > 0) {
+                                                                    finalPrice -= perUnitDiscount;
+                                                                    if (finalPrice < 0) finalPrice = 0;
+                                                                }
+                                                                newProductTotal += finalPrice * qty;
+                                                            });
+
+                                                            if (editedProductsList.length > 0) {
+                                                                const firstItem = editedProductsList[0] as any;
+                                                                const transportArr = productsTransportMap[firstItem.sku];
+                                                                if (transportArr) {
+                                                                    const qtyIdx = Math.min(Math.max(0, (Number(firstItem.quantity) || 1) - 1), transportArr.length - 1);
+                                                                    const transportVal = transportArr[qtyIdx];
+                                                                    const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
+                                                                    if (!isGratuit) {
+                                                                        const parsed = parseFloat(transportVal.replace(',', '.'));
+                                                                        if (!isNaN(parsed) && parsed > 0) newShippingCost = parsed;
+                                                                    }
+                                                                }
+                                                            }
+                                                            
+                                                            const newTotalValue = (newProductTotal + newShippingCost).toFixed(2);
                                                             const newProduse = JSON.stringify(editedProductsList);
                                                             console.log('[Drafturi] Saving to Supabase...', selectedOrder.id);
                                                             
                                                             // Save to Supabase
-                                                            const { error: dbErr } = await buildUpdateQuery({ produse: newProduse }, selectedOrder);
+                                                            const { error: dbErr } = await buildUpdateQuery({ produse: newProduse, value: newTotalValue }, selectedOrder);
                                                             if (dbErr) {
                                                                 console.error('[Drafturi] Supabase error:', dbErr);
                                                                 showToast('Eroare la salvare în baza de date');
@@ -1183,7 +1222,7 @@ const Drafturi = () => {
                                                                 return;
                                                             }
                                                             console.log('[Drafturi] Supabase saved successfully.');
-                                                            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, produse: newProduse } : o));
+                                                            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, produse: newProduse, value: newTotalValue } : o));
                                                             
                                                             // Sync to Shopify
                                                             const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
@@ -1364,10 +1403,22 @@ const Drafturi = () => {
 
                                         {/* Shipping row */}
                                         {(() => {
-                                            const items = parseProduse(selectedOrder.produse);
+                                            const items = editingProducts ? editedProductsList : parseProduse(selectedOrder.produse);
                                             if (items.length === 0) return null;
-                                            const productTotal = items.reduce((sum, it) => sum + parseFloat(it.price) * it.quantity, 0);
-                                            const shippingCost = Math.max(0, (Number(selectedOrder.value) || 0) - productTotal);
+                                            
+                                            let shippingCost = 0;
+                                            const firstItem = items[0];
+                                            const transportArr = productsTransportMap[firstItem.sku];
+                                            if (transportArr) {
+                                                const qtyIdx = Math.min(Math.max(0, (Number(firstItem.quantity) || 1) - 1), transportArr.length - 1);
+                                                const transportVal = transportArr[qtyIdx];
+                                                const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
+                                                if (!isGratuit) {
+                                                    const parsed = parseFloat(transportVal.replace(',', '.'));
+                                                    if (!isNaN(parsed) && parsed > 0) shippingCost = parsed;
+                                                }
+                                            }
+                                            
                                             return (
                                                 <div className="mt-3 flex items-center gap-4 bg-[#1a1b23]/60 rounded-xl p-4 border border-white/5 border-dashed">
                                                     <div className="w-16 h-16 rounded-lg bg-[#13141a] border border-white/5 shrink-0 flex items-center justify-center">
@@ -1389,7 +1440,7 @@ const Drafturi = () => {
                                             const items = editingProducts ? editedProductsList : parseProduse(selectedOrder.produse);
                                             if (items.length === 0) return null;
                                             
-                                            let total = 0;
+                                            let productTotal = 0;
                                             items.forEach(item => {
                                                 const qty = item.quantity;
                                                 const price = parseFloat(item.price);
@@ -1401,19 +1452,27 @@ const Drafturi = () => {
                                                         discountAmount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
                                                     }
                                                 }
-                                                total += (price * qty) - discountAmount;
+                                                productTotal += (price * qty) - discountAmount;
                                             });
 
-                                            // Add shipping cost to total
-                                            const originalItems = parseProduse(selectedOrder.produse);
-                                            const productTotal = originalItems.reduce((sum, it) => sum + parseFloat(it.price) * it.quantity, 0);
-                                            const shippingCost = Math.max(0, (Number(selectedOrder.value) || 0) - productTotal);
+                                            let shippingCost = 0;
+                                            const firstItem = items[0];
+                                            const transportArr = productsTransportMap[firstItem.sku];
+                                            if (transportArr) {
+                                                const qtyIdx = Math.min(Math.max(0, (Number(firstItem.quantity) || 1) - 1), transportArr.length - 1);
+                                                const transportVal = transportArr[qtyIdx];
+                                                const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
+                                                if (!isGratuit) {
+                                                    const parsed = parseFloat(transportVal.replace(',', '.'));
+                                                    if (!isNaN(parsed) && parsed > 0) shippingCost = parsed;
+                                                }
+                                            }
                                             
                                             return (
                                                 <div className="pt-4 mt-4 border-t border-white/5 flex justify-between items-center">
                                                     <span className="font-bold text-white text-sm">Total comandă</span>
                                                     <span className="font-bold text-indigo-400 text-base">
-                                                        {money(total + shippingCost)}
+                                                        {money(productTotal + shippingCost)}
                                                     </span>
                                                 </div>
                                             );
