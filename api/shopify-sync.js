@@ -730,6 +730,30 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, draftOrder: resultDraft });
         }
 
+        // ── ACTION: check-draft-status ──
+        if (action === 'check-draft-status') {
+            const query = `
+                query getDraftOrderStatus($id: ID!) {
+                    draftOrder(id: $id) {
+                        id
+                        name
+                        status
+                    }
+                }
+            `;
+            const gqlRes = await fetch(graphqlUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ query, variables: { id: gid } })
+            });
+            const gqlData = await gqlRes.json();
+            const draftOrder = gqlData?.data?.draftOrder;
+            if (!draftOrder) {
+                return res.status(404).json({ success: false, error: 'Draft order not found in Shopify' });
+            }
+            return res.status(200).json({ success: true, status: draftOrder.status, name: draftOrder.name });
+        }
+
         return res.status(400).json({ error: `Unknown action: ${action}` });
 
     } catch (err) {

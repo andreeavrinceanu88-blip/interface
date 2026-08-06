@@ -236,3 +236,26 @@ export async function updateShopifyLineItemsBulk(storeName: string, orderId: num
         return null;
     }
 }
+
+export async function checkDraftStatus(storeName: string, orderId: string): Promise<{ status: string; name: string } | null> {
+    try {
+        const res = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'check-draft-status',
+                storeName,
+                orderId,
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            return { status: data.status, name: data.name };
+        }
+        console.error('Failed to check draft status:', data);
+        return null;
+    } catch (err) {
+        console.error('Error in checkDraftStatus:', err);
+        return null;
+    }
+}

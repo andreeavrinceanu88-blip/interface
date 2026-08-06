@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTelnyx } from '../contexts/TelnyxContext';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
-import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages, getAllProducts, updateShopifyLineItemsBulk } from '../services/shopify';
+import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages, getAllProducts, updateShopifyLineItemsBulk, checkDraftStatus } from '../services/shopify';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CallStatus = 'ON' | 'OFF';
@@ -174,6 +174,7 @@ const Drafturi = () => {
     const [productsTransportMap, setProductsTransportMap] = useState<Record<string, (string | null)[]>>({});
     const [shopifyNotifs, setShopifyNotifs] = useState<{ id: number; msg: string; type: 'success' | 'error' | 'info' }[]>([]);
     const notifIdRef = useRef(0);
+    const [syncingStatus, setSyncingStatus] = useState(false);
 
     // ── Product editing
     const [editingProducts, setEditingProducts] = useState(false);
@@ -382,6 +383,34 @@ const Drafturi = () => {
     useEffect(() => {
         if (selectedOrder) setNoteText(selectedOrder.notes || '');
     }, [selectedId]);
+
+    const handleSyncDraftsStatus = async () => {
+        if (displayedOrders.length === 0) return;
+        setSyncingStatus(true);
+        let updatedCount = 0;
+        
+        for (const order of displayedOrders) {
+            if (order.type !== 'draft') continue;
+            
+            const shopifyId = order.order_id || order.id.toString();
+            const storeName = order.store_name || selectedBrand || 'Tamtrend';
+            
+            const result = await checkDraftStatus(storeName, shopifyId);
+            if (result && result.status === 'COMPLETED') {
+                const updatePayload: any = { status: 'confirmat', order_state: 'completed' };
+                const { error: dbErr } = await buildUpdateQuery(updatePayload, order);
+                if (!dbErr) {
+                    updatedCount++;
+                    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...updatePayload } : o));
+                } else {
+                    console.error('[Sync] Error updating order in DB:', dbErr);
+                }
+            }
+        }
+        
+        setSyncingStatus(false);
+        showToast(updatedCount > 0 ? `Sincronizare completă: ${updatedCount} actualizate.` : 'Sincronizare completă: nu au fost găsite draft-uri completate.');
+    };
 
     const updateStatus = async (orderId: number, newStatus: string) => {
         if (editingAddressId === orderId) {
@@ -859,12 +888,20 @@ const Drafturi = () => {
                         })}
                     </div>
 
-                    {/* Search */}
-                    <div className="p-3 border-b border-white/5 bg-[#1a1b23]">
-                         <div className="relative">
+                    {/* Search & Sync */}
+                    <div className="p-3 border-b border-white/5 bg-[#1a1b23] flex items-center justify-between gap-2">
+                         <div className="relative flex-1">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons-round text-gray-400" style={{fontSize:'18px'}}>search</span>
                             <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && setActiveSearch(searchInput)} placeholder="Caută..." className="w-full pl-9 pr-4 py-2 bg-[#13141a] border border-white/5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-white" />
                         </div>
+                        <button
+                            onClick={handleSyncDraftsStatus}
+                            disabled={syncingStatus || displayedOrders.length === 0}
+                            title="Sincronizează statusul draft-urilor curente cu Shopify"
+                            className={`p-2 rounded-lg flex items-center justify-center transition-all ${syncingStatus ? 'bg-indigo-500/20 text-indigo-400 opacity-50 cursor-not-allowed' : 'bg-[#13141a] text-gray-400 hover:text-white hover:bg-white/10 border border-white/5'}`}
+                        >
+                            <span className={`material-icons-round ${syncingStatus ? 'animate-spin' : ''}`} style={{fontSize: '20px'}}>sync</span>
+                        </button>
                     </div>
 
                     {/* List */}
