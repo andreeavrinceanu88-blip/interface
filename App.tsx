@@ -18,6 +18,7 @@ import Drafturi from "./pages/Drafturi";
 import ProcessedOrders from "./pages/ProcessedOrders";
 import Flow from "./pages/Flow";
 import SetariCont from "./pages/SetariCont";
+import Operatori from "./pages/Operatori";
 import { TelnyxProvider } from './contexts/TelnyxContext';
 import IncomingCallBanner from './components/IncomingCallBanner';
 
@@ -67,6 +68,7 @@ export default function App() {
                                     <Route path="/statistici-adrese" element={<StatisticiAdrese />} />
                                     <Route path="/setup" element={<OnboardingPage />} />
                                     <Route path="/setari" element={<SetariCont />} />
+                                    <Route path="/operatori" element={<Operatori />} />
                                     <Route path="/verificare-apeluri" element={<VerificareApeluri />} />
                                     <Route path="/drafturi" element={<Drafturi />} />
                                     <Route path="/processed-orders" element={<ProcessedOrders />} />
@@ -302,6 +304,9 @@ function Sidebar() {
                         <li><SidebarLink to="/drafturi" icon="edit" label="Draft" collapsed={collapsed} /></li>
 
                         <li><SidebarLink to="/flow" icon="account_tree" label="Flow" collapsed={collapsed} /></li>
+                        {userEmail === 'contact@whimlets.com' && (
+                            <li><SidebarLink to="/operatori" icon="support_agent" label="Operatori" collapsed={collapsed} /></li>
+                        )}
                         <li><SidebarLink to="/setup" icon="add_circle" label="Adaugă magazin" collapsed={collapsed} /></li>
                     </ul>
                 </div>
