@@ -1,20 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
 
-const envContent = fs.readFileSync('.env', 'utf-16le');
-let url = '', key = '';
-envContent.split('\n').forEach(line => {
-    if (line.includes('VITE_SUPABASE_URL')) url = line.split('=')[1].trim();
-    if (line.includes('VITE_SUPABASE_SERVICE_ROLE_KEY')) key = line.split('=')[1].trim();
-    if (line.includes('V I T E _ S U P A B A S E _ U R L')) url = line.replace(/\s/g, '').split('=')[1].trim();
-    if (line.includes('V I T E _ S U P A B A S E _ S E R V I C E _ R O L E _ K E Y')) key = line.replace(/\s/g, '').split('=')[1].trim();
-});
+const supabaseUrl = 'https://gehpoyxsqvjfwhzuulby.supabase.co';
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlaHBveXhzcXZqZndoenV1bGJ5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDA3MTYzMiwiZXhwIjoyMDk1NjQ3NjMyfQ.LxV5goMVAMcnwbNW965pd7Zq99g8wjLeydLHW_7qbRM';
 
-const supabase = createClient(url, key);
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function run() {
-    // Just select 1 row from profiles
     const { data, error } = await supabase.from('profiles').select('*').limit(1);
-    console.log(error || data);
+    console.log(error || "Columns: " + Object.keys(data[0] || {}).join(', '));
 }
 run();

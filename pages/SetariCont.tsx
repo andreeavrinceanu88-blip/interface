@@ -76,7 +76,6 @@ export default function SetariCont() {
                     id: newUserId,
                     full_name: fullName,
                     role: 'user',
-                    parent_id: profile!.id,
                     stores: profile!.stores ? profile!.stores.join(',') : ''
                 });
 
