@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from './AuthContext';
 
 export type CallState = 'idle' | 'calling' | 'active' | 'ringing' | 'rejected';
 
@@ -15,7 +16,7 @@ interface TelnyxContextType {
     activeCall: any;
     incomingCall: any;
     incomingCallerInfo: CallerInfo | null;
-    makeCall: (destination: string, callerId?: string) => void;
+    makeCall: (destination: string, callerId?: string, orderId?: string) => void;
     hangup: () => void;
     answerIncoming: () => void;
     rejectIncoming: () => void;
@@ -27,6 +28,7 @@ interface TelnyxContextType {
 const TelnyxContext = createContext<TelnyxContextType | null>(null);
 
 export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
+    const { profile } = useAuth();
     const [isReady, setIsReady] = useState(false);
     const [callState, setCallState] = useState<CallState>('idle');
     const [activeCall, setActiveCall] = useState<any>(null);
@@ -39,6 +41,13 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const incomingRingtoneRef = useRef<HTMLAudioElement | null>(null);
     const ringbackOscRef = useRef<any>(null);
     const audioCtxRef = useRef<any>(null);
+    const profileRef = useRef(profile);
+    const activeOrderIdRef = useRef<string | null>(null);
+    const callStartTimeRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        profileRef.current = profile;
+    }, [profile]);
 
     const playRingback = () => {
         try {
@@ -176,6 +185,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         setActiveCall(call);
                         setIncomingCall(null);
                         
+                        // Set start time for duration tracking
+                        if (callStartTimeRef.current === null) {
+                            callStartTimeRef.current = Date.now();
+                        }
+                        
                         if (audioRef.current && call.remoteStream) {
                             audioRef.current.srcObject = call.remoteStream;
                             audioRef.current.play().catch(console.error);
@@ -186,6 +200,25 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         stopIncomingRingtone();
                         if (audioRef.current) audioRef.current.srcObject = null;
                         
+                        // Save call log if it was active
+                        if (callStartTimeRef.current && activeOrderIdRef.current && profileRef.current?.id) {
+                            const duration = Math.round((Date.now() - callStartTimeRef.current) / 1000);
+                            if (duration > 0) {
+                                supabase.from('call_logs').insert({
+                                    operator_id: profileRef.current.id,
+                                    order_id: activeOrderIdRef.current,
+                                    duration_secs: duration,
+                                    status: 'completed'
+                                }).then(({error}) => {
+                                    if (error) console.error('[Telnyx] Error saving call log:', error);
+                                    else console.log('[Telnyx] Call log saved, duration:', duration);
+                                });
+                            }
+                        }
+                        // Reset refs
+                        callStartTimeRef.current = null;
+                        activeOrderIdRef.current = null;
+
                         setCallState(prev => {
                             if (prev === 'calling') {
                                 playRejectedBeeps();
@@ -218,11 +251,14 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         };
     }, []);
 
-    const makeCall = (destination: string, callerId?: string) => {
+    const makeCall = (destination: string, callerId?: string, orderId?: string) => {
         if (!clientRef.current) return;
         
         // Start synthetic ringback immediately on click to satisfy AudioContext user gesture requirements
         playRingback();
+        
+        activeOrderIdRef.current = orderId || null;
+        callStartTimeRef.current = null; // Reset on new call
         
         const call = clientRef.current.newCall({
             destinationNumber: destination,

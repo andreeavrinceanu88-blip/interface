@@ -397,7 +397,7 @@ const Drafturi = () => {
             
             const result = await checkDraftStatus(storeName, shopifyId);
             if (result && result.status === 'COMPLETED') {
-                const updatePayload: any = { status: 'confirmat', order_state: 'completed' };
+                const updatePayload: any = { status: 'confirmat', order_state: 'completed', processed_by: profile?.id };
                 const { error: dbErr } = await buildUpdateQuery(updatePayload, order);
                 if (!dbErr) {
                     updatedCount++;
@@ -419,7 +419,7 @@ const Drafturi = () => {
         setUpdatingStatus(true);
         // If confirming a draft, also mark order_state as 'completed'
         const orderToUpdate = orders.find(o => o.id === orderId);
-        const updatePayload: any = { status: newStatus };
+        const updatePayload: any = { status: newStatus, processed_by: profile?.id };
         if (newStatus === 'confirmat' && orderToUpdate?.type === 'draft') {
             updatePayload.order_state = 'completed';
         }
@@ -670,7 +670,8 @@ const Drafturi = () => {
                 if (selectedBrand.toLowerCase() === 'tamtrend') callerId = '+40775393060';
             }
             const cleanDestination = phoneNumber.replace(/\s/g, '');
-            makeCall(cleanDestination, callerId);
+            const orderIdStr = selectedId ? selectedId.toString() : undefined;
+            makeCall(cleanDestination, callerId, orderIdStr);
         } else {
             hangup();
         }
