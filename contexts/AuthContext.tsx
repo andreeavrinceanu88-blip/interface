@@ -40,11 +40,14 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
       // We don't block the UI for this fetch anymore
       const profileData = await getProfile(authUserId);
       if (profileData) {
-        const parentId = profileData.parent_id;
+        // Since we don't have parent_id in schema, we hardcode the owner ID for operators for now
+        const OWNER_ID = 'c5c39d1f-3b13-4009-986c-5cd24c3fab00';
+        const isOwner = email === 'contact@whimlets.com';
+        
         setProfile({
           id: profileData.id, 
-          parent_id: parentId,
-          effectiveUserId: parentId || profileData.id,
+          parent_id: isOwner ? null : OWNER_ID,
+          effectiveUserId: isOwner ? profileData.id : OWNER_ID,
           email: email,
           role: (profileData.role as 'admin' | 'user') ?? 'user',
           full_name: profileData.full_name,
@@ -53,7 +56,9 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
         });
         console.log('✅ [AuthContext] Profile loaded.');
       } else {
-        setProfile({ id: authUserId, effectiveUserId: authUserId, email, role: 'user', stores: [] });
+        const OWNER_ID = 'c5c39d1f-3b13-4009-986c-5cd24c3fab00';
+        const isOwner = email === 'contact@whimlets.com';
+        setProfile({ id: authUserId, effectiveUserId: isOwner ? authUserId : OWNER_ID, email, role: 'user', stores: [] });
       }
     } catch (error) {
       console.error('❌ [AuthContext] Profile fetch error:', error);
