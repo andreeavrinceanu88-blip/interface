@@ -135,7 +135,7 @@ const formatPhoneNumber = (phone: string | null | undefined): string => {
 const Drafturi = () => {
     const { profile } = useAuth();
     const userStores: string[] = profile?.stores || [];
-    const { isReady, callState: telnyxCallState, makeCall, hangup, toggleMute, isMuted: telnyxMuted } = useTelnyx();
+    const { isReady, callState: telnyxCallState, makeCall, hangup, toggleMute, isMuted: telnyxMuted, lastHangupReason } = useTelnyx();
 
     // ── Filters
     const [viewMode, setViewMode] = useState<'drafturi' | 'comenzi'>('drafturi');
@@ -243,7 +243,8 @@ const Drafturi = () => {
 
     useEffect(() => {
         if (callState === 'rejected') {
-            showShopifyNotif('Apelul a fost respins sau nu a răspuns', 'error');
+            const reason = lastHangupReason || 'Apel respins / Nu a răspuns';
+            showShopifyNotif(reason, 'error');
         }
     }, [callState]);
 
@@ -1587,8 +1588,10 @@ const Drafturi = () => {
                                             {formatCallTimer(callDurationSeconds)}
                                         </div>
                                     ) : callState === 'rejected' ? (
-                                        <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-red-100 text-red-400">
-                                            Apel respins
+                                        <div className="flex flex-col items-center gap-1">
+                                            <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-red-100 text-red-400">
+                                                {lastHangupReason || 'Apel respins'}
+                                            </div>
                                         </div>
                                     ) : callState === 'calling' ? (
                                         <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-amber-100 text-amber-400 animate-pulse">

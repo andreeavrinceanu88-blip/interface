@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { useAuth } from './AuthContext';
 
 export type CallState = 'idle' | 'calling' | 'active' | 'ringing' | 'rejected';
@@ -16,6 +16,7 @@ interface TelnyxContextType {
     activeCall: any;
     incomingCall: any;
     incomingCallerInfo: CallerInfo | null;
+    lastHangupReason: string | null;
     makeCall: (destination: string, callerId?: string, orderId?: string) => void;
     hangup: () => void;
     answerIncoming: () => void;
@@ -35,6 +36,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const [incomingCall, setIncomingCall] = useState<any>(null);
     const [incomingCallerInfo, setIncomingCallerInfo] = useState<CallerInfo | null>(null);
     const [isMuted, setIsMuted] = useState(false);
+    const [lastHangupReason, setLastHangupReason] = useState<string | null>(null);
 
     const clientRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -200,21 +202,69 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         stopIncomingRingtone();
                         if (audioRef.current) audioRef.current.srcObject = null;
                         
-                        // Save call log if it was active
-                        if (callStartTimeRef.current && activeOrderIdRef.current && profileRef.current?.id) {
-                            const duration = Math.round((Date.now() - callStartTimeRef.current) / 1000);
-                            if (duration > 0) {
-                                supabase.from('call_logs').insert({
-                                    operator_id: profileRef.current.id,
-                                    order_id: activeOrderIdRef.current,
-                                    duration_secs: duration,
-                                    status: 'completed'
-                                }).then(({error}) => {
-                                    if (error) console.error('[Telnyx] Error saving call log:', error);
-                                    else console.log('[Telnyx] Call log saved, duration:', duration);
-                                });
+                        // Extract SIP hangup reason
+                        const sipCode = call.cause || call.sipCode || call.options?.sipCode;
+                        const sipReason = call.causeMessage || call.sipReason || call.options?.sipReason;
+                        const rawReason = sipReason || sipCode || call.hangupCause || '';
+                        
+                        // Map common SIP codes/reasons to user-friendly Romanian text
+                        const reasonMap: Record<string, string> = {
+                            'NORMAL_CLEARING': 'Apel încheiat normal',
+                            'USER_BUSY': 'Ocupat',
+                            'NO_ANSWER': 'Nu răspunde',
+                            'NO_USER_RESPONSE': 'Nu răspunde',
+                            'CALL_REJECTED': 'Apel respins',
+                            'ORIGINATOR_CANCEL': 'Apel anulat',
+                            'NORMAL_UNSPECIFIED': 'Apel încheiat',
+                            'RECOVERY_ON_TIMER_EXPIRE': 'Timeout - Nu răspunde',
+                            'SUBSCRIBER_ABSENT': 'Telefon închis / indisponibil',
+                            'UNALLOCATED_NUMBER': 'Număr inexistent',
+                            'INVALID_NUMBER_FORMAT': 'Număr invalid',
+                            '486': 'Ocupat',
+                            '480': 'Nu răspunde / Indisponibil',
+                            '487': 'Apel anulat',
+                            '603': 'Apel respins',
+                            '404': 'Număr inexistent',
+                            '408': 'Timeout - Nu răspunde',
+                            '503': 'Serviciu indisponibil',
+                        };
+                        const friendlyReason = reasonMap[String(rawReason).toUpperCase()] || reasonMap[String(sipCode)] || (rawReason ? String(rawReason) : null);
+                        
+                        const wasActive = callStartTimeRef.current !== null;
+                        const wasAttempted = activeOrderIdRef.current !== null;
+                        const duration = wasActive ? Math.round((Date.now() - callStartTimeRef.current!) / 1000) : 0;
+                        const callStatus = wasActive ? 'completed' : 'rejected';
+                        
+                        // Save call log for ALL calls (answered or not)
+                        if (activeOrderIdRef.current && profileRef.current?.id) {
+                            supabaseAdmin.from('call_logs').insert({
+                                operator_id: profileRef.current.id,
+                                order_id: activeOrderIdRef.current,
+                                duration_secs: duration,
+                                status: callStatus
+                            }).then(({error}) => {
+                                if (error) console.error('[Telnyx] Error saving call log:', error);
+                                else console.log(`[Telnyx] Call log saved: status=${callStatus}, duration=${duration}s, reason=${rawReason}`);
+                            });
+                            
+                            // Also mark processed_by on the order (without changing status/order_state)
+                            if (!wasActive) {
+                                supabaseAdmin.from('orders').update({ processed_by: profileRef.current.id })
+                                    .or(`id.eq.${activeOrderIdRef.current},order_id.eq.${activeOrderIdRef.current}`)
+                                    .then(({error}) => {
+                                        if (error) console.error('[Telnyx] Error updating processed_by:', error);
+                                        else console.log('[Telnyx] processed_by set for unanswered call');
+                                    });
                             }
                         }
+
+                        // Set hangup reason for UI display
+                        if (friendlyReason && friendlyReason !== 'Apel încheiat normal' && friendlyReason !== 'Apel încheiat' && friendlyReason !== 'Apel anulat') {
+                            setLastHangupReason(friendlyReason);
+                        } else {
+                            setLastHangupReason(null);
+                        }
+                        
                         // Reset refs
                         callStartTimeRef.current = null;
                         activeOrderIdRef.current = null;
@@ -222,7 +272,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         setCallState(prev => {
                             if (prev === 'calling') {
                                 playRejectedBeeps();
-                                setTimeout(() => setCallState('idle'), 3000);
+                                setTimeout(() => { setCallState('idle'); setLastHangupReason(null); }, 5000);
                                 return 'rejected';
                             }
                             return 'idle';
@@ -259,6 +309,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         
         activeOrderIdRef.current = orderId || null;
         callStartTimeRef.current = null; // Reset on new call
+        setLastHangupReason(null); // Clear previous reason
         
         const call = clientRef.current.newCall({
             destinationNumber: destination,
@@ -307,7 +358,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     return (
         <TelnyxContext.Provider
             value={{
-                isReady, callState, activeCall, incomingCall, incomingCallerInfo,
+                isReady, callState, activeCall, incomingCall, incomingCallerInfo, lastHangupReason,
                 makeCall, hangup, answerIncoming, rejectIncoming, toggleMute, isMuted,
                 audioRef
             }}
