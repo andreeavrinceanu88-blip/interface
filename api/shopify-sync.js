@@ -673,21 +673,37 @@ export default async function handler(req, res) {
 
             const input = { lineItems: lineItemsInput };
 
-            // Add shipping line if shippingPrice is provided and > 0
-            if (shippingPrice && parseFloat(shippingPrice) > 0) {
-                input.shippingLine = {
-                    title: 'Livrare Rapida',
-                    priceWithCurrency: { amount: parseFloat(shippingPrice).toFixed(2), currencyCode: 'RON' }
-                };
+            // ── NUCLEAR OPTION: Transport as Line Item ──
+            // Shopify's shipping_line gets auto-overwritten by internal recalculations 
+            // whenever we modify line items (especially custom-priced ones without variantId).
+            // Instead of fighting the API, we add transport as a regular line item.
+            // Shopify NEVER auto-modifies line items, so the total will always be correct.
+            
+            // First, remove any existing "Transport" line items from previous syncs
+            // (they'll be re-added below if needed)
+            // We handle this by including the transport line item in our lineItems array
+            
+            if (shippingPrice !== undefined && parseFloat(shippingPrice) > 0) {
+                // Add transport as a custom line item (no variantId = custom product)
+                input.lineItems.push({
+                    title: 'Transport - Livrare Rapidă',
+                    quantity: 1,
+                    originalUnitPrice: parseFloat(shippingPrice).toFixed(2),
+                    requiresShipping: false,
+                    taxable: false
+                });
+                console.log(`[shopify-sync] Added Transport line item: ${shippingPrice} RON`);
             } else {
-                // Gratuit
-                input.shippingLine = {
-                    title: 'Livrare Gratuita',
-                    priceWithCurrency: { amount: '0.00', currencyCode: 'RON' }
-                };
+                console.log(`[shopify-sync] No transport line item needed (free shipping or shippingPrice=${shippingPrice})`);
             }
+            
+            // Always set shipping_line to free since we handle it via line item
+            input.shippingLine = {
+                title: 'Livrare Gratuita',
+                priceWithCurrency: { amount: '0.00', currencyCode: 'RON' }
+            };
 
-            console.log('[shopify-sync] Final mutation input (Line Items Only):', JSON.stringify(input, null, 2));
+            console.log('[shopify-sync] Final mutation input:', JSON.stringify(input, null, 2));
 
             const gqlRes = await fetch(graphqlUrl, {
                 method: 'POST',
@@ -702,7 +718,7 @@ export default async function handler(req, res) {
             });
             const gqlData = await gqlRes.json();
             
-            console.log('[shopify-sync] draftOrderUpdate response (Line Items):', JSON.stringify(gqlData));
+            console.log('[shopify-sync] draftOrderUpdate response:', JSON.stringify(gqlData));
             
             // Check for GraphQL-level errors
             if (gqlData?.errors && gqlData.errors.length > 0) {
@@ -717,55 +733,7 @@ export default async function handler(req, res) {
             
             let resultDraft = gqlData?.data?.draftOrderUpdate?.draftOrder;
 
-            // ── Step 4: Apply Shipping Line in a SEPARATE mutation ──
-            // Why? Because updating line items triggers an asynchronous recalculation in Shopify which 
-            // overwrites the shipping line if sent in the same payload.
-            // We use a 1500ms delay to ensure Shopify finishes its internal recalc, and we use REST API to force `custom: true`!
-            let restError = null;
-            if (shippingPrice !== undefined) {
-                console.log(`[shopify-sync] Waiting 1500ms before sending shipping line via REST API...`);
-                await new Promise(r => setTimeout(r, 1500));
-                
-                try {
-                    const draftIdParts = gid.split('/');
-                    const restId = draftIdParts[draftIdParts.length - 1];
-                    const restUrl = `${config.url}/admin/api/2024-01/draft_orders/${restId}.json`;
-                    
-                    const shippingData = {
-                        draft_order: {
-                            id: parseInt(restId),
-                            shipping_line: {
-                                title: parseFloat(shippingPrice) > 0 ? 'Livrare Rapida' : 'Livrare Gratuita',
-                                price: parseFloat(shippingPrice).toFixed(2),
-                                custom: true
-                            }
-                        }
-                    };
-                    
-                    console.log(`[shopify-sync] Sending secondary mutation via REST API for shipping line:`, JSON.stringify(shippingData));
-
-                    const restRes = await fetch(restUrl, {
-                        method: 'PUT',
-                        headers,
-                        body: JSON.stringify(shippingData)
-                    });
-                    
-                    const restData = await restRes.json();
-                    if (restData.errors) {
-                        restError = restData.errors;
-                        console.error('[shopify-sync] Secondary REST Shipping Error:', JSON.stringify(restData.errors));
-                        return res.status(400).json({ success: false, errorMessage: `REST API Shipping Error: ${JSON.stringify(restError)}`, raw: restData });
-                    } else {
-                        console.log('[shopify-sync] Secondary REST API Shipping Success!');
-                        // We do not have the GraphQL result format, but that's fine, we return the one from Step 3.
-                    }
-                } catch (e) {
-                    restError = e.message;
-                    console.error('[shopify-sync] Secondary REST API Fallback failed catastrophically:', e);
-                }
-            }
-
-            return res.status(200).json({ success: true, draftOrder: resultDraft, __debugInput: input, __restError: restError });
+            return res.status(200).json({ success: true, draftOrder: resultDraft, __debugInput: input });
         }
 
         // ── ACTION: check-draft-status ──
