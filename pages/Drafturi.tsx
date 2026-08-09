@@ -1359,7 +1359,7 @@ const Drafturi = () => {
                                                                     apiErrorMsg = result.errorMsg;
                                                                     showShopifyNotif(`Eroare Shopify: ${apiErrorMsg}`, 'error');
                                                                 } else if (result) {
-                                                                    showShopifyNotif(`Shopify sincronizat ✓ Lista a fost actualizată! (Metoda 1.5s REST)\nS-a trimis transport: ${finalShippingPriceForShopify}`, 'success');
+                                                                    showShopifyNotif(`Shopify sincronizat ✓ Transport adăugat ca produs: ${finalShippingPriceForShopify} RON`, 'success');
                                                                 } else {
                                                                     showShopifyNotif(`Eroare Shopify — ${apiErrorMsg}`, 'error');
                                                                 }
