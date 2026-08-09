@@ -1,4 +1,4 @@
-// Vercel Serverless Function — Shopify Proxy
+﻿// Vercel Serverless Function — Shopify Proxy
 // Handles address update and status/tag sync from the frontend
 // This avoids CORS by making server-side calls to Shopify Admin API
 
@@ -677,13 +677,13 @@ export default async function handler(req, res) {
             if (shippingPrice && parseFloat(shippingPrice) > 0) {
                 input.shippingLine = {
                     title: 'Livrare Rapida',
-                    price: parseFloat(shippingPrice).toFixed(2)
+                    price: parseFloat(shippingPrice).toFixed(2), custom: true
                 };
             } else {
                 // Gratuit
                 input.shippingLine = {
                     title: 'Livrare Gratuita',
-                    price: '0.00'
+                    price: '0.00', custom: true
                 };
             }
 
