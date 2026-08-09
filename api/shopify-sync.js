@@ -729,6 +729,7 @@ export default async function handler(req, res) {
             // --- REST API FALLBACK FOR SHIPPING LINE ---
             // Shopify GraphQL is notoriously bugged with custom shipping lines unless you use order editing.
             // Using the REST API guarantees the custom shipping price applies correctly.
+            let restError = null;
             if (shippingPrice !== undefined) {
                 try {
                     const draftIdParts = gid.split('/');
@@ -737,6 +738,7 @@ export default async function handler(req, res) {
                     
                     const shippingData = {
                         draft_order: {
+                            id: parseInt(restId),
                             shipping_line: {
                                 title: parseFloat(shippingPrice) > 0 ? 'Livrare Rapida' : 'Livrare Gratuita',
                                 price: parseFloat(shippingPrice).toFixed(2),
@@ -754,17 +756,21 @@ export default async function handler(req, res) {
                     
                     const restData = await restRes.json();
                     if (restData.errors) {
+                        restError = restData.errors;
                         console.error('[shopify-sync] REST API Shipping Error:', JSON.stringify(restData.errors));
+                        // FORCE ERROR RETURN TO FRONTEND
+                        return res.status(400).json({ success: false, errorMessage: `REST API Shipping Error: ${JSON.stringify(restError)}`, raw: restData });
                     } else {
                         console.log('[shopify-sync] REST API Shipping Success!');
                     }
                 } catch (e) {
+                    restError = e.message;
                     console.error('[shopify-sync] REST API Fallback failed catastrophically:', e);
                 }
             }
             // ------------------------------------------
 
-            return res.status(200).json({ success: true, draftOrder: resultDraft, __debugInput: input });
+            return res.status(200).json({ success: true, draftOrder: resultDraft, __debugInput: input, __restError: restError });
         }
 
         // ── ACTION: check-draft-status ──
