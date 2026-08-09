@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTelnyx } from '../contexts/TelnyxContext';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
@@ -1210,6 +1210,12 @@ const Drafturi = () => {
                                                             'info'
                                                         );
                                                     });
+                                                    // Log all keys in the map
+                                                    const mapKeys = Object.keys(productsTransportMap);
+                                                    showShopifyNotif(
+                                                        `🗺️ MAP TRANSPORT KEYS (${mapKeys.length}):\n${mapKeys.join(', ') || '(niciun key)'}`,
+                                                        mapKeys.length === 0 ? 'error' : 'info'
+                                                    );
                                                     if (Object.keys(productsTransportMap).length === 0) {
                                                         showShopifyNotif('⚠️ productsTransportMap este GOL — produsele nu au fost incarcate sau SKU-urile nu se potrivesc!', 'error');
                                                     }
@@ -1276,7 +1282,7 @@ const Drafturi = () => {
                                                                             if (!isNaN(parsed) && parsed > 0) newShippingCost = parsed;
                                                                         }
                                                                     } else {
-                                                                        showShopifyNotif(`⚠️ Transport arr NEGASIT pentru SKU="${firstItem.sku}"`, 'error');
+                                                                        showShopifyNotif(`⚠️ Transport arr NEGASIT pentru SKU="${firstItem.sku}"\nKeys in map: [${Object.keys(productsTransportMap).join(', ')}]`, 'error');
                                                                     }
                                                                 }
                                                                 finalShippingPriceForShopify = newShippingCost;
