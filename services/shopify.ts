@@ -227,13 +227,14 @@ export async function updateShopifyLineItemsBulk(storeName: string, orderId: num
         });
         const data = await res.json();
         if (data.success) {
-        if (data.__debugInput) console.log('Shopify API Debug Input:', data.__debugInput); return data.draftOrder;
+            if (data.__debugInput) console.log('Shopify API Debug Input:', data.__debugInput);
+            return data;
         }
         console.error('Failed to update line items in bulk:', data);
-        return null;
-    } catch (err) {
+        return { errorMsg: data.errorMessage || 'Unknown error' };
+    } catch (err: any) {
         console.error('Error in updateShopifyLineItemsBulk:', err);
-        return null;
+        return { errorMsg: err.message };
     }
 }
 
