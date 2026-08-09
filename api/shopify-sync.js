@@ -687,7 +687,7 @@ export default async function handler(req, res) {
                 };
             }
 
-            console.log('[shopify-sync] Final mutation input:', JSON.stringify(input, null, 2));
+            console.log('[shopify-sync] Final mutation input (Line Items Only):', JSON.stringify(input, null, 2));
 
             const gqlRes = await fetch(graphqlUrl, {
                 method: 'POST',
@@ -702,7 +702,7 @@ export default async function handler(req, res) {
             });
             const gqlData = await gqlRes.json();
             
-            console.log('[shopify-sync] draftOrderUpdate response:', JSON.stringify(gqlData));
+            console.log('[shopify-sync] draftOrderUpdate response (Line Items):', JSON.stringify(gqlData));
             
             // Check for GraphQL-level errors
             if (gqlData?.errors && gqlData.errors.length > 0) {
@@ -710,67 +710,62 @@ export default async function handler(req, res) {
                 return res.status(400).json({ success: false, errorMessage: errMsg, raw: gqlData });
             }
             
-            const errors = gqlData?.data?.draftOrderUpdate?.userErrors;
+            let errors = gqlData?.data?.draftOrderUpdate?.userErrors;
             if (errors && errors.length > 0) {
                 return res.status(400).json({ success: false, errors });
             }
             
-            const resultDraft = gqlData?.data?.draftOrderUpdate?.draftOrder;
-            
-            // Log the resulting line items for debugging
-            const resultItems = resultDraft?.lineItems?.edges || [];
-            console.log('[shopify-sync] Result line items after update:', JSON.stringify(resultItems.map(e => ({
-                title: e.node.title,
-                qty: e.node.quantity,
-                price: e.node.originalUnitPriceSet?.shopMoney?.amount,
-                variantPrice: e.node.variant?.price,
-                variantCompareAt: e.node.variant?.compareAtPrice
-            }))));
-            // --- REST API FALLBACK FOR SHIPPING LINE ---
-            // Shopify GraphQL is notoriously bugged with custom shipping lines unless you use order editing.
-            // Using the REST API guarantees the custom shipping price applies correctly.
-            let restError = null;
-            if (shippingPrice !== undefined) {
-                try {
-                    const draftIdParts = gid.split('/');
-                    const restId = draftIdParts[draftIdParts.length - 1];
-                    const restUrl = `${config.url}/admin/api/2024-01/draft_orders/${restId}.json`;
-                    
-                    const shippingData = {
-                        draft_order: {
-                            id: parseInt(restId),
-                            shipping_line: {
-                                title: parseFloat(shippingPrice) > 0 ? 'Livrare Rapida' : 'Livrare Gratuita',
-                                price: parseFloat(shippingPrice).toFixed(2),
-                                custom: true
-                            }
-                        }
-                    };
-                    
-                    console.log(`[shopify-sync] REST API Shipping Fallback to ${restUrl}`, JSON.stringify(shippingData));
-                    const restRes = await fetch(restUrl, {
-                        method: 'PUT',
-                        headers,
-                        body: JSON.stringify(shippingData)
-                    });
-                    
-                    const restData = await restRes.json();
-                    if (restData.errors) {
-                        restError = restData.errors;
-                        console.error('[shopify-sync] REST API Shipping Error:', JSON.stringify(restData.errors));
-                        // FORCE ERROR RETURN TO FRONTEND
-                        return res.status(400).json({ success: false, errorMessage: `REST API Shipping Error: ${JSON.stringify(restError)}`, raw: restData });
-                    } else {
-                        console.log('[shopify-sync] REST API Shipping Success!');
-                    }
-                } catch (e) {
-                    restError = e.message;
-                    console.error('[shopify-sync] REST API Fallback failed catastrophically:', e);
-                }
-            }
-            // ------------------------------------------
+            let resultDraft = gqlData?.data?.draftOrderUpdate?.draftOrder;
 
-            return res.status(200).json({ success: true, draftOrder: resultDraft, __debugInput: input, __restError: restError });
+            // ── Step 4: Apply Shipping Line in a SEPARATE mutation ──
+            // Why? Because updating line items triggers an asynchronous recalculation in Shopify which 
+            // overwrites the shipping line if sent in the same payload.
+            if (shippingPrice !== undefined) {
+                console.log(`[shopify-sync] Waiting 500ms before sending shipping line...`);
+                await new Promise(r => setTimeout(r, 500));
+                
+                const shippingInput = {
+                    shippingLine: parseFloat(shippingPrice) > 0 ? {
+                        title: 'Livrare Rapida',
+                        priceWithCurrency: { amount: parseFloat(shippingPrice).toFixed(2), currencyCode: 'RON' }
+                    } : {
+                        title: 'Livrare Gratuita',
+                        priceWithCurrency: { amount: '0.00', currencyCode: 'RON' }
+                    }
+                };
+
+                console.log(`[shopify-sync] Sending secondary mutation for shipping line:`, JSON.stringify(shippingInput));
+
+                const gqlResShipping = await fetch(graphqlUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        query: mutation,
+                        variables: {
+                            id: gid,
+                            input: shippingInput
+                        }
+                    })
+                });
+                
+                const gqlDataShipping = await gqlResShipping.json();
+                console.log('[shopify-sync] draftOrderUpdate response (Shipping):', JSON.stringify(gqlDataShipping));
+                
+                if (gqlDataShipping?.errors && gqlDataShipping.errors.length > 0) {
+                    console.error('[shopify-sync] Secondary Shipping Error:', gqlDataShipping.errors);
+                    return res.status(400).json({ success: false, errorMessage: `GraphQL Shipping Error: ${JSON.stringify(gqlDataShipping.errors)}`, raw: gqlDataShipping });
+                }
+                
+                errors = gqlDataShipping?.data?.draftOrderUpdate?.userErrors;
+                if (errors && errors.length > 0) {
+                    console.error('[shopify-sync] Secondary Shipping UserErrors:', errors);
+                    return res.status(400).json({ success: false, errorMessage: `GraphQL Shipping UserErrors: ${JSON.stringify(errors)}`, raw: gqlDataShipping });
+                }
+                
+                resultDraft = gqlDataShipping?.data?.draftOrderUpdate?.draftOrder;
+            }
+
+            return res.status(200).json({ success: true, draftOrder: resultDraft, __debugInput: input });
         }
 
         // ── ACTION: check-draft-status ──
