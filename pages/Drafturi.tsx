@@ -1350,13 +1350,21 @@ const Drafturi = () => {
                                                                 `📡 TRIMIT LA SHOPIFY\nshippingPrice = ${finalShippingPriceForShopify} (${typeof finalShippingPriceForShopify})\nincludeShipping = ${includeShipping}`,
                                                                 'info'
                                                             );
-                                                            const result = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems, finalShippingPriceForShopify);
-                                                            console.log('[Drafturi] Shopify result:', result);
-                                                            
-                                                            if (result) {
-                                                                showShopifyNotif('Shopify sincronizat ✓ Lista a fost actualizată', 'success');
-                                                            } else {
-                                                                showShopifyNotif('Eroare Shopify — Produsele nu au fost sincronizate', 'error');
+                                                            let apiErrorMsg = 'Produsele nu au fost sincronizate';
+                                                            try {
+                                                                const result = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems, finalShippingPriceForShopify);
+                                                                console.log('[Drafturi] Shopify result:', result);
+                                                                
+                                                                if (result && result.errorMsg) { // we will return errorMsg from service
+                                                                    apiErrorMsg = result.errorMsg;
+                                                                    showShopifyNotif(`Eroare Shopify: ${apiErrorMsg}`, 'error');
+                                                                } else if (result) {
+                                                                    showShopifyNotif('Shopify sincronizat ✓ Lista a fost actualizată', 'success');
+                                                                } else {
+                                                                    showShopifyNotif(`Eroare Shopify — ${apiErrorMsg}`, 'error');
+                                                                }
+                                                            } catch (e: any) {
+                                                                showShopifyNotif(`Eroare Shopify — ${e.message}`, 'error');
                                                             }
                                                         } catch (err: any) {
                                                             console.error('[Drafturi] Unhandled error during save:', err);

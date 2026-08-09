@@ -227,7 +227,7 @@ export async function updateShopifyLineItemsBulk(storeName: string, orderId: num
         });
         const data = await res.json();
         if (data.success) {
-            return data.draftOrder;
+        if (data.__debugInput) console.log('Shopify API Debug Input:', data.__debugInput); return data.draftOrder;
         }
         console.error('Failed to update line items in bulk:', data);
         return null;
