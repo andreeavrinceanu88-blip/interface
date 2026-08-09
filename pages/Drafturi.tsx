@@ -180,6 +180,7 @@ const Drafturi = () => {
     const [editingProducts, setEditingProducts] = useState(false);
     const [editedProductsList, setEditedProductsList] = useState<any[]>([]);
     const [savingProducts, setSavingProducts] = useState(false);
+    const [includeShipping, setIncludeShipping] = useState(true);
     const [productImages, setProductImages] = useState<Record<string, string | null>>({});
 
     const [showAddProductModal, setShowAddProductModal] = useState(false);
