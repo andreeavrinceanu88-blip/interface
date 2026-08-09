@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTelnyx } from '../contexts/TelnyxContext';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
@@ -1197,7 +1197,22 @@ const Drafturi = () => {
                                                     }
                                                     setEditingProducts(true);
                                                     setIncludeShipping(true);
-                                                    setEditedProductsList([...items]);
+                                                    const cloned = [...items];
+                                                    setEditedProductsList(cloned);
+                                                    // === LOGS DE EDITARE ===
+                                                    cloned.forEach((item: any) => {
+                                                        const tArr = productsTransportMap[item.sku];
+                                                        const totalQty = cloned.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0);
+                                                        const qIdx = tArr ? Math.min(Math.max(0, totalQty - 1), tArr.length - 1) : -1;
+                                                        const tVal = tArr ? tArr[qIdx] : null;
+                                                        showShopifyNotif(
+                                                            `📦 PRODUS: ${item.title}\nSKU: "${item.sku}" | Qty item: ${item.quantity} | Qty total: ${totalQty}\nTransport arr: [${tArr ? tArr.join(', ') : 'NEGASIT in map'}]\nIndex folosit: ${qIdx >= 0 ? qIdx : 'N/A'} → Valoare: ${tVal ?? 'null'}`,
+                                                            'info'
+                                                        );
+                                                    });
+                                                    if (Object.keys(productsTransportMap).length === 0) {
+                                                        showShopifyNotif('⚠️ productsTransportMap este GOL — produsele nu au fost incarcate sau SKU-urile nu se potrivesc!', 'error');
+                                                    }
                                                 }}
                                                 className="absolute top-6 right-6 text-indigo-400 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1"
                                             >
@@ -1234,12 +1249,10 @@ const Drafturi = () => {
                                                                 const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
                                                                 const basePrice = parseFloat(item.price) || 0;
                                                                 let finalPrice = basePrice;
-                                                                // Use basePrice as finalPrice for UI total estimation (which might be 0 here, but we show what we have)
                                                                 if (basePrice > 0 && perUnitDiscount > 0) {
                                                                     finalPrice -= perUnitDiscount;
                                                                     if (finalPrice < 0) finalPrice = 0;
                                                                 }
-                                                                // For UI newProductTotal, we accumulate finalPrice. If it was 0, it stays 0.
                                                                 newProductTotal += finalPrice * qty;
                                                             });
 
@@ -1247,16 +1260,23 @@ const Drafturi = () => {
 
                                                             if (includeShipping) {
                                                                 if (editedProductsList.length > 0) {
+                                                                    const totalQty = editedProductsList.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0);
                                                                     const firstItem = editedProductsList[0] as any;
                                                                     const transportArr = productsTransportMap[firstItem.sku];
                                                                     if (transportArr) {
-                                                                        const qtyIdx = Math.min(Math.max(0, (Number(firstItem.quantity) || 1) - 1), transportArr.length - 1);
+                                                                        const qtyIdx = Math.min(Math.max(0, totalQty - 1), transportArr.length - 1);
                                                                         const transportVal = transportArr[qtyIdx];
                                                                         const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
+                                                                        showShopifyNotif(
+                                                                            `🚚 SAVE TRANSPORT LOG\nSKU: "${firstItem.sku}" | Total Qty: ${totalQty}\nArr: [${transportArr.join(', ')}]\nIndex: ${qtyIdx} → Valoare: ${transportVal ?? 'null'}\nGratuit? ${isGratuit}`,
+                                                                            'info'
+                                                                        );
                                                                         if (!isGratuit) {
                                                                             const parsed = parseFloat(transportVal.replace(',', '.'));
                                                                             if (!isNaN(parsed) && parsed > 0) newShippingCost = parsed;
                                                                         }
+                                                                    } else {
+                                                                        showShopifyNotif(`⚠️ Transport arr NEGASIT pentru SKU="${firstItem.sku}"`, 'error');
                                                                     }
                                                                 }
                                                                 finalShippingPriceForShopify = newShippingCost;
@@ -1507,18 +1527,18 @@ const Drafturi = () => {
                                             
                                             let shippingCost = 0;
                                             const firstItem = items[0];
+                                            // Use TOTAL quantity across ALL items for transport index lookup
+                                            const totalQtyShip = items.reduce((s, i) => s + (Number(i.quantity) || 1), 0);
                                             const transportArr = productsTransportMap[firstItem.sku];
                                             if (transportArr) {
-                                                const qtyIdx = Math.min(Math.max(0, (Number(firstItem.quantity) || 1) - 1), transportArr.length - 1);
+                                                const qtyIdx = Math.min(Math.max(0, totalQtyShip - 1), transportArr.length - 1);
                                                 const transportVal = transportArr[qtyIdx];
                                                 const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
                                                 if (!isGratuit) {
-                                                    const parsed = parseFloat(transportVal.replace(',', '.'));
+                                                    const parsed = parseFloat(transportVal.replace(',','.'.'));
                                                     if (!isNaN(parsed) && parsed > 0) shippingCost = parsed;
                                                 }
                                             }
-                                            
-                                            return (
                                                 <div className="mt-3 flex items-center gap-4 bg-[#1a1b23]/60 rounded-xl p-4 border border-white/5 border-dashed">
                                                     <div className="w-16 h-16 rounded-lg bg-[#13141a] border border-white/5 shrink-0 flex items-center justify-center">
                                                         <span className="material-icons-round text-indigo-400 text-2xl">local_shipping</span>
@@ -1565,19 +1585,19 @@ const Drafturi = () => {
 
                                             let shippingCost = 0;
                                             const firstItem = items[0];
-                                            const transportArr = productsTransportMap[firstItem.sku];
-                                            if (transportArr) {
-                                                const qtyIdx = Math.min(Math.max(0, (Number(firstItem.quantity) || 1) - 1), transportArr.length - 1);
-                                                const transportVal = transportArr[qtyIdx];
+                                            // Use TOTAL quantity across ALL items for transport index lookup
+                                            const totalQtyForTotal = items.reduce((s, i) => s + (Number(i.quantity) || 1), 0);
+                                            const transportArrT = productsTransportMap[firstItem.sku];
+                                            const shouldAddShipping = editingProducts ? includeShipping : true;
+                                            if (transportArrT && shouldAddShipping) {
+                                                const qtyIdx = Math.min(Math.max(0, totalQtyForTotal - 1), transportArrT.length - 1);
+                                                const transportVal = transportArrT[qtyIdx];
                                                 const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
                                                 if (!isGratuit) {
-                                                    const parsed = parseFloat(transportVal.replace(',', '.'));
+                                                    const parsed = parseFloat(transportVal.replace(',','.'.'));
                                                     if (!isNaN(parsed) && parsed > 0) shippingCost = parsed;
                                                 }
                                             }
-                                            
-                                            return (
-                                                <div className="pt-4 mt-4 border-t border-white/5 flex justify-between items-center">
                                                     <span className="font-bold text-white text-sm">Total comandă</span>
                                                     <span className="font-bold text-indigo-400 text-base">
                                                         {money(productTotal + shippingCost)}
