@@ -1195,6 +1195,7 @@ const Drafturi = () => {
                                                         return;
                                                     }
                                                     setEditingProducts(true);
+                                                    setIncludeShipping(true);
                                                     setEditedProductsList([...items]);
                                                 }}
                                                 className="absolute top-6 right-6 text-indigo-400 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1"
@@ -1241,18 +1242,26 @@ const Drafturi = () => {
                                                                 newProductTotal += finalPrice * qty;
                                                             });
 
-                                                            if (editedProductsList.length > 0) {
-                                                                const firstItem = editedProductsList[0] as any;
-                                                                const transportArr = productsTransportMap[firstItem.sku];
-                                                                if (transportArr) {
-                                                                    const qtyIdx = Math.min(Math.max(0, (Number(firstItem.quantity) || 1) - 1), transportArr.length - 1);
-                                                                    const transportVal = transportArr[qtyIdx];
-                                                                    const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
-                                                                    if (!isGratuit) {
-                                                                        const parsed = parseFloat(transportVal.replace(',', '.'));
-                                                                        if (!isNaN(parsed) && parsed > 0) newShippingCost = parsed;
+                                                            let finalShippingPriceForShopify: number | undefined = undefined;
+
+                                                            if (includeShipping) {
+                                                                if (editedProductsList.length > 0) {
+                                                                    const firstItem = editedProductsList[0] as any;
+                                                                    const transportArr = productsTransportMap[firstItem.sku];
+                                                                    if (transportArr) {
+                                                                        const qtyIdx = Math.min(Math.max(0, (Number(firstItem.quantity) || 1) - 1), transportArr.length - 1);
+                                                                        const transportVal = transportArr[qtyIdx];
+                                                                        const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
+                                                                        if (!isGratuit) {
+                                                                            const parsed = parseFloat(transportVal.replace(',', '.'));
+                                                                            if (!isNaN(parsed) && parsed > 0) newShippingCost = parsed;
+                                                                        }
                                                                     }
                                                                 }
+                                                                finalShippingPriceForShopify = newShippingCost;
+                                                            } else {
+                                                                newShippingCost = 0;
+                                                                finalShippingPriceForShopify = 0;
                                                             }
                                                             
                                                             const newTotalValue = (newProductTotal + newShippingCost).toFixed(2);
@@ -1309,8 +1318,8 @@ const Drafturi = () => {
                                                                 };
                                                             });
                                                             
-                                                            console.log('[Drafturi] Calling updateShopifyLineItemsBulk...', { storeName, shopifyId, shopifyItems });
-                                                            const result = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems);
+                                                            console.log('[Drafturi] Calling updateShopifyLineItemsBulk...', { storeName, shopifyId, shopifyItems, finalShippingPriceForShopify });
+                                                            const result = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems, finalShippingPriceForShopify);
                                                             console.log('[Drafturi] Shopify result:', result);
                                                             
                                                             if (result) {
@@ -1346,6 +1355,16 @@ const Drafturi = () => {
                                                     <span className="material-icons-round text-[16px]">add</span>
                                                     Adaugă produs
                                                 </button>
+
+                                                <label className="flex items-center gap-2 cursor-pointer ml-4 mr-2 select-none border border-white/10 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={includeShipping} 
+                                                        onChange={(e) => setIncludeShipping(e.target.checked)}
+                                                        className="w-4 h-4 rounded border-gray-400 text-indigo-500 focus:ring-indigo-500 bg-transparent cursor-pointer"
+                                                    />
+                                                    <span className="text-sm font-medium text-white">Include Transport</span>
+                                                </label>
                                             </div>
                                         )}
                                         <h3 className="text-base font-bold text-white mb-6">Produse comandate</h3>
