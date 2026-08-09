@@ -1346,6 +1346,10 @@ const Drafturi = () => {
                                                             });
                                                             
                                                             console.log('[Drafturi] Calling updateShopifyLineItemsBulk...', { storeName, shopifyId, shopifyItems, finalShippingPriceForShopify });
+                                                            showShopifyNotif(
+                                                                `📡 TRIMIT LA SHOPIFY\nshippingPrice = ${finalShippingPriceForShopify} (${typeof finalShippingPriceForShopify})\nincludeShipping = ${includeShipping}`,
+                                                                'info'
+                                                            );
                                                             const result = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems, finalShippingPriceForShopify);
                                                             console.log('[Drafturi] Shopify result:', result);
                                                             
