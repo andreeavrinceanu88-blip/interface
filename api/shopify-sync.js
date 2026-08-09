@@ -677,13 +677,13 @@ export default async function handler(req, res) {
             if (shippingPrice && parseFloat(shippingPrice) > 0) {
                 input.shippingLine = {
                     title: 'Livrare Rapida',
-                    price: parseFloat(shippingPrice).toFixed(2), custom: true
+                    price: parseFloat(shippingPrice).toFixed(2)
                 };
             } else {
                 // Gratuit
                 input.shippingLine = {
                     title: 'Livrare Gratuita',
-                    price: '0.00', custom: true
+                    price: '0.00'
                 };
             }
 
@@ -727,7 +727,7 @@ export default async function handler(req, res) {
                 variantCompareAt: e.node.variant?.compareAtPrice
             }))));
             
-            return res.status(200).json({ success: true, draftOrder: resultDraft });
+            return res.status(200).json({ success: true, draftOrder: resultDraft, __debugInput: input });
         }
 
         // ── ACTION: check-draft-status ──
