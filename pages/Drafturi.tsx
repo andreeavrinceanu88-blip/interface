@@ -1534,17 +1534,19 @@ const Drafturi = () => {
                                             let shippingCost = 0;
                                             const firstItem = items[0];
                                             // Use TOTAL quantity across ALL items for transport index lookup
-                                            const totalQtyShip = items.reduce((s, i) => s + (Number(i.quantity) || 1), 0);
+                                            const totalQtyShip = items.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0);
                                             const transportArr = productsTransportMap[firstItem.sku];
                                             if (transportArr) {
                                                 const qtyIdx = Math.min(Math.max(0, totalQtyShip - 1), transportArr.length - 1);
                                                 const transportVal = transportArr[qtyIdx];
                                                 const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
                                                 if (!isGratuit) {
-                                                    const parsed = parseFloat(transportVal.replace(',','.'.'));
+                                                    const parsed = parseFloat(transportVal.replace(',', '.'));
                                                     if (!isNaN(parsed) && parsed > 0) shippingCost = parsed;
                                                 }
                                             }
+
+                                            return (
                                                 <div className="mt-3 flex items-center gap-4 bg-[#1a1b23]/60 rounded-xl p-4 border border-white/5 border-dashed">
                                                     <div className="w-16 h-16 rounded-lg bg-[#13141a] border border-white/5 shrink-0 flex items-center justify-center">
                                                         <span className="material-icons-round text-indigo-400 text-2xl">local_shipping</span>
@@ -1592,7 +1594,7 @@ const Drafturi = () => {
                                             let shippingCost = 0;
                                             const firstItem = items[0];
                                             // Use TOTAL quantity across ALL items for transport index lookup
-                                            const totalQtyForTotal = items.reduce((s, i) => s + (Number(i.quantity) || 1), 0);
+                                            const totalQtyForTotal = items.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0);
                                             const transportArrT = productsTransportMap[firstItem.sku];
                                             const shouldAddShipping = editingProducts ? includeShipping : true;
                                             if (transportArrT && shouldAddShipping) {
@@ -1600,10 +1602,13 @@ const Drafturi = () => {
                                                 const transportVal = transportArrT[qtyIdx];
                                                 const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
                                                 if (!isGratuit) {
-                                                    const parsed = parseFloat(transportVal.replace(',','.'.'));
+                                                    const parsed = parseFloat(transportVal.replace(',', '.'));
                                                     if (!isNaN(parsed) && parsed > 0) shippingCost = parsed;
                                                 }
                                             }
+
+                                            return (
+                                                <div className="pt-4 mt-4 border-t border-white/5 flex justify-between items-center">
                                                     <span className="font-bold text-white text-sm">Total comandă</span>
                                                     <span className="font-bold text-indigo-400 text-base">
                                                         {money(productTotal + shippingCost)}
