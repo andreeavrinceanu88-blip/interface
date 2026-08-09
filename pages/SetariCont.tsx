@@ -35,7 +35,7 @@ export default function SetariCont() {
             const { data, error } = await supabaseAdmin
                 .from('profiles')
                 .select('id, full_name, email, role')
-                .eq('parent_id', profile!.id);
+                .neq('id', profile!.id);
 
             if (error) throw error;
             setMembers(data || []);
@@ -76,6 +76,7 @@ export default function SetariCont() {
                     id: newUserId,
                     full_name: fullName,
                     role: 'user',
+                    parent_id: profile!.id,
                     stores: profile!.stores ? profile!.stores.join(',') : ''
                 });
 
