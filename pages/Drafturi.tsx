@@ -1205,12 +1205,12 @@ const Drafturi = () => {
                                             </button>
                                         )}
                                         {editingProducts && (
-                                            <div className="absolute top-6 right-6 flex gap-2">
+                                            <div className="absolute top-4 right-4 flex items-center gap-1.5 flex-wrap justify-end">
                                                 <button 
-                                                    onClick={() => { setEditingProducts(false); setEditedProductsList([]); }}
-                                                    className="text-gray-500 hover:text-gray-300 text-sm font-semibold flex items-center gap-1"
+                                                    onClick={() => { setEditingProducts(false); setEditedProductsList([]); setIncludeShipping(true); }}
+                                                    className="text-gray-400 hover:text-gray-200 text-xs font-medium flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
                                                 >
-                                                    <span className="material-icons-round text-[16px]">close</span> Anulează
+                                                    <span className="material-icons-round text-[14px]">close</span> Anulează
                                                 </button>
                                                 <button 
                                                     disabled={savingProducts}
@@ -1336,9 +1336,9 @@ const Drafturi = () => {
                                                             setEditingProducts(false);
                                                         }
                                                     }}
-                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50"
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-50"
                                                 >
-                                                    <span className="material-icons-round text-[16px]">save</span>
+                                                    <span className="material-icons-round text-[14px]">save</span>
                                                     {savingProducts ? 'Se salvează...' : 'Salvează'}
                                                 </button>
 
@@ -1351,20 +1351,20 @@ const Drafturi = () => {
                                                         if (prods) setAvailableProducts(prods);
                                                         setLoadingProducts(false);
                                                     }}
-                                                    className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-1.5 rounded-lg flex items-center gap-1 ml-2 transition-colors"
+                                                    className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
                                                 >
-                                                    <span className="material-icons-round text-[16px]">add</span>
+                                                    <span className="material-icons-round text-[14px]">add</span>
                                                     Adaugă produs
                                                 </button>
 
-                                                <label className="flex items-center gap-2 cursor-pointer ml-4 mr-2 select-none border border-white/10 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                                                <label className="flex items-center gap-1.5 cursor-pointer select-none border border-white/10 px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
                                                     <input 
                                                         type="checkbox" 
                                                         checked={includeShipping} 
                                                         onChange={(e) => setIncludeShipping(e.target.checked)}
-                                                        className="w-4 h-4 rounded border-gray-400 text-indigo-500 focus:ring-indigo-500 bg-transparent cursor-pointer"
+                                                        className="w-3.5 h-3.5 rounded border-gray-400 text-indigo-500 focus:ring-indigo-500 bg-transparent cursor-pointer"
                                                     />
-                                                    <span className="text-sm font-medium text-white">Include Transport</span>
+                                                    <span className="text-xs font-medium text-white">Transport</span>
                                                 </label>
                                             </div>
                                         )}
@@ -1482,6 +1482,29 @@ const Drafturi = () => {
                                             const items = editingProducts ? editedProductsList : parseProduse(selectedOrder.produse);
                                             if (items.length === 0) return null;
                                             
+                                            // In edit mode, respect includeShipping toggle
+                                            if (editingProducts && !includeShipping) {
+                                                return (
+                                                    <div className="mt-3 flex items-center gap-4 bg-[#1a1b23]/30 rounded-xl p-4 border border-white/5 border-dashed opacity-40">
+                                                        <div className="w-16 h-16 rounded-lg bg-[#13141a] border border-white/5 shrink-0 flex items-center justify-center">
+                                                            <span className="material-icons-round text-gray-600 text-2xl">local_shipping</span>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-base font-semibold text-gray-500 line-through">Livrare Rapidă</p>
+                                                            <p className="text-sm text-gray-600">Transport eliminat</p>
+                                                        </div>
+                                                        <span className="text-base font-bold text-gray-600 line-through w-24 text-right">0.00 lei</span>
+                                                        <button
+                                                            onClick={() => setIncludeShipping(true)}
+                                                            title="Adaugă transport"
+                                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/40 transition-colors shrink-0"
+                                                        >
+                                                            <span className="material-icons-round text-[16px]">add</span>
+                                                        </button>
+                                                    </div>
+                                                );
+                                            }
+                                            
                                             let shippingCost = 0;
                                             const firstItem = items[0];
                                             const transportArr = productsTransportMap[firstItem.sku];
@@ -1507,6 +1530,15 @@ const Drafturi = () => {
                                                     <span className="text-base font-bold text-indigo-400 w-24 text-right">
                                                         {shippingCost > 0 ? `${shippingCost.toFixed(2)} lei` : 'Gratuit'}
                                                     </span>
+                                                    {editingProducts && (
+                                                        <button
+                                                            onClick={() => setIncludeShipping(false)}
+                                                            title="Șterge transport"
+                                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/25 transition-colors shrink-0"
+                                                        >
+                                                            <span className="material-icons-round text-[16px]">delete</span>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             );
                                         })()}
