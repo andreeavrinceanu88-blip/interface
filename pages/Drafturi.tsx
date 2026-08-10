@@ -1220,11 +1220,11 @@ const Drafturi = () => {
                                                     // === LOGS DE EDITARE ===
                                                     cloned.forEach((item: any) => {
                                                         const tArr = productsTransportMap[item.sku];
-                                                        const totalQty = cloned.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0);
-                                                        const qIdx = tArr ? Math.min(Math.max(0, totalQty - 1), tArr.length - 1) : -1;
+                                                        const itemQty = Number(item.quantity) || 1;
+                                                        const qIdx = tArr ? Math.min(Math.max(0, itemQty - 1), tArr.length - 1) : -1;
                                                         const tVal = tArr ? tArr[qIdx] : null;
                                                         showShopifyNotif(
-                                                            `📦 PRODUS: ${item.title}\nSKU: "${item.sku}" | Qty item: ${item.quantity} | Qty total: ${totalQty}\nTransport arr: [${tArr ? tArr.join(', ') : 'NEGASIT in map'}]\nIndex folosit: ${qIdx >= 0 ? qIdx : 'N/A'} → Valoare: ${tVal ?? 'null'}`,
+                                                            `📦 PRODUS: ${item.title}\nSKU: "${item.sku}" | Qty: ${itemQty}\nTransport arr: [${tArr ? tArr.join(', ') : 'NEGASIT in map'}]\nIndex folosit: ${qIdx >= 0 ? qIdx : 'N/A'} → Valoare: ${tVal ?? 'null'}`,
                                                             'info'
                                                         );
                                                     });
@@ -1284,15 +1284,17 @@ const Drafturi = () => {
 
                                                             if (includeShipping) {
                                                                 if (editedProductsList.length > 0) {
-                                                                    const totalQty = editedProductsList.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0);
-                                                                    const firstItem = editedProductsList[0] as any;
-                                                                    const transportArr = productsTransportMap[firstItem.sku];
-                                                                    if (transportArr) {
-                                                                        const qtyIdx = Math.min(Math.max(0, totalQty - 1), transportArr.length - 1);
+                                                                    // Find the first product that HAS transport defined in the map
+                                                                    // Use ONLY that product's quantity for transport index (not all products combined)
+                                                                    const transportProduct = editedProductsList.find((item: any) => productsTransportMap[item.sku]) as any;
+                                                                    if (transportProduct) {
+                                                                        const transportQty = Number(transportProduct.quantity) || 1;
+                                                                        const transportArr = productsTransportMap[transportProduct.sku];
+                                                                        const qtyIdx = Math.min(Math.max(0, transportQty - 1), transportArr.length - 1);
                                                                         const transportVal = transportArr[qtyIdx];
                                                                         const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
                                                                         showShopifyNotif(
-                                                                            `🚚 SAVE TRANSPORT LOG\nSKU: "${firstItem.sku}" | Total Qty: ${totalQty}\nArr: [${transportArr.join(', ')}]\nIndex: ${qtyIdx} → Valoare: ${transportVal ?? 'null'}\nGratuit? ${isGratuit}`,
+                                                                            `🚚 SAVE TRANSPORT LOG\nSKU: "${transportProduct.sku}" | Qty produs transport: ${transportQty}\nArr: [${transportArr.join(', ')}]\nIndex: ${qtyIdx} → Valoare: ${transportVal ?? 'null'}\nGratuit? ${isGratuit}`,
                                                                             'info'
                                                                         );
                                                                         if (!isGratuit) {
@@ -1300,7 +1302,8 @@ const Drafturi = () => {
                                                                             if (!isNaN(parsed) && parsed > 0) newShippingCost = parsed;
                                                                         }
                                                                     } else {
-                                                                        showShopifyNotif(`⚠️ Transport arr NEGASIT pentru SKU="${firstItem.sku}"\nKeys in map: [${Object.keys(productsTransportMap).join(', ')}]`, 'error');
+                                                                        const skus = editedProductsList.map((i: any) => i.sku).join(', ');
+                                                                        showShopifyNotif(`⚠️ Transport arr NEGASIT pentru niciunul din: ${skus}\nKeys in map: [${Object.keys(productsTransportMap).join(', ')}]`, 'error');
                                                                     }
                                                                 }
                                                                 finalShippingPriceForShopify = newShippingCost;
@@ -1377,7 +1380,7 @@ const Drafturi = () => {
                                                                     apiErrorMsg = result.errorMsg;
                                                                     showShopifyNotif(`Eroare Shopify: ${apiErrorMsg}`, 'error');
                                                                 } else if (result) {
-                                                                    showShopifyNotif(`Shopify sincronizat ✓ Transport adăugat ca produs: ${finalShippingPriceForShopify} RON`, 'success');
+                                                                    showShopifyNotif(`Shopify sincronizat ✓ Shipping: ${finalShippingPriceForShopify} RON`, 'success');
                                                                 } else {
                                                                     showShopifyNotif(`Eroare Shopify — ${apiErrorMsg}`, 'error');
                                                                 }
