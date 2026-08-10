@@ -953,12 +953,12 @@ const Drafturi = () => {
                                         <div className="flex justify-between items-start mb-2">
                                             <span className="text-xs font-semibold text-gray-400">#{order.id} <span className="font-normal ml-1 text-gray-400">{fmtDate(order.created_at).split(',')[0]}</span></span>
                                             {(!order.cerere_adresa || order.cerere_adresa.trim() === '' || order.cerere_adresa.trim() === '-') ? (
-                                                <div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0" title="Adresă corectă">
-                                                    <span className="material-icons-round text-[14px] text-emerald-400">check_circle</span>
+                                                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center justify-center shrink-0 shadow-sm" title="Adresă corectă">
+                                                    <span className="material-icons-round text-[16px] text-emerald-400">check</span>
                                                 </div>
                                             ) : (
-                                                <div className="w-6 h-6 rounded-md bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0" title={`Adresă greșită: ${order.cerere_adresa}`}>
-                                                    <span className="material-icons-round text-[14px] text-red-400">error</span>
+                                                <div className="w-7 h-7 rounded-lg bg-red-500/20 border-2 border-red-500/50 flex items-center justify-center shrink-0 shadow-sm" title={`Adresă greșită: ${order.cerere_adresa}`}>
+                                                    <span className="material-icons-round text-[16px] text-red-400">close</span>
                                                 </div>
                                             )}
                                         </div>
