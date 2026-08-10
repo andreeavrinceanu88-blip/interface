@@ -647,6 +647,15 @@ export default async function handler(req, res) {
                     valueType: 'FIXED_AMOUNT'
                 };
                 console.log(`[shopify-sync] ORDER-LEVEL DISCOUNT: ${totalOrderDiscount} RON`);
+            } else {
+                // Explicitly clear any previous discount — Shopify keeps the old one if we don't send this
+                input.appliedDiscount = {
+                    title: 'Fara reducere',
+                    description: '',
+                    value: 0,
+                    valueType: 'FIXED_AMOUNT'
+                };
+                console.log(`[shopify-sync] ORDER-LEVEL DISCOUNT: cleared (0 RON)`);
             }
 
             // ── Disable Shopify's automatic quantity discounts ──
