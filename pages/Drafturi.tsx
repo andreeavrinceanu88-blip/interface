@@ -887,7 +887,7 @@ const Drafturi = () => {
             <div className="flex gap-6 flex-1 min-h-0 pb-6">
 
                 {/* ── Left: List ────────────────────────────────────────────── */}
-                <div className="w-[420px] shrink-0 flex flex-col bg-[#13141a] rounded-2xl shadow-sm border border-white/5 overflow-hidden">
+                <div className="w-[320px] shrink-0 flex flex-col bg-[#13141a] rounded-2xl shadow-sm border border-white/5 overflow-hidden">
                     {/* Tabs */}
                     <div className="flex border-b border-white/5 bg-[#13141a] overflow-x-auto scrollbar-hide px-2">
                         {TABS.map(tab => {
@@ -953,9 +953,13 @@ const Drafturi = () => {
                                         <div className="flex justify-between items-start mb-2">
                                             <span className="text-xs font-semibold text-gray-400">#{order.id} <span className="font-normal ml-1 text-gray-400">{fmtDate(order.created_at).split(',')[0]}</span></span>
                                             {(!order.cerere_adresa || order.cerere_adresa.trim() === '' || order.cerere_adresa.trim() === '-') ? (
-                                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-400 tracking-wide border border-emerald-500/30" title="Adresă corectă">ADRESĂ OK</span>
+                                                <div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0" title="Adresă corectă">
+                                                    <span className="material-icons-round text-[14px] text-emerald-400">check_circle</span>
+                                                </div>
                                             ) : (
-                                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-red-500/20 text-red-400 tracking-wide border border-red-500/30" title={`Adresă greșită: ${order.cerere_adresa}`}>ADRESĂ GREȘITĂ</span>
+                                                <div className="w-6 h-6 rounded-md bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0" title={`Adresă greșită: ${order.cerere_adresa}`}>
+                                                    <span className="material-icons-round text-[14px] text-red-400">error</span>
+                                                </div>
                                             )}
                                         </div>
                                         <div className="flex justify-between items-center mb-1.5">
