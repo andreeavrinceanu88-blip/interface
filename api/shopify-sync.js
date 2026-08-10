@@ -674,35 +674,26 @@ export default async function handler(req, res) {
 
             const input = { lineItems: lineItemsInput };
 
-            // ── NUCLEAR OPTION: Transport as Line Item ──
-            // Shopify's shipping_line gets auto-overwritten by internal recalculations 
-            // whenever we modify line items (especially custom-priced ones without variantId).
-            // Instead of fighting the API, we add transport as a regular line item.
-            // Shopify NEVER auto-modifies line items, so the total will always be correct.
-            
-            // First, remove any existing "Transport" line items from previous syncs
-            // (they'll be re-added below if needed)
-            // We handle this by including the transport line item in our lineItems array
-            
+            // ── Disable Shopify's automatic quantity discounts ──
+            // This prevents Shopify from applying its own "Quantity Discount" on top of our already-reduced prices.
+            // Same approach as the n8n workflow uses: acceptAutomaticDiscounts: false
+            input.acceptAutomaticDiscounts = false;
+
+            // ── Shipping Line (proper method, not as line item) ──
+            // With acceptAutomaticDiscounts: false, Shopify won't recalculate/overwrite the shipping line.
             if (shippingPrice !== undefined && parseFloat(shippingPrice) > 0) {
-                // Add transport as a custom line item (no variantId = custom product)
-                input.lineItems.push({
-                    title: 'Transport - Livrare Rapidă',
-                    quantity: 1,
-                    originalUnitPrice: parseFloat(shippingPrice).toFixed(2),
-                    requiresShipping: false,
-                    taxable: false
-                });
-                console.log(`[shopify-sync] Added Transport line item: ${shippingPrice} RON`);
+                input.shippingLine = {
+                    title: 'Livrare Rapida',
+                    priceWithCurrency: { amount: parseFloat(shippingPrice).toFixed(2), currencyCode: 'RON' }
+                };
+                console.log(`[shopify-sync] Set shippingLine: ${shippingPrice} RON`);
             } else {
-                console.log(`[shopify-sync] No transport line item needed (free shipping or shippingPrice=${shippingPrice})`);
+                input.shippingLine = {
+                    title: 'Livrare Gratuita',
+                    priceWithCurrency: { amount: '0.00', currencyCode: 'RON' }
+                };
+                console.log(`[shopify-sync] Set shippingLine: Gratuit`);
             }
-            
-            // Always set shipping_line to free since we handle it via line item
-            input.shippingLine = {
-                title: 'Livrare Gratuita',
-                priceWithCurrency: { amount: '0.00', currencyCode: 'RON' }
-            };
 
             console.log('[shopify-sync] Final mutation input:', JSON.stringify(input, null, 2));
 
