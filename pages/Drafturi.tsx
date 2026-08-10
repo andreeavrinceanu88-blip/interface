@@ -234,12 +234,30 @@ const Drafturi = () => {
         setTimeout(() => setToast(''), 2500);
     };
 
-    // ── Shopify notification helper (stacked)
-    const showShopifyNotif = (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
+    // ── Shopify notification helper (stacked) + persist to Supabase
+    const showShopifyNotif = (msg: string, type: 'success' | 'error' | 'info' = 'info', action?: string) => {
         const id = ++notifIdRef.current;
         setShopifyNotifs(prev => [...prev.slice(-9), { id, msg, type }]); // max 10 notifications
         const timeout = type === 'error' ? 20000 : 10000;
         setTimeout(() => setShopifyNotifs(prev => prev.filter(n => n.id !== id)), timeout);
+
+        // Persist log to Supabase (fire-and-forget, non-blocking)
+        try {
+            const selOrder = orders.find(o => o.id === selectedId);
+            supabaseAdmin.from('draft_logs').insert({
+                order_id: selOrder?.order_id || null,
+                order_name: selOrder?.name || null,
+                store_name: selOrder?.store_name || selectedBrand || null,
+                action: action || (msg.includes('Confirmare') ? 'confirmare' : msg.includes('Editare') || msg.includes('SAVE') ? 'editare' : msg.includes('TRIMIT') ? 'shopify_sync' : 'log'),
+                message: msg,
+                type,
+                operator_id: profile?.id || null
+            }).then(({ error: logErr }) => {
+                if (logErr) console.warn('[draft_logs] Insert failed:', logErr.message);
+            });
+        } catch (e) {
+            // Silent fail — logging should never break the app
+        }
     };
 
     useEffect(() => {
