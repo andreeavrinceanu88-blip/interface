@@ -547,7 +547,7 @@ const Drafturi = () => {
 
                 // Sync status with Shopify (tags + draftOrderComplete)
                 showShopifyNotif(`🔄 Sincronizare status "${newStatus}" cu Shopify...`, 'info');
-                syncOrderStatusWithShopify(storeName, shopifyId, newStatus, orderToSync.notes || undefined)
+                syncOrderStatusWithShopify(storeName, shopifyId, newStatus, orderToSync.notes || undefined, profile?.full_name || undefined)
                     .then(result => {
                         if (result.success) {
                             if (result.confirmed && result.orderName) {

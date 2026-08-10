@@ -16,7 +16,7 @@ export interface ShopifySyncResult {
     raw?: any;
 }
 
-export async function syncOrderStatusWithShopify(storeName: string, orderId: string, status: string, additionalNote?: string): Promise<ShopifySyncResult> {
+export async function syncOrderStatusWithShopify(storeName: string, orderId: string, status: string, additionalNote?: string, operatorName?: string): Promise<ShopifySyncResult> {
     try {
         const res = await fetch(API_ENDPOINT, {
             method: 'POST',
@@ -27,6 +27,7 @@ export async function syncOrderStatusWithShopify(storeName: string, orderId: str
                 orderId,
                 status,
                 note: additionalNote,
+                operatorName,
             })
         });
         const data = await res.json();

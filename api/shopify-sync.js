@@ -264,7 +264,10 @@ export default async function handler(req, res) {
             }
 
             const currentTags = draftOrder.tags || [];
-            const statusTag = status.toUpperCase();
+            const operatorName = req.body.operatorName || '';
+            const statusTag = operatorName 
+                ? `${status.toUpperCase()} - ${operatorName}` 
+                : status.toUpperCase();
             const updatedTags = [...currentTags];
             if (!updatedTags.includes(statusTag)) updatedTags.push(statusTag);
 
