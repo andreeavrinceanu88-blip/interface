@@ -658,8 +658,9 @@ export default async function handler(req, res) {
                     // We will NOT send an explicit `appliedDiscount` object to Shopify (because the user hates the tag), 
                     // INSTEAD, we will omit the variantId so Shopify accepts the custom price!
                     if (item.appliedDiscount && parseFloat(item.appliedDiscount) > 0) {
-                        console.log(`[shopify-sync] DISCOUNT LOG: Omitting variantId to force custom price without discount tag for ${lineItem.title || variantGid}`);
-                        delete lineItem.variantId; 
+                        console.log(`[shopify-sync] DISCOUNT LOG: Omitting variantId AND sku to force custom price without Shopify automatic quantity discount for ${lineItem.title || variantGid}`);
+                        delete lineItem.variantId;
+                        delete lineItem.sku; // Remove SKU so Shopify can't match to catalog product and apply automatic Quantity Discount
                     }
                     
                     console.log(`[shopify-sync] DISCOUNT LOG: Forcing originalUnitPrice to ${lineItem.originalUnitPrice}`);
