@@ -954,11 +954,11 @@ const Drafturi = () => {
                                             <span className="text-xs font-semibold text-gray-400">#{order.id} <span className="font-normal ml-1 text-gray-400">{fmtDate(order.created_at).split(',')[0]}</span></span>
                                             {(!order.cerere_adresa || order.cerere_adresa.trim() === '' || order.cerere_adresa.trim() === '-') ? (
                                                 <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center justify-center shrink-0 shadow-sm" title="Adresă corectă">
-                                                    <span className="material-icons-round text-[16px] text-emerald-400">check</span>
+                                                    <span className="material-icons-round text-[16px] text-emerald-400">home</span>
                                                 </div>
                                             ) : (
                                                 <div className="w-7 h-7 rounded-lg bg-red-500/20 border-2 border-red-500/50 flex items-center justify-center shrink-0 shadow-sm" title={`Adresă greșită: ${order.cerere_adresa}`}>
-                                                    <span className="material-icons-round text-[16px] text-red-400">close</span>
+                                                    <span className="material-icons-round text-[16px] text-red-400">home</span>
                                                 </div>
                                             )}
                                         </div>
