@@ -614,73 +614,43 @@ export default async function handler(req, res) {
                     lineItem.variantId = variantGid;
                 }
                 
-                // Determine the correct price to use:
-                // Priority: item.price (from client) > compareAtPrice > variant price
-                // This ensures we respect the exact forced price calculated by the frontend (including discounts)
-                let resolvedPrice = null;
+                // We ALWAYS keep variantId so Shopify knows the product weight → shipping is preserved.
+                // Discounts are applied at the ORDER level (not per line item) to avoid the "Reducere" tag.
+                console.log(`[shopify-sync] Line item: ${lineItem.title || lineItem.sku}, qty=${item.quantity}, variantId=${variantGid || 'none'}, perUnitDiscount=${item.appliedDiscount || 0}`);
                 
-                if (item.price !== undefined && item.price !== null && parseFloat(item.price) > 0) {
-                    resolvedPrice = parseFloat(item.price).toString();
-                    console.log(`[shopify-sync] DISCOUNT LOG: Using client-provided item.price=${resolvedPrice} for variant ${variantGid}`);
-                } else if (variantGid && variantPrices[variantGid]) {
-                    const vp = variantPrices[variantGid];
-                    if (vp.compareAtPrice && parseFloat(vp.compareAtPrice) > 0) {
-                        resolvedPrice = vp.compareAtPrice;
-                        console.log(`[shopify-sync] DISCOUNT LOG: Fallback to compareAtPrice=${resolvedPrice} for variant ${variantGid} (${vp.title})`);
-                    } else if (vp.price && parseFloat(vp.price) > 0) {
-                        resolvedPrice = vp.price;
-                        console.log(`[shopify-sync] DISCOUNT LOG: Fallback to variant price=${resolvedPrice} for variant ${variantGid} (${vp.title})`);
-                    } else {
-                        console.log(`[shopify-sync] DISCOUNT LOG: WARNING: Both price (${vp.price}) and compareAtPrice (${vp.compareAtPrice}) are 0 or null for ${vp.title}`);
-                    }
-                } else {
-                    console.log(`[shopify-sync] DISCOUNT LOG: No client price and no variant info found for variant ${variantGid}`);
-                }
-
-                if (resolvedPrice !== null) {
-                    let finalPrice = parseFloat(resolvedPrice);
-                    if (item.appliedDiscount && parseFloat(item.appliedDiscount) > 0) {
-                        const originalPriceBeforeDiscount = finalPrice;
-                        finalPrice -= parseFloat(item.appliedDiscount);
-                        console.log(`[shopify-sync] DISCOUNT LOG: Applied per-unit discount of ${item.appliedDiscount}! Unit Price calculated: ${originalPriceBeforeDiscount} - ${item.appliedDiscount} = ${finalPrice}`);
-                    } else {
-                        console.log(`[shopify-sync] DISCOUNT LOG: No appliedDiscount provided by client for variant ${variantGid}. Unit Price remains: ${finalPrice}`);
-                    }
-                    if (finalPrice < 0) {
-                        console.log(`[shopify-sync] DISCOUNT LOG: Final price was less than 0 (${finalPrice}), clamped to 0.`);
-                        finalPrice = 0;
-                    }
-                    lineItem.originalUnitPrice = finalPrice.toFixed(2);
-                    
-                    // Shopify ignores originalUnitPrice if variantId is provided, so we must use appliedDiscount OR we can omit variantId.
-                    // To maintain inventory tracking, we must send variantId. 
-                    // But if the user doesn't want the "Reducere" tag, the official way is to either use `priceOverride` (if supported) or we must fallback to applying a discount.
-                    // We will NOT send an explicit `appliedDiscount` object to Shopify (because the user hates the tag), 
-                    // INSTEAD, we will omit the variantId so Shopify accepts the custom price!
-                    if (item.appliedDiscount && parseFloat(item.appliedDiscount) > 0) {
-                        console.log(`[shopify-sync] DISCOUNT LOG: Omitting variantId AND sku to force custom price without Shopify automatic quantity discount for ${lineItem.title || variantGid}`);
-                        delete lineItem.variantId;
-                        delete lineItem.sku; // Remove SKU so Shopify can't match to catalog product and apply automatic Quantity Discount
-                    }
-                    
-                    console.log(`[shopify-sync] DISCOUNT LOG: Forcing originalUnitPrice to ${lineItem.originalUnitPrice}`);
-                } else {
-                    console.log(`[shopify-sync] DISCOUNT LOG: WARNING: No price resolved for variant ${variantGid}, Shopify will fallback to variant catalog price`);
-                }
-
                 console.log(`[shopify-sync] Final line item:`, JSON.stringify(lineItem));
                 return lineItem;
             });
 
+            // Calculate total order-level discount from all items
+            let totalOrderDiscount = 0;
+            items.forEach(item => {
+                if (item.appliedDiscount && parseFloat(item.appliedDiscount) > 0) {
+                    const qty = item.quantity || 1;
+                    const itemTotalDiscount = parseFloat(item.appliedDiscount) * qty;
+                    totalOrderDiscount += itemTotalDiscount;
+                    console.log(`[shopify-sync] ORDER DISCOUNT: ${item.title} → ${item.appliedDiscount}/unit × ${qty} = ${itemTotalDiscount}`);
+                }
+            });
+
             const input = { lineItems: lineItemsInput };
 
+            // ── Apply discount at ORDER level (like n8n does) ──
+            if (totalOrderDiscount > 0) {
+                input.appliedDiscount = {
+                    title: `Reducere ${totalOrderDiscount.toFixed(0)} lei`,
+                    description: 'Reducere aplicata din dashboard',
+                    value: totalOrderDiscount,
+                    valueType: 'FIXED_AMOUNT'
+                };
+                console.log(`[shopify-sync] ORDER-LEVEL DISCOUNT: ${totalOrderDiscount} RON`);
+            }
+
             // ── Disable Shopify's automatic quantity discounts ──
-            // This prevents Shopify from applying its own "Quantity Discount" on top of our already-reduced prices.
-            // Same approach as the n8n workflow uses: acceptAutomaticDiscounts: false
             input.acceptAutomaticDiscounts = false;
 
-            // ── Shipping Line (proper method, not as line item) ──
-            // With acceptAutomaticDiscounts: false, Shopify won't recalculate/overwrite the shipping line.
+            // ── Shipping Line ──
+            // With variantId kept, Shopify knows the product weight and won't remove shipping.
             if (shippingPrice !== undefined && parseFloat(shippingPrice) > 0) {
                 input.shippingLine = {
                     title: 'Livrare Rapida',
