@@ -238,7 +238,7 @@ const Drafturi = () => {
     const showShopifyNotif = (msg: string, type: 'success' | 'error' | 'info' = 'info', action?: string) => {
         const id = ++notifIdRef.current;
         setShopifyNotifs(prev => [...prev.slice(-9), { id, msg, type }]); // max 10 notifications
-        const timeout = type === 'error' ? 20000 : 10000;
+        const timeout = type === 'error' ? 30000 : 20000; // Increased to 20s as requested
         setTimeout(() => setShopifyNotifs(prev => prev.filter(n => n.id !== id)), timeout);
 
         // Persist log to Supabase (fire-and-forget, non-blocking)
