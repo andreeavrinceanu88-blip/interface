@@ -1187,7 +1187,17 @@ const Drafturi = () => {
                                             
                                             <div className="pt-4 mt-2 border-t border-white/5 space-y-3">
                                                 <DL label="Valoare produse" value={money(selectedOrder.value)} />
-                                                <DL label="Transport" value="0,00 lei" />
+                                                <DL label="Transport" value={(() => {
+                                                    const items = parseProduse(selectedOrder.produse);
+                                                    const tp = items.find((i: any) => productsTransportMap[i.sku]);
+                                                    if (!tp) return 'Gratuit';
+                                                    const tArr = productsTransportMap[tp.sku];
+                                                    const idx = Math.min(Math.max(0, (Number(tp.quantity) || 1) - 1), tArr.length - 1);
+                                                    const val = tArr[idx];
+                                                    if (!val || /^gratu/i.test(val.trim())) return 'Gratuit';
+                                                    const p = parseFloat(val.replace(',', '.'));
+                                                    return !isNaN(p) && p > 0 ? `${p.toFixed(2)} lei` : 'Gratuit';
+                                                })()} />
                                                 <DL label={<span className="font-bold text-white text-sm">Total comandă</span>} value={<span className="font-bold text-indigo-400 text-base">{money(selectedOrder.value)}</span>} />
                                             </div>
 
@@ -1565,12 +1575,12 @@ const Drafturi = () => {
                                             }
                                             
                                             let shippingCost = 0;
-                                            const firstItem = items[0];
-                                            // Use TOTAL quantity across ALL items for transport index lookup
-                                            const totalQtyShip = items.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0);
-                                            const transportArr = productsTransportMap[firstItem.sku];
-                                            if (transportArr) {
-                                                const qtyIdx = Math.min(Math.max(0, totalQtyShip - 1), transportArr.length - 1);
+                                            // Find the product that HAS transport defined, use only ITS quantity
+                                            const transportProduct = items.find((item: any) => productsTransportMap[item.sku]);
+                                            if (transportProduct) {
+                                                const transportQty = Number(transportProduct.quantity) || 1;
+                                                const transportArr = productsTransportMap[transportProduct.sku];
+                                                const qtyIdx = Math.min(Math.max(0, transportQty - 1), transportArr.length - 1);
                                                 const transportVal = transportArr[qtyIdx];
                                                 const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
                                                 if (!isGratuit) {
@@ -1625,13 +1635,13 @@ const Drafturi = () => {
                                             });
 
                                             let shippingCost = 0;
-                                            const firstItem = items[0];
-                                            // Use TOTAL quantity across ALL items for transport index lookup
-                                            const totalQtyForTotal = items.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0);
-                                            const transportArrT = productsTransportMap[firstItem.sku];
+                                            // Find the product that HAS transport defined, use only ITS quantity
+                                            const transportProductT = items.find((item: any) => productsTransportMap[item.sku]);
                                             const shouldAddShipping = editingProducts ? includeShipping : true;
-                                            if (transportArrT && shouldAddShipping) {
-                                                const qtyIdx = Math.min(Math.max(0, totalQtyForTotal - 1), transportArrT.length - 1);
+                                            if (transportProductT && shouldAddShipping) {
+                                                const transportQtyT = Number(transportProductT.quantity) || 1;
+                                                const transportArrT = productsTransportMap[transportProductT.sku];
+                                                const qtyIdx = Math.min(Math.max(0, transportQtyT - 1), transportArrT.length - 1);
                                                 const transportVal = transportArrT[qtyIdx];
                                                 const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
                                                 if (!isGratuit) {
