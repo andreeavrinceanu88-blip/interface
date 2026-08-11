@@ -240,7 +240,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             supabaseAdmin.from('call_logs').insert({
                                 operator_id: profileRef.current.id,
                                 order_id: activeOrderIdRef.current,
-                                duration_decs: duration,
+                                duration_secs: duration,
                                 status: callStatus
                             }).then(({error}) => {
                                 if (error) console.error('[Telnyx] Error saving call log:', error);

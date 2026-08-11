@@ -12,7 +12,7 @@ interface CallLog {
     id: number;
     operator_id: string;
     order_id: string | null;
-    duration_decs: number;
+    duration_secs: number;
     status: string | null;
     created_at: string;
 }
@@ -82,7 +82,7 @@ export default function Operatori() {
         callLogs.forEach(log => {
             if (stats[log.operator_id]) {
                 stats[log.operator_id].callsMade += 1;
-                stats[log.operator_id].totalDuration += (log.duration_decs || 0);
+                stats[log.operator_id].totalDuration += (log.duration_secs || 0);
             }
         });
 
