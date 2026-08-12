@@ -192,10 +192,34 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             callStartTimeRef.current = Date.now();
                         }
                         
-                        if (audioRef.current && call.remoteStream) {
-                            audioRef.current.srcObject = call.remoteStream;
-                            audioRef.current.play().catch(console.error);
-                        }
+                        // Attach remote audio stream
+                        const attachAudio = (stream: MediaStream | null) => {
+                            if (audioRef.current && stream) {
+                                const tracks = stream.getAudioTracks();
+                                console.log('[Telnyx] Attaching remote audio — tracks:', tracks.length, tracks.map(t => `${t.label} (${t.readyState})`));
+                                audioRef.current.srcObject = stream;
+                                audioRef.current.volume = 1.0;
+                                audioRef.current.play().catch(e => console.error('[Telnyx] Audio play error:', e));
+                            } else {
+                                console.warn('[Telnyx] No remote stream available, audioRef:', !!audioRef.current, 'stream:', !!stream);
+                            }
+                        };
+
+                        // Try remoteStream directly
+                        attachAudio(call.remoteStream);
+
+                        // Fallback: listen for tracks on the peer connection
+                        try {
+                            const pc = call.peer || call.options?.peer || call.peerConnection;
+                            if (pc && pc.ontrack === null) {
+                                pc.ontrack = (event: RTCTrackEvent) => {
+                                    console.log('[Telnyx] ontrack fired — streams:', event.streams.length);
+                                    if (event.streams[0]) {
+                                        attachAudio(event.streams[0]);
+                                    }
+                                };
+                            }
+                        } catch (e) { /* peer not accessible */ }
                     } 
                     else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
                         stopRingback();
