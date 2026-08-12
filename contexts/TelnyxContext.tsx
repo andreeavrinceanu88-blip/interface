@@ -169,6 +169,21 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 const call = notification.call;
                 if (notification.type === 'callUpdate') {
                     
+                    console.log('[Telnyx] callUpdate state:', call.state, '| direction:', call.direction, '| remoteStream:', !!call.remoteStream);
+
+                    // Helper: try to attach remote audio whenever a stream is available
+                    const tryAttachAudio = () => {
+                        if (audioRef.current && call.remoteStream) {
+                            const tracks = call.remoteStream.getAudioTracks();
+                            if (tracks.length > 0 && audioRef.current.srcObject !== call.remoteStream) {
+                                console.log('[Telnyx] ▶ Attaching remote audio — tracks:', tracks.length, tracks.map((t: any) => `${t.label} (${t.readyState})`));
+                                audioRef.current.srcObject = call.remoteStream;
+                                audioRef.current.volume = 1.0;
+                                audioRef.current.play().catch(e => console.error('[Telnyx] Audio play error:', e));
+                            }
+                        }
+                    };
+
                     if (call.state === 'ringing') {
                         if (call.direction === 'inbound') {
                             setIncomingCall(call);
@@ -179,6 +194,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             setActiveCall(call);
                             playRingback();
                         }
+                        // Try attaching audio early (some calls skip 'active')
+                        tryAttachAudio();
                     }
                     else if (call.state === 'active') {
                         stopRingback();
@@ -193,20 +210,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         }
                         
                         // Attach remote audio stream
-                        const attachAudio = (stream: MediaStream | null) => {
-                            if (audioRef.current && stream) {
-                                const tracks = stream.getAudioTracks();
-                                console.log('[Telnyx] Attaching remote audio — tracks:', tracks.length, tracks.map(t => `${t.label} (${t.readyState})`));
-                                audioRef.current.srcObject = stream;
-                                audioRef.current.volume = 1.0;
-                                audioRef.current.play().catch(e => console.error('[Telnyx] Audio play error:', e));
-                            } else {
-                                console.warn('[Telnyx] No remote stream available, audioRef:', !!audioRef.current, 'stream:', !!stream);
-                            }
-                        };
-
-                        // Try remoteStream directly
-                        attachAudio(call.remoteStream);
+                        tryAttachAudio();
 
                         // Fallback: listen for tracks on the peer connection
                         try {
@@ -214,12 +218,19 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             if (pc && pc.ontrack === null) {
                                 pc.ontrack = (event: RTCTrackEvent) => {
                                     console.log('[Telnyx] ontrack fired — streams:', event.streams.length);
-                                    if (event.streams[0]) {
-                                        attachAudio(event.streams[0]);
+                                    if (event.streams[0] && audioRef.current) {
+                                        audioRef.current.srcObject = event.streams[0];
+                                        audioRef.current.volume = 1.0;
+                                        audioRef.current.play().catch(e => console.error('[Telnyx] Audio play error:', e));
                                     }
                                 };
                             }
                         } catch (e) { /* peer not accessible */ }
+                    }
+                    else if (call.state === 'answering' || call.state === 'early' || call.state === 'trying') {
+                        // Some intermediate states — try attaching audio here too
+                        console.log('[Telnyx] Intermediate state:', call.state);
+                        tryAttachAudio();
                     } 
                     else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
                         stopRingback();
