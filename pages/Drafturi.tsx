@@ -1041,8 +1041,8 @@ const Drafturi = () => {
                                         <button
                                             onClick={() => {
                                                 const storeSlugMap: Record<string, string> = {
-                                                    'tamtrend': 'z10zqc-mz',
-                                                    'vitadomus': 'k7agxh-7y',
+                                                    'tamtrend': 'k7agxh-7y',
+                                                    'vitadomus': 'z10zqc-mz',
                                                 };
                                                 const slug = storeSlugMap[(selectedOrder.store_name || '').toLowerCase()] || 'z10zqc-mz';
                                                 const cid = selectedOrder.custormerId;
