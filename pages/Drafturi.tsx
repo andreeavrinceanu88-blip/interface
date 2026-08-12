@@ -31,6 +31,7 @@ interface Order {
     istoric: string;
     client_personal_id: string;
     email: string;
+    custormerId?: string;
 }
 
 const TABS: { id: string; label: string }[] = [
@@ -1037,7 +1038,19 @@ const Drafturi = () => {
                                             <span className="material-icons-round text-base">history</span>
                                             Istoric apeluri
                                         </button>
-                                        <button className="px-4 flex items-center justify-center gap-1.5 btn-3d-secondary py-2 rounded-xl transition-all shadow-sm text-sm">
+                                        <button
+                                            onClick={() => {
+                                                const storeSlugMap: Record<string, string> = {
+                                                    'tamtrend': 'z10zqc-mz',
+                                                    'vitadomus': 'k7agxh-7y',
+                                                };
+                                                const slug = storeSlugMap[(selectedOrder.store_name || '').toLowerCase()] || 'z10zqc-mz';
+                                                const cid = selectedOrder.custormerId;
+                                                if (!cid) { alert('Acest client nu are Customer ID setat în Supabase.'); return; }
+                                                window.open(`https://admin.shopify.com/store/${slug}/orders?query=customer_id%3A%22${cid}%22`, '_blank');
+                                            }}
+                                            className="px-4 flex items-center justify-center gap-1.5 btn-3d-secondary py-2 rounded-xl transition-all shadow-sm text-sm"
+                                        >
                                             <span className="material-icons-round text-base">person_search</span>
                                             Istoric client
                                         </button>
