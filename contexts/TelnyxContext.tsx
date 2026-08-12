@@ -207,6 +207,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         const sipReason = call.causeMessage || call.sipReason || call.options?.sipReason;
                         const rawReason = sipReason || sipCode || call.hangupCause || '';
                         
+                        console.log('[Telnyx] Call ended — raw:', rawReason, '| sipCode:', sipCode, '| sipReason:', sipReason, '| cause:', call.cause, '| causeMessage:', call.causeMessage, '| hangupCause:', call.hangupCause);
+                        
                         // Map common SIP codes/reasons to user-friendly Romanian text
                         const reasonMap: Record<string, string> = {
                             'NORMAL_CLEARING': 'Apel încheiat normal',
@@ -218,15 +220,27 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             'NORMAL_UNSPECIFIED': 'Apel încheiat',
                             'RECOVERY_ON_TIMER_EXPIRE': 'Timeout - Nu răspunde',
                             'SUBSCRIBER_ABSENT': 'Telefon închis / indisponibil',
-                            'UNALLOCATED_NUMBER': 'Număr inexistent',
-                            'INVALID_NUMBER_FORMAT': 'Număr invalid',
+                            'UNALLOCATED_NUMBER': '⚠️ Număr inexistent',
+                            'INVALID_NUMBER_FORMAT': '⚠️ Număr invalid',
+                            'NUMBER_CHANGED': '⚠️ Număr schimbat',
+                            'INVALID_GATEWAY': '⚠️ Număr invalid',
+                            'DESTINATION_OUT_OF_ORDER': '⚠️ Număr indisponibil / invalid',
+                            'EXCHANGE_ROUTING_ERROR': '⚠️ Număr invalid - eroare rutare',
+                            'NO_ROUTE_DESTINATION': '⚠️ Număr inexistent - fără rută',
+                            'MANDATORY_IE_MISSING': '⚠️ Număr invalid',
+                            'NETWORK_OUT_OF_ORDER': 'Rețea indisponibilă',
                             '486': 'Ocupat',
                             '480': 'Nu răspunde / Indisponibil',
                             '487': 'Apel anulat',
                             '603': 'Apel respins',
-                            '404': 'Număr inexistent',
+                            '404': '⚠️ Număr inexistent',
+                            '484': '⚠️ Număr invalid - format incorect',
+                            '485': '⚠️ Număr invalid - ambiguu',
+                            '502': '⚠️ Număr invalid - gateway',
+                            '604': '⚠️ Număr inexistent',
                             '408': 'Timeout - Nu răspunde',
                             '503': 'Serviciu indisponibil',
+                            '410': '⚠️ Număr dezactivat',
                         };
                         const friendlyReason = reasonMap[String(rawReason).toUpperCase()] || reasonMap[String(sipCode)] || (rawReason ? String(rawReason) : null);
                         
@@ -258,7 +272,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             }
                         }
 
-                        // Set hangup reason for UI display
+                        // Set hangup reason for UI display — show all reasons except normal endings
                         if (friendlyReason && friendlyReason !== 'Apel încheiat normal' && friendlyReason !== 'Apel încheiat' && friendlyReason !== 'Apel anulat') {
                             setLastHangupReason(friendlyReason);
                         } else {
@@ -270,9 +284,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         activeOrderIdRef.current = null;
 
                         setCallState(prev => {
-                            if (prev === 'calling') {
+                            if (prev === 'calling' || prev === 'ringing') {
                                 playRejectedBeeps();
-                                setTimeout(() => { setCallState('idle'); setLastHangupReason(null); }, 5000);
+                                setTimeout(() => { setCallState('idle'); setLastHangupReason(null); }, 8000);
                                 return 'rejected';
                             }
                             return 'idle';
