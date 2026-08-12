@@ -228,8 +228,17 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         } catch (e) { /* peer not accessible */ }
                     }
                     else if (call.state === 'answering' || call.state === 'early' || call.state === 'trying') {
-                        // Some intermediate states — try attaching audio here too
                         console.log('[Telnyx] Intermediate state:', call.state);
+                        // When 'early' media arrives (carrier announcement), stop our synthetic ringback
+                        // so the user can hear the remote audio (e.g. "number invalid" robot)
+                        if (call.state === 'early' && call.remoteStream) {
+                            stopRingback();
+                            // Mark call as active so UI shows it's connected
+                            setCallState('active');
+                            if (callStartTimeRef.current === null) {
+                                callStartTimeRef.current = Date.now();
+                            }
+                        }
                         tryAttachAudio();
                     } 
                     else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
