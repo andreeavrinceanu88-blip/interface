@@ -1037,6 +1037,10 @@ const Drafturi = () => {
                                             <span className="material-icons-round">history</span>
                                             Istoric apeluri
                                         </button>
+                                        <button className="flex-1 flex items-center justify-center gap-2 btn-3d-secondary py-3.5 rounded-xl transition-all shadow-sm text-[15px]">
+                                            <span className="material-icons-round">person_search</span>
+                                            Istoric client
+                                        </button>
                                     </div>
                                     <div className="col-span-2"></div>
                                 </div>
