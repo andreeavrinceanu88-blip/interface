@@ -177,6 +177,13 @@ const Drafturi = () => {
     const notifIdRef = useRef(0);
     const [syncingStatus, setSyncingStatus] = useState(false);
 
+    // ── Product filter
+    const [showFilterPopup, setShowFilterPopup] = useState(false);
+    const [filterSearchQuery, setFilterSearchQuery] = useState('');
+    const [storeProducts, setStoreProducts] = useState<{ sku: string; denumire: string }[]>([]);
+    const [selectedProductFilter, setSelectedProductFilter] = useState<string | null>(null);
+    const filterPopupRef = useRef<HTMLDivElement>(null);
+
     // ── Product editing
     const [editingProducts, setEditingProducts] = useState(false);
     const [editedProductsList, setEditedProductsList] = useState<any[]>([]);
@@ -220,6 +227,18 @@ const Drafturi = () => {
             if (interval) clearInterval(interval);
         };
     }, [callState]);
+
+    // Close filter popup on click outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (filterPopupRef.current && !filterPopupRef.current.contains(e.target as Node)) {
+                setShowFilterPopup(false);
+                setFilterSearchQuery('');
+            }
+        };
+        if (showFilterPopup) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showFilterPopup]);
 
     const formatCallTimer = (sec: number) => {
         const mins = Math.floor(sec / 60);
@@ -297,7 +316,7 @@ const Drafturi = () => {
             // Fetch products discount mapping
             const { data: pData } = await supabaseAdmin
                 .from('products')
-                .select('sku, discountCode, transport_1_bucata, transport_2_bucati, transport_3_bucati, transport_4_bucati, transport_5_bucati')
+                .select('sku, denumire, discountCode, transport_1_bucata, transport_2_bucati, transport_3_bucati, transport_4_bucati, transport_5_bucati')
                 .eq('store', selectedBrand)
                 .eq('user_id', profile?.effectiveUserId);
                 
@@ -319,6 +338,10 @@ const Drafturi = () => {
             }
             setProductsDiscountMap(pMap);
             setProductsTransportMap(tMap);
+            // Store product list for filter popup
+            if (pData) {
+                setStoreProducts(pData.filter(p => p.sku && p.denumire).map(p => ({ sku: p.sku, denumire: p.denumire })));
+            }
 
             const all: Order[] = (data || []).map(o => ({
                 ...o,
@@ -848,17 +871,73 @@ const Drafturi = () => {
                     </div>
 
                     
-                    {/* Priority mock */}
-                    <button className="btn-3d-secondary px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 h-[34px] hover:text-white shadow-sm hidden md:flex">
-                        <span>Sortează</span>
-                        <span className="material-icons-round text-sm text-gray-400">arrow_drop_down</span>
-                    </button>
-                    
-                    {/* Filters mock */}
-                    <button className="btn-3d-secondary px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 h-[34px] hover:text-white shadow-sm hidden md:flex">
-                        <span className="material-icons-round text-sm text-indigo-500">filter_list</span>
-                        Filtre
-                    </button>
+                    {/* Product filter */}
+                    <div className="relative" ref={filterPopupRef}>
+                        <button
+                            onClick={() => setShowFilterPopup(!showFilterPopup)}
+                            className={`btn-3d-secondary px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 h-[34px] hover:text-white shadow-sm hidden md:flex ${selectedProductFilter ? '!border-indigo-500/50 !bg-indigo-500/10' : ''}`}
+                        >
+                            <span className="material-icons-round text-sm text-indigo-500">filter_list</span>
+                            {selectedProductFilter ? 'Filtru activ' : 'Filtre'}
+                            {selectedProductFilter && (
+                                <span
+                                    onClick={(e) => { e.stopPropagation(); setSelectedProductFilter(null); }}
+                                    className="material-icons-round text-sm text-gray-400 hover:text-red-400 cursor-pointer ml-0.5"
+                                >close</span>
+                            )}
+                        </button>
+
+                        {showFilterPopup && (
+                            <div className="absolute top-full mt-2 left-0 z-[60] w-[340px] bg-[#1a1b23] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                {/* Search */}
+                                <div className="p-3 border-b border-white/5">
+                                    <div className="relative">
+                                        <span className="material-icons-round absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-base">search</span>
+                                        <input
+                                            type="text"
+                                            placeholder="Caută produs..."
+                                            value={filterSearchQuery}
+                                            onChange={e => setFilterSearchQuery(e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Product list */}
+                                <div className="max-h-[320px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+                                    {/* Clear filter option */}
+                                    <button
+                                        onClick={() => { setSelectedProductFilter(null); setShowFilterPopup(false); setFilterSearchQuery(''); }}
+                                        className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-white/5 transition-colors ${!selectedProductFilter ? 'text-indigo-400 bg-indigo-500/5' : 'text-gray-400'}`}
+                                    >
+                                        <span className="material-icons-round text-base">clear_all</span>
+                                        Toate produsele
+                                    </button>
+
+                                    {storeProducts
+                                        .filter(p => !filterSearchQuery || p.denumire.toLowerCase().includes(filterSearchQuery.toLowerCase()))
+                                        .map(product => (
+                                            <button
+                                                key={product.sku}
+                                                onClick={() => { setSelectedProductFilter(product.sku); setShowFilterPopup(false); setFilterSearchQuery(''); }}
+                                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 transition-colors flex items-center gap-2 ${selectedProductFilter === product.sku ? 'text-indigo-400 bg-indigo-500/10' : 'text-gray-300'}`}
+                                            >
+                                                <span className="material-icons-round text-base text-gray-500">
+                                                    {selectedProductFilter === product.sku ? 'check_circle' : 'inventory_2'}
+                                                </span>
+                                                <span className="truncate">{product.denumire}</span>
+                                            </button>
+                                        ))
+                                    }
+
+                                    {storeProducts.filter(p => !filterSearchQuery || p.denumire.toLowerCase().includes(filterSearchQuery.toLowerCase())).length === 0 && (
+                                        <div className="px-4 py-6 text-center text-gray-500 text-sm">Niciun produs găsit</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-4 items-center justify-end">
