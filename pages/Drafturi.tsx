@@ -215,6 +215,36 @@ const Drafturi = () => {
     const callState = telnyxCallState as 'idle' | 'calling' | 'active' | 'rejected';
     const isMuted = telnyxMuted;
 
+    // ── Call History
+    const [showCallHistory, setShowCallHistory] = useState(false);
+    const [callHistoryLogs, setCallHistoryLogs] = useState<any[]>([]);
+    const [loadingCallHistory, setLoadingCallHistory] = useState(false);
+
+    const fetchCallHistory = async () => {
+        if (!profile?.id) return;
+        setLoadingCallHistory(true);
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const { data, error } = await supabase
+                .from('call_logs')
+                .select('*')
+                .eq('operator_id', profile.id)
+                .gte('created_at', today.toISOString())
+                .order('created_at', { ascending: false })
+                .limit(100);
+                
+            if (!error && data) {
+                setCallHistoryLogs(data);
+            }
+        } catch (e) {
+            console.error('Error fetching call history:', e);
+        } finally {
+            setLoadingCallHistory(false);
+        }
+    };
+
     useEffect(() => {
         let interval: any = null;
         if (callState === 'active') {
@@ -956,6 +986,75 @@ const Drafturi = () => {
                         ) : (
                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20 uppercase tracking-wider">
                                 <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> OFF
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Call History toggle */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => {
+                                if (!showCallHistory) fetchCallHistory();
+                                setShowCallHistory(!showCallHistory);
+                            }} 
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all h-[36px] shadow-sm mr-2 ${showCallHistory ? 'btn-3d-secondary text-white' : 'bg-[#13141a]/5 hover:bg-[#13141a]/20 text-gray-400 hover:text-white'}`}
+                        >
+                            <span className="material-icons-round text-lg">history</span>
+                            Istoric Sesiune
+                        </button>
+                        
+                        {/* Call History Popup */}
+                        {showCallHistory && (
+                            <div className="absolute right-0 top-full mt-2 w-[340px] bg-[#13141a] border border-white/5 rounded-2xl shadow-2xl z-50 flex flex-col max-h-[500px]">
+                                <div className="flex justify-between items-center p-4 border-b border-white/5">
+                                    <h3 className="text-white font-medium flex items-center gap-2 text-sm">
+                                        <span className="material-icons-round text-indigo-400 text-lg">history</span>
+                                        Istoric Apeluri Azi
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={fetchCallHistory} className="text-gray-500 hover:text-indigo-400 transition-colors" title="Reîncarcă">
+                                            <span className={`material-icons-round text-sm ${loadingCallHistory ? 'animate-spin' : ''}`}>refresh</span>
+                                        </button>
+                                        <button onClick={() => setShowCallHistory(false)} className="text-gray-500 hover:text-white transition-colors">
+                                            <span className="material-icons-round text-sm">close</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
+                                    {loadingCallHistory ? (
+                                        <div className="text-center p-4 text-gray-400 text-sm animate-pulse">Se încarcă...</div>
+                                    ) : callHistoryLogs.length === 0 ? (
+                                        <div className="text-center p-4 text-gray-500 text-sm">Nu există apeluri în sesiunea curentă.</div>
+                                    ) : (
+                                        <div className="flex flex-col gap-1.5">
+                                            {callHistoryLogs.map((log) => {
+                                                const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
+                                                const iconColor = isAnswered ? 'text-emerald-500' : 'text-red-500';
+                                                const icon = log.direction === 'inbound' ? 'call_received' : 'call_made';
+                                                
+                                                return (
+                                                    <div key={log.id} className="flex flex-col p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`material-icons-round text-[16px] ${iconColor}`}>{icon}</span>
+                                                                <span className="text-white text-sm font-medium">{log.destination || log.caller_id || 'Necunoscut'}</span>
+                                                            </div>
+                                                            <span className="text-[11px] text-gray-500">
+                                                                {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center pl-6">
+                                                            <span className="text-xs text-gray-400 capitalize">{log.status} {log.reason ? `(${log.reason})` : ''}</span>
+                                                            {log.duration_secs > 0 && (
+                                                                <span className="text-xs text-gray-400 font-mono bg-[#13141a] px-1.5 py-0.5 rounded-md border border-white/5">{formatCallTimer(log.duration_secs)}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
