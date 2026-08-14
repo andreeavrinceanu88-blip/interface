@@ -779,14 +779,14 @@ const Drafturi = () => {
 
             {/* ── Top Bar ─────────────────────────────────────────────────── */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0">
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-3 flex-1">
                     <h1 className="text-lg font-semibold text-white flex items-center gap-3">
                         Comenzi de sunat 
                         <span className="bg-indigo-500/20 text-indigo-400 text-sm font-bold px-2.5 py-0.5 rounded-full">{orders.length}</span>
                     </h1>
                     
                     {/* Brand dropdown */}
-                    <div className="relative ml-4">
+                    <div className="relative ml-2">
                         <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm min-w-[130px] flex justify-between items-center h-[38px] hover:text-white transition-all shadow-sm">
                             <span className="font-medium">{selectedBrand || 'Selectează'}</span>
                             <span className={`material-icons-round text-base text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
@@ -823,7 +823,7 @@ const Drafturi = () => {
                     </div>
 
                     {/* Dummy Draft Status Toggle */}
-                    <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner ml-2 hidden sm:flex">
+                    <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner ml-1 hidden sm:flex">
                         <button 
                             onClick={() => setDraftStatus('open')}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'open' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
@@ -839,7 +839,7 @@ const Drafturi = () => {
                     </div>
                     
                     {/* Dummy Switches */}
-                    <div className="flex items-center gap-4 ml-4 hidden lg:flex">
+                    <div className="flex items-center gap-3 ml-2 hidden lg:flex">
                         <label className="flex items-center gap-2 cursor-pointer group" onClick={(e) => e.preventDefault()}>
                             <div 
                                 className={`relative w-9 h-5 rounded-full transition-all duration-300 ${turboEnabled ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
