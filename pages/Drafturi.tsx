@@ -143,6 +143,8 @@ const Drafturi = () => {
     const [draftStatus, setDraftStatus] = useState<'open' | 'complete'>('open');
     const [selectedBrand, setSelectedBrand] = useState<string>('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isViewModeDropdownOpen, setIsViewModeDropdownOpen] = useState(false);
+    const [isDraftStatusDropdownOpen, setIsDraftStatusDropdownOpen] = useState(false);
     
     // ── Dummy feature toggles
     const [turboEnabled, setTurboEnabled] = useState(false);
@@ -806,67 +808,71 @@ const Drafturi = () => {
                         )}
                     </div>
 
-                    {/* View Mode Toggle */}
-                    <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner">
-                        <button 
-                            onClick={() => setViewMode('drafturi')}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'drafturi' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                        >
-                            Drafturi
+                    {/* View Mode Dropdown */}
+                    <div className="relative ml-1">
+                        <button onClick={() => setIsViewModeDropdownOpen(!isViewModeDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm min-w-[110px] flex justify-between items-center h-[38px] hover:text-white transition-all shadow-sm capitalize">
+                            <span className="font-medium">{viewMode}</span>
+                            <span className={`material-icons-round text-base text-gray-400 transition-transform ${isViewModeDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
                         </button>
-                        <button 
-                            onClick={() => setViewMode('comenzi')}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'comenzi' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                        >
-                            Comenzi
-                        </button>
+                        {isViewModeDropdownOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsViewModeDropdownOpen(false)} />
+                                <div className="absolute left-0 top-full mt-2 w-full rounded-xl bg-[#13141a] border border-white/5 shadow-xl z-50 overflow-hidden">
+                                    {['drafturi', 'comenzi'].map(mode => (
+                                        <button key={mode} onClick={() => { setViewMode(mode as any); setIsViewModeDropdownOpen(false); }} className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-indigo-500/20 transition-colors flex items-center gap-2 capitalize">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${viewMode === mode ? 'bg-indigo-600' : 'bg-transparent border border-white/10'}`} />
+                                            {mode}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
 
-                    {/* Dummy Draft Status Toggle */}
-                    <div className="flex bg-[#13141a]/5 p-1 rounded-xl shadow-inner ml-1 hidden sm:flex">
-                        <button 
-                            onClick={() => setDraftStatus('open')}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'open' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                        >
-                            Open
+                    {/* Draft Status Dropdown */}
+                    <div className="relative ml-1 hidden sm:block">
+                        <button onClick={() => setIsDraftStatusDropdownOpen(!isDraftStatusDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm min-w-[110px] flex justify-between items-center h-[38px] hover:text-white transition-all shadow-sm capitalize">
+                            <span className="font-medium">{draftStatus}</span>
+                            <span className={`material-icons-round text-base text-gray-400 transition-transform ${isDraftStatusDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
                         </button>
-                        <button 
-                            onClick={() => setDraftStatus('complete')}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${draftStatus === 'complete' ? 'btn-3d-secondary shadow-sm text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                        >
-                            Complete
-                        </button>
+                        {isDraftStatusDropdownOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsDraftStatusDropdownOpen(false)} />
+                                <div className="absolute left-0 top-full mt-2 w-full rounded-xl bg-[#13141a] border border-white/5 shadow-xl z-50 overflow-hidden">
+                                    {['open', 'complete'].map(status => (
+                                        <button key={status} onClick={() => { setDraftStatus(status as any); setIsDraftStatusDropdownOpen(false); }} className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-indigo-500/20 transition-colors flex items-center gap-2 capitalize">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${draftStatus === status ? 'bg-indigo-600' : 'bg-transparent border border-white/10'}`} />
+                                            {status}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
                     
                     {/* Dummy Switches */}
                     <div className="flex items-center gap-3 ml-2 hidden lg:flex">
-                        <label className="flex items-center gap-2 cursor-pointer group" onClick={(e) => e.preventDefault()}>
+                        <label className="flex items-center gap-1.5 cursor-pointer group" onClick={(e) => e.preventDefault()} title="Turbo">
                             <div 
-                                className={`relative w-9 h-5 rounded-full transition-all duration-300 ${turboEnabled ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
+                                className={`relative w-8 h-4 rounded-full transition-all duration-300 ${turboEnabled ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
                                 onClick={() => {
                                     if (!turboEnabled) setShowTurboPopup(true);
                                     else setTurboEnabled(false);
                                 }}
                             >
-                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${turboEnabled ? 'translate-x-4' : ''}`}></div>
+                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-300 ${turboEnabled ? 'translate-x-4' : ''}`}></div>
                             </div>
-                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 group-hover:text-white transition-colors flex items-center gap-1">
-                                <span className="material-icons-round text-sm text-amber-500">bolt</span>
-                                Turbo
-                            </span>
+                            <span className="material-icons-round text-[18px] text-amber-500 opacity-80 group-hover:opacity-100 transition-opacity">bolt</span>
                         </label>
 
-                        <label className="flex items-center gap-2 cursor-pointer group" onClick={(e) => e.preventDefault()}>
+                        <label className="flex items-center gap-1.5 cursor-pointer group" onClick={(e) => e.preventDefault()} title="Rec">
                             <div 
-                                className={`relative w-9 h-5 rounded-full transition-all duration-300 ${recordEnabled ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
+                                className={`relative w-8 h-4 rounded-full transition-all duration-300 ${recordEnabled ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'bg-[#13141a] border border-white/10'}`}
                                 onClick={() => setRecordEnabled(!recordEnabled)}
                             >
-                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-300 ${recordEnabled ? 'translate-x-4' : ''}`}></div>
+                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-300 ${recordEnabled ? 'translate-x-4' : ''}`}></div>
                             </div>
-                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 group-hover:text-white transition-colors flex items-center gap-1">
-                                <span className="material-icons-round text-sm text-red-500">mic</span>
-                                Rec
-                            </span>
+                            <span className="material-icons-round text-[18px] text-red-500 opacity-80 group-hover:opacity-100 transition-opacity">mic</span>
                         </label>
                     </div>
 
