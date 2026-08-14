@@ -169,7 +169,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 const call = notification.call;
                 if (notification.type === 'callUpdate') {
                     
-                    console.log('[Telnyx] callUpdate state:', call.state, '| direction:', call.direction, '| remoteStream:', !!call.remoteStream);
+                    console.log('[Telnyx] callUpdate state:', call.state, '| direction:', call.direction, '| remoteStream:', !!call.remoteStream, '| remoteCallerNumber:', call.options?.remoteCallerNumber, '| callerNumber:', call.options?.callerNumber, '| destinationNumber:', call.options?.destinationNumber);
 
                     // Helper: try to attach remote audio whenever a stream is available
                     const tryAttachAudio = () => {
