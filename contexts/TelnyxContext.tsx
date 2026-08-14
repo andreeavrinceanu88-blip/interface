@@ -112,19 +112,78 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (e) {}
     };
 
+    const ringtoneCtxRef = useRef<any>(null);
+    const ringtoneIntervalRef = useRef<any>(null);
+
     const playIncomingRingtone = () => {
-        if (!incomingRingtoneRef.current) {
-            const audio = new Audio('/ringtone.mp3'); // Fallback ringtone
-            audio.loop = true;
-            incomingRingtoneRef.current = audio;
-        }
-        incomingRingtoneRef.current.play().catch(console.error);
+        if (ringtoneIntervalRef.current) return; // Already playing
+
+        // Nokia Grande Valse — the iconic 2000s ringtone
+        // Notes: [frequency, duration in seconds]
+        const melody: [number, number][] = [
+            [659.25, 0.125], // E5
+            [587.33, 0.125], // D5
+            [369.99, 0.250], // F#4
+            [415.30, 0.250], // G#4
+            [554.37, 0.125], // C#5
+            [493.88, 0.125], // B4
+            [293.66, 0.250], // D4
+            [329.63, 0.250], // E4
+            [493.88, 0.125], // B4
+            [440.00, 0.125], // A4
+            [277.18, 0.250], // C#4
+            [329.63, 0.250], // E4
+            [440.00, 0.500], // A4
+        ];
+
+        const totalDuration = melody.reduce((sum, [, d]) => sum + d, 0);
+
+        const playOnce = () => {
+            try {
+                const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                ringtoneCtxRef.current = ctx;
+                
+                const gainNode = ctx.createGain();
+                gainNode.gain.value = 0.35;
+                gainNode.connect(ctx.destination);
+
+                let time = ctx.currentTime + 0.05;
+                melody.forEach(([freq, dur]) => {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'square';
+                    osc.frequency.value = freq;
+
+                    // Envelope for cleaner sound
+                    const noteGain = ctx.createGain();
+                    noteGain.gain.setValueAtTime(0, time);
+                    noteGain.gain.linearRampToValueAtTime(1, time + 0.01);
+                    noteGain.gain.setValueAtTime(1, time + dur - 0.02);
+                    noteGain.gain.linearRampToValueAtTime(0, time + dur);
+
+                    osc.connect(noteGain);
+                    noteGain.connect(gainNode);
+                    osc.start(time);
+                    osc.stop(time + dur);
+                    time += dur;
+                });
+            } catch (e) {
+                console.error('[Telnyx] Ringtone error:', e);
+            }
+        };
+
+        playOnce();
+        // Repeat every (melody duration + 1.5s pause)
+        ringtoneIntervalRef.current = setInterval(playOnce, (totalDuration + 1.5) * 1000);
     };
 
     const stopIncomingRingtone = () => {
-        if (incomingRingtoneRef.current) {
-            incomingRingtoneRef.current.pause();
-            incomingRingtoneRef.current.currentTime = 0;
+        if (ringtoneIntervalRef.current) {
+            clearInterval(ringtoneIntervalRef.current);
+            ringtoneIntervalRef.current = null;
+        }
+        if (ringtoneCtxRef.current) {
+            try { ringtoneCtxRef.current.close(); } catch (e) {}
+            ringtoneCtxRef.current = null;
         }
     };
 
