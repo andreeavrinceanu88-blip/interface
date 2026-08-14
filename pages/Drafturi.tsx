@@ -997,10 +997,10 @@ const Drafturi = () => {
                                 if (!showCallHistory) fetchCallHistory();
                                 setShowCallHistory(!showCallHistory);
                             }} 
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all h-[36px] shadow-sm mr-2 btn-3d-secondary hover:text-white`}
+                            title="Istoric apeluri"
+                            className={`flex items-center justify-center w-[36px] h-[36px] rounded-xl transition-all shadow-sm mr-2 btn-3d-secondary hover:text-white`}
                         >
                             <span className="material-icons-round text-lg">history</span>
-                            Istoric apeluri
                         </button>
                         
                         {/* Call History Popup */}
