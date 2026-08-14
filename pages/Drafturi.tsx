@@ -789,7 +789,7 @@ const Drafturi = () => {
                     
                     {/* Brand dropdown */}
                     <div className="relative ml-2">
-                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm min-w-[130px] flex justify-between items-center h-[38px] hover:text-white transition-all shadow-sm">
+                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm flex gap-2 items-center h-[38px] hover:text-white transition-all shadow-sm">
                             <span className="font-medium">{selectedBrand || 'Selectează'}</span>
                             <span className={`material-icons-round text-base text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
                         </button>
@@ -810,7 +810,7 @@ const Drafturi = () => {
 
                     {/* View Mode Dropdown */}
                     <div className="relative ml-1">
-                        <button onClick={() => setIsViewModeDropdownOpen(!isViewModeDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm min-w-[110px] flex justify-between items-center h-[38px] hover:text-white transition-all shadow-sm capitalize">
+                        <button onClick={() => setIsViewModeDropdownOpen(!isViewModeDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm flex gap-2 items-center h-[38px] hover:text-white transition-all shadow-sm capitalize">
                             <span className="font-medium">{viewMode}</span>
                             <span className={`material-icons-round text-base text-gray-400 transition-transform ${isViewModeDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
                         </button>
@@ -831,7 +831,7 @@ const Drafturi = () => {
 
                     {/* Draft Status Dropdown */}
                     <div className="relative ml-1 hidden sm:block">
-                        <button onClick={() => setIsDraftStatusDropdownOpen(!isDraftStatusDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm min-w-[110px] flex justify-between items-center h-[38px] hover:text-white transition-all shadow-sm capitalize">
+                        <button onClick={() => setIsDraftStatusDropdownOpen(!isDraftStatusDropdownOpen)} className="btn-3d-secondary px-3 py-1.5 rounded-xl text-sm flex gap-2 items-center h-[38px] hover:text-white transition-all shadow-sm capitalize">
                             <span className="font-medium">{draftStatus}</span>
                             <span className={`material-icons-round text-base text-gray-400 transition-transform ${isDraftStatusDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
                         </button>
