@@ -997,7 +997,7 @@ const Drafturi = () => {
                                 if (!showCallHistory) fetchCallHistory();
                                 setShowCallHistory(!showCallHistory);
                             }} 
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all h-[36px] shadow-sm mr-2 ${showCallHistory ? 'btn-3d-secondary text-white' : 'bg-[#13141a]/5 hover:bg-[#13141a]/20 text-gray-400 hover:text-white'}`}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all h-[36px] shadow-sm mr-2 btn-3d-secondary hover:text-white`}
                         >
                             <span className="material-icons-round text-lg">history</span>
                             Istoric apeluri
