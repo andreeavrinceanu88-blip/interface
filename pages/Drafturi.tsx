@@ -245,6 +245,49 @@ const Drafturi = () => {
         }
     };
 
+    // ── Customer History
+    const [showCustomerHistory, setShowCustomerHistory] = useState(false);
+    const [customerHistoryOrders, setCustomerHistoryOrders] = useState<Order[]>([]);
+    const [loadingCustomerHistory, setLoadingCustomerHistory] = useState(false);
+
+    const fetchCustomerHistory = async (order: Order) => {
+        setLoadingCustomerHistory(true);
+        setShowCustomerHistory(true);
+        try {
+            const cid = order.custormerId;
+            const phone = order.phone_number;
+            let results: Order[] = [];
+
+            if (cid) {
+                const { data } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('custormerId', cid)
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+                if (data) results = data;
+            }
+            
+            // If no results by customerId, try by phone
+            if (results.length <= 1 && phone) {
+                const last7 = phone.slice(-7);
+                const { data } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .ilike('phone_number', `%${last7}`)
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+                if (data && data.length > results.length) results = data;
+            }
+
+            setCustomerHistoryOrders(results);
+        } catch (e) {
+            console.error('Error fetching customer history:', e);
+        } finally {
+            setLoadingCustomerHistory(false);
+        }
+    };
+
     useEffect(() => {
         let interval: any = null;
         if (callState === 'active') {
@@ -1220,16 +1263,7 @@ const Drafturi = () => {
                                         </button>
 
                                         <button
-                                            onClick={() => {
-                                                const storeSlugMap: Record<string, string> = {
-                                                    'tamtrend': 'k7agxh-7y',
-                                                    'vitadomus': 'z10zqc-mz',
-                                                };
-                                                const slug = storeSlugMap[(selectedOrder.store_name || '').toLowerCase()] || 'z10zqc-mz';
-                                                const cid = selectedOrder.custormerId;
-                                                if (!cid) { alert('Acest client nu are Customer ID setat în Supabase.'); return; }
-                                                window.open(`https://admin.shopify.com/store/${slug}/orders?query=customer_id%3A%22${cid}%22`, '_blank');
-                                            }}
+                                            onClick={() => fetchCustomerHistory(selectedOrder)}
                                             className="px-4 flex items-center justify-center gap-1.5 btn-3d-secondary py-2 rounded-xl transition-all shadow-sm text-sm"
                                         >
                                             <span className="material-icons-round text-base">person_search</span>
@@ -2120,6 +2154,62 @@ const Drafturi = () => {
                                     </div>
                                 );
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* ── Customer History Modal ────────────────────────────────────── */}
+            {showCustomerHistory && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCustomerHistory(false)}></div>
+                    <div className="relative bg-[#161822] border border-white/10 p-6 rounded-2xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 max-h-[80vh] flex flex-col">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-white font-bold text-base flex items-center gap-2">
+                                <span className="material-icons-round text-indigo-400">person_search</span>
+                                Istoric client
+                            </h3>
+                            <button onClick={() => setShowCustomerHistory(false)} className="text-gray-500 hover:text-white transition-colors">
+                                <span className="material-icons-round">close</span>
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto scrollbar-hide">
+                            {loadingCustomerHistory ? (
+                                <div className="text-center p-8 text-gray-400 animate-pulse">Se încarcă...</div>
+                            ) : customerHistoryOrders.length === 0 ? (
+                                <div className="text-center p-8 text-gray-500">Nu s-au găsit comenzi pentru acest client.</div>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-xs text-gray-500 mb-2">{customerHistoryOrders.length} rezultate găsite</p>
+                                    {customerHistoryOrders.map((o) => {
+                                        const statusColor = o.status === 'confirmat' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                            : o.status === 'anulat' ? 'text-red-400 bg-red-500/10 border-red-500/20'
+                                            : o.status === 'ON' ? 'text-pink-400 bg-pink-500/10 border-pink-500/20'
+                                            : 'text-gray-400 bg-white/5 border-white/10';
+                                        const typeLabel = o.type === 'draft' ? 'Draft' : 'Comandă';
+                                        const typeColor = o.type === 'draft' ? 'text-amber-400' : 'text-cyan-400';
+                                        
+                                        return (
+                                            <div key={o.id} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-colors">
+                                                <div className="flex justify-between items-start mb-1.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`text-xs font-bold ${typeColor}`}>{typeLabel}</span>
+                                                        <span className="text-white text-sm font-medium">#{o.order_id}</span>
+                                                    </div>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase ${statusColor}`}>{o.status}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <p className="text-xs text-gray-400 truncate max-w-[280px]">{o.produse || 'Fără produse'}</p>
+                                                    <span className="text-xs text-gray-500 shrink-0 ml-2">{new Date(o.created_at).toLocaleDateString('ro-RO')}</span>
+                                                </div>
+                                                {o.value > 0 && (
+                                                    <p className="text-xs text-indigo-400 font-medium mt-1">{o.value} RON</p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
