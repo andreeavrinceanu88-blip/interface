@@ -185,7 +185,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     };
 
                     if (call.state === 'ringing') {
-                        if (call.direction === 'inbound') {
+                        if (call.direction !== 'outbound') {
+                            // Inbound call (direction is 'inbound' or undefined)
+                            console.log('[Telnyx] 📞 Inbound call detected from:', call.options?.remoteCallerNumber);
                             setIncomingCall(call);
                             lookupCaller(call.options.remoteCallerNumber);
                             playIncomingRingtone();
