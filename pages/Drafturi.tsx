@@ -1000,7 +1000,7 @@ const Drafturi = () => {
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all h-[36px] shadow-sm mr-2 ${showCallHistory ? 'btn-3d-secondary text-white' : 'bg-[#13141a]/5 hover:bg-[#13141a]/20 text-gray-400 hover:text-white'}`}
                         >
                             <span className="material-icons-round text-lg">history</span>
-                            Istoric Sesiune
+                            Istoric apeluri
                         </button>
                         
                         {/* Call History Popup */}
@@ -1218,10 +1218,7 @@ const Drafturi = () => {
                                             </svg>
                                             WhatsApp
                                         </button>
-                                        <button className="px-4 flex items-center justify-center gap-1.5 btn-3d-secondary py-2 rounded-xl transition-all shadow-sm text-sm">
-                                            <span className="material-icons-round text-base">history</span>
-                                            Istoric apeluri
-                                        </button>
+
                                         <button
                                             onClick={() => {
                                                 const storeSlugMap: Record<string, string> = {
