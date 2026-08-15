@@ -14,68 +14,89 @@ export default function IncomingCallBanner() {
     if (incomingCall) {
         return (
             <div className="fixed top-0 left-0 right-0 z-[9999] p-4 flex justify-center animate-slideDown">
-                <div className="bg-[#13141a] border border-cyan-500/30 shadow-[0_0_20px_rgba(0,210,255,0.2)] rounded-2xl p-4 flex items-center gap-6 max-w-3xl w-full">
-                    <div className="bg-cyan-500/10 p-3 rounded-xl animate-pulse">
-                        <span className="material-icons-round text-cyan-400 text-3xl">ring_volume</span>
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm text-cyan-400 font-medium uppercase tracking-wider mb-1">Apel Primit</p>
-                        <p className="text-xl text-white font-light">
-                            {incomingCallerInfo?.number || 'Număr Necunoscut'}
-                        </p>
-                        {incomingCallerInfo?.name && (
-                            <p className="text-sm text-gray-400 mt-0.5">
-                                {incomingCallerInfo.name}
+                <div className="bg-[#13141a] border border-cyan-500/30 shadow-[0_0_20px_rgba(0,210,255,0.2)] rounded-2xl flex flex-col w-full max-w-3xl overflow-hidden">
+                    {/* Top Row: Caller Info & Buttons */}
+                    <div className="p-4 flex items-center gap-5">
+                        <div className="bg-cyan-500/10 p-3 rounded-xl animate-pulse shrink-0">
+                            <span className="material-icons-round text-cyan-400 text-3xl">ring_volume</span>
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs text-cyan-400 font-bold uppercase tracking-wider mb-0.5">Apel Primit</p>
+                            <p className="text-xl text-white font-medium truncate">
+                                {incomingCallerInfo?.number || 'Număr Necunoscut'}
                             </p>
-                        )}
-                        {/* Recent orders/drafts */}
-                        {incomingCallerInfo?.recentOrders && incomingCallerInfo.recentOrders.length > 0 ? (
-                            <div className="flex gap-2 mt-2">
-                                {incomingCallerInfo.recentOrders.map((o, i) => {
-                                    const statusColor = o.status === 'confirmat' ? 'text-emerald-400'
-                                        : o.status === 'anulat' ? 'text-red-400'
-                                        : o.status === 'ON' ? 'text-pink-400'
-                                        : 'text-gray-400';
-                                    const typeLabel = o.type === 'draft' ? 'Draft' : 'Cmd';
-                                    const typeColor = o.type === 'draft' ? 'text-amber-400' : 'text-cyan-300';
-                                    return (
-                                        <div key={i} className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs max-w-[220px]">
-                                            <div className="flex items-center gap-1.5 mb-0.5">
-                                                <span className={`font-bold ${typeColor}`}>{typeLabel}</span>
-                                                <span className="text-white font-medium">#{o.order_id}</span>
-                                                <span className={`font-semibold uppercase ${statusColor}`}>· {o.status}</span>
-                                            </div>
-                                            <p className="text-gray-400 truncate">{o.produse || 'Fără produse'}</p>
-                                            <div className="flex justify-between mt-0.5">
-                                                <span className="text-gray-500">{o.store_name}</span>
-                                                {o.value > 0 && <span className="text-indigo-400 font-medium">{o.value} RON</span>}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : incomingCallerInfo && !incomingCallerInfo.recentOrders ? (
-                            <p className="text-xs text-gray-500 mt-1.5 italic">Client necunoscut — fără comenzi în sistem</p>
-                        ) : null}
+                            {incomingCallerInfo?.name && (
+                                <p className="text-sm text-gray-400 mt-0.5 truncate">
+                                    {incomingCallerInfo.name}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                            <button 
+                                onClick={rejectIncoming}
+                                className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+                            >
+                                <span className="material-icons-round">call_end</span>
+                                Refuză
+                            </button>
+                            <button 
+                                onClick={answerIncoming}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all flex items-center gap-2"
+                            >
+                                <span className="material-icons-round">call</span>
+                                Răspunde
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
-                        <button 
-                            onClick={rejectIncoming}
-                            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-6 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
-                        >
-                            <span className="material-icons-round">call_end</span>
-                            Refuză
-                        </button>
-                        <button 
-                            onClick={answerIncoming}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all flex items-center gap-2"
-                        >
-                            <span className="material-icons-round">call</span>
-                            Răspunde
-                        </button>
-                    </div>
+                    {/* Bottom Row: Recent Orders */}
+                    {(incomingCallerInfo?.recentOrders && incomingCallerInfo.recentOrders.length > 0) ? (
+                        <div className="bg-white/5 border-t border-white/5 p-3 flex gap-3 overflow-x-auto scrollbar-hide">
+                            {incomingCallerInfo.recentOrders.map((o, i) => {
+                                const statusColor = o.status === 'confirmat' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                    : o.status === 'anulat' ? 'text-red-400 bg-red-500/10 border-red-500/20'
+                                    : o.status === 'ON' ? 'text-pink-400 bg-pink-500/10 border-pink-500/20'
+                                    : 'text-gray-400 bg-white/5 border-white/10';
+                                const typeLabel = o.type === 'draft' ? 'Draft' : 'Comandă';
+                                const typeColor = o.type === 'draft' ? 'text-amber-400' : 'text-cyan-400';
+                                
+                                // Parse JSON products
+                                let parsedProducts = o.produse || 'Fără produse';
+                                try {
+                                    if (parsedProducts.startsWith('[')) {
+                                        const arr = JSON.parse(parsedProducts);
+                                        parsedProducts = arr.map((item: any) => item.name || item.title || 'Produs').join(', ');
+                                    }
+                                } catch(e) {}
+                                
+                                return (
+                                    <div key={i} className="bg-[#13141a] border border-white/10 rounded-xl p-3 flex-1 min-w-[280px]">
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-[10px] font-bold ${typeColor}`}>{typeLabel}</span>
+                                                <span className="text-white text-sm font-medium">{o.name}</span>
+                                            </div>
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${statusColor}`}>{o.status}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-400 truncate mb-2" title={parsedProducts}>{parsedProducts}</p>
+                                        <div className="flex justify-between items-center text-xs text-gray-500">
+                                            <span className="capitalize">{o.store_name}</span>
+                                            <span className="flex items-center gap-2">
+                                                <span>{new Date(o.created_at).toLocaleDateString('ro-RO')}</span>
+                                                {o.value > 0 && <span className="text-indigo-400 font-medium">{o.value} RON</span>}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : incomingCallerInfo && !incomingCallerInfo.recentOrders ? (
+                        <div className="bg-white/5 border-t border-white/5 p-3 text-center">
+                            <p className="text-xs text-gray-500 italic">Client necunoscut — fără comenzi în sistem</p>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         );
