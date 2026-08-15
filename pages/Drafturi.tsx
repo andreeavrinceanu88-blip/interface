@@ -259,7 +259,7 @@ const Drafturi = () => {
             let results: Order[] = [];
 
             if (cid) {
-                const { data } = await supabase
+                const { data } = await supabaseAdmin
                     .from('orders')
                     .select('*')
                     .eq('custormerId', cid)
@@ -271,7 +271,7 @@ const Drafturi = () => {
             // If no results by customerId, try by phone
             if (results.length <= 1 && phone) {
                 const last7 = phone.slice(-7);
-                const { data } = await supabase
+                const { data } = await supabaseAdmin
                     .from('orders')
                     .select('*')
                     .ilike('phone_number', `%${last7}`)

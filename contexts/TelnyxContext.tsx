@@ -192,7 +192,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         if (!phoneNumber) return;
         const last7 = phoneNumber.slice(-7);
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseAdmin
                 .from('orders')
                 .select('id, name, order_id, phone_number, store_name, produse, status, type, value, created_at')
                 .ilike('phone_number', `%${last7}`)
