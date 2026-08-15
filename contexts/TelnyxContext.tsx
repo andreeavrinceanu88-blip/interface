@@ -8,6 +8,7 @@ export interface CallerInfo {
     number: string;
     name?: string;
     orderId?: string;
+    recentOrders?: { order_id: string; store_name: string; produse: string; status: string; type: string; value: number; created_at: string }[];
 }
 
 interface TelnyxContextType {
@@ -193,16 +194,25 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             const { data, error } = await supabase
                 .from('orders')
-                .select('id, name, order_id, phone_number')
+                .select('id, name, order_id, phone_number, store_name, produse, status, type, value, created_at')
                 .ilike('phone_number', `%${last7}`)
-                .limit(1)
-                .single();
+                .order('created_at', { ascending: false })
+                .limit(2);
             
-            if (data && !error) {
+            if (data && data.length > 0 && !error) {
                 setIncomingCallerInfo({
                     number: phoneNumber,
-                    name: data.name,
-                    orderId: String(data.order_id || data.id)
+                    name: data[0].name,
+                    orderId: String(data[0].order_id || data[0].id),
+                    recentOrders: data.map(o => ({
+                        order_id: o.order_id,
+                        store_name: o.store_name,
+                        produse: o.produse,
+                        status: o.status,
+                        type: o.type,
+                        value: o.value,
+                        created_at: o.created_at,
+                    })),
                 });
             } else {
                 setIncomingCallerInfo({ number: phoneNumber });
