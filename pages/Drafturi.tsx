@@ -1073,14 +1073,17 @@ const Drafturi = () => {
                                             {callHistoryLogs.map((log) => {
                                                 const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
                                                 const iconColor = isAnswered ? 'text-emerald-500' : 'text-red-500';
-                                                const icon = log.direction === 'inbound' ? 'call_received' : 'call_made';
+                                                
+                                                const isInbound = log.order_id && log.order_id.startsWith('INBOUND:');
+                                                const icon = isInbound ? (isAnswered ? 'call_received' : 'phone_missed') : 'call_made';
+                                                const displayName = isInbound ? log.order_id.split(':')[1] : `Comanda ${log.order_id.startsWith('#') ? log.order_id : '#' + log.order_id}`;
                                                 
                                                 return (
                                                     <div key={log.id} className="flex flex-col p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
                                                         <div className="flex justify-between items-center mb-1">
                                                             <div className="flex items-center gap-2">
                                                                 <span className={`material-icons-round text-[16px] ${iconColor}`}>{icon}</span>
-                                                                <span className="text-white text-sm font-medium">{log.destination || log.caller_id || 'Necunoscut'}</span>
+                                                                <span className="text-white text-sm font-medium">{displayName}</span>
                                                             </div>
                                                             <span className="text-[11px] text-gray-500">
                                                                 {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

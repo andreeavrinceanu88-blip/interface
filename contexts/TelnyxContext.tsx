@@ -365,21 +365,30 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         const duration = wasActive ? Math.round((Date.now() - callStartTimeRef.current!) / 1000) : 0;
                         const callStatus = wasActive ? 'completed' : 'rejected';
                         
-                        // Save call log for ALL calls (answered or not)
-                        if (activeOrderIdRef.current && profileRef.current?.id) {
+                        // Determine order ID to log: use existing active order, or prefix for inbound calls
+                        const logOrderId = call.direction === 'inbound' 
+                            ? `INBOUND:${call.options?.remoteCallerNumber || 'necunoscut'}`
+                            : activeOrderIdRef.current;
+                        const opId = profileRef.current?.id || null;
+                        
+                        // Calculate specific status for inbound
+                        const finalStatus = call.direction === 'inbound' && !wasActive ? 'missed' : callStatus;
+
+                        // Save call log for ALL calls (inbound & outbound)
+                        if (logOrderId && opId) {
                             supabaseAdmin.from('call_logs').insert({
-                                operator_id: profileRef.current.id,
-                                order_id: activeOrderIdRef.current,
+                                operator_id: opId,
+                                order_id: logOrderId,
                                 duration_secs: duration,
-                                status: callStatus
+                                status: finalStatus
                             }).then(({error}) => {
                                 if (error) console.error('[Telnyx] Error saving call log:', error);
-                                else console.log(`[Telnyx] Call log saved: status=${callStatus}, duration=${duration}s, reason=${rawReason}`);
+                                else console.log(`[Telnyx] Call log saved: status=${finalStatus}, duration=${duration}s, reason=${rawReason}`);
                             });
                             
-                            // Also mark processed_by on the order (without changing status/order_state)
-                            if (!wasActive) {
-                                supabaseAdmin.from('orders').update({ processed_by: profileRef.current.id })
+                            // Also mark processed_by on the order (only for outbound calls where we have a real order ID)
+                            if (!wasActive && activeOrderIdRef.current) {
+                                supabaseAdmin.from('orders').update({ processed_by: opId })
                                     .or(`id.eq.${activeOrderIdRef.current},order_id.eq.${activeOrderIdRef.current}`)
                                     .then(({error}) => {
                                         if (error) console.error('[Telnyx] Error updating processed_by:', error);
