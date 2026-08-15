@@ -55,9 +55,11 @@ export default function IncomingCallBanner() {
                     {(incomingCallerInfo?.recentOrders && incomingCallerInfo.recentOrders.length > 0) ? (
                         <div className="bg-white/5 border-t border-white/5 p-3 flex gap-3 overflow-x-auto scrollbar-hide">
                             {incomingCallerInfo.recentOrders.map((o, i) => {
-                                const statusColor = o.status === 'confirmat' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                                    : o.status === 'anulat' ? 'text-red-400 bg-red-500/10 border-red-500/20'
-                                    : o.status === 'ON' ? 'text-pink-400 bg-pink-500/10 border-pink-500/20'
+                                const safeStatus = o.status || 'NOU';
+                                const statusColor = safeStatus === 'confirmat' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                    : safeStatus === 'anulat' ? 'text-red-400 bg-red-500/10 border-red-500/20'
+                                    : safeStatus === 'ON' ? 'text-pink-400 bg-pink-500/10 border-pink-500/20'
+                                    : safeStatus === 'NOU' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20'
                                     : 'text-gray-400 bg-white/5 border-white/10';
                                 const typeLabel = o.type === 'draft' ? 'Draft' : 'Comandă';
                                 const typeColor = o.type === 'draft' ? 'text-amber-400' : 'text-cyan-400';
@@ -76,9 +78,9 @@ export default function IncomingCallBanner() {
                                         <div className="flex justify-between items-center mb-1.5">
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[10px] font-bold ${typeColor}`}>{typeLabel}</span>
-                                                <span className="text-white text-sm font-medium">{o.name}</span>
+                                                <span className="text-white text-sm font-medium">{o.order_number}</span>
                                             </div>
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${statusColor}`}>{o.status}</span>
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${statusColor}`}>{safeStatus}</span>
                                         </div>
                                         <p className="text-xs text-gray-400 truncate mb-2" title={parsedProducts}>{parsedProducts}</p>
                                         <div className="flex justify-between items-center text-xs text-gray-500">

@@ -8,7 +8,7 @@ export interface CallerInfo {
     number: string;
     name?: string;
     orderId?: string;
-    recentOrders?: { name: string; order_id: string; store_name: string; produse: string; status: string; type: string; value: number; created_at: string }[];
+    recentOrders?: { order_number: string; order_id: string; store_name: string; produse: string; status: string; type: string; value: number; created_at: string }[];
 }
 
 interface TelnyxContextType {
@@ -194,7 +194,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             const { data, error } = await supabaseAdmin
                 .from('orders')
-                .select('id, name, order_id, phone_number, store_name, produse, status, type, value, created_at')
+                .select('id, name, client_personal_id, order_id, phone_number, store_name, produse, status, type, value, created_at')
                 .ilike('phone_number', `%${last7}`)
                 .order('created_at', { ascending: false })
                 .limit(2);
@@ -205,7 +205,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     name: data[0].name,
                     orderId: String(data[0].order_id || data[0].id),
                     recentOrders: data.map(o => ({
-                        name: o.name || `#${o.order_id}`,
+                        order_number: o.client_personal_id || `#${o.id || o.order_id}`,
                         order_id: o.order_id,
                         store_name: o.store_name,
                         produse: o.produse,
