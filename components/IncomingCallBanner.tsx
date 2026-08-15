@@ -30,7 +30,7 @@ export default function IncomingCallBanner() {
                             </p>
                         )}
                         {/* Recent orders/drafts */}
-                        {incomingCallerInfo?.recentOrders && incomingCallerInfo.recentOrders.length > 0 && (
+                        {incomingCallerInfo?.recentOrders && incomingCallerInfo.recentOrders.length > 0 ? (
                             <div className="flex gap-2 mt-2">
                                 {incomingCallerInfo.recentOrders.map((o, i) => {
                                     const statusColor = o.status === 'confirmat' ? 'text-emerald-400'
@@ -55,7 +55,9 @@ export default function IncomingCallBanner() {
                                     );
                                 })}
                             </div>
-                        )}
+                        ) : incomingCallerInfo && !incomingCallerInfo.recentOrders ? (
+                            <p className="text-xs text-gray-500 mt-1.5 italic">Client necunoscut — fără comenzi în sistem</p>
+                        ) : null}
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">
