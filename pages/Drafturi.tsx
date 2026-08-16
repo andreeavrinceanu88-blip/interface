@@ -228,7 +228,7 @@ const Drafturi = () => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
-            const { data, error } = await supabase
+            const { data, error } = await supabaseAdmin
                 .from('call_logs')
                 .select('*')
                 .or(`operator_id.eq.${profile.id},operator_id.is.null`)
