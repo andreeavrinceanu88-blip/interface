@@ -220,19 +220,29 @@ const Drafturi = () => {
     const [callHistoryLogs, setCallHistoryLogs] = useState<any[]>([]);
     const [loadingCallHistory, setLoadingCallHistory] = useState(false);
     const [callHistoryFilter, setCallHistoryFilter] = useState<'all' | 'answered' | 'missed' | 'voicemail'>('all');
+    const [callHistoryDate, setCallHistoryDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+    useEffect(() => {
+        if (showCallHistory) {
+            fetchCallHistory();
+        }
+    }, [callHistoryDate, showCallHistory]);
 
     const fetchCallHistory = async () => {
         if (!profile?.id) return;
         setLoadingCallHistory(true);
         try {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const startDate = new Date(callHistoryDate);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(callHistoryDate);
+            endDate.setHours(23, 59, 59, 999);
             
             const { data, error } = await supabaseAdmin
                 .from('call_logs')
                 .select('*')
                 .or(`operator_id.eq.${profile.id},operator_id.is.null`)
-                .gte('created_at', today.toISOString())
+                .gte('created_at', startDate.toISOString())
+                .lte('created_at', endDate.toISOString())
                 .order('created_at', { ascending: false })
                 .limit(100);
                 
@@ -1038,7 +1048,6 @@ const Drafturi = () => {
                     <div className="relative">
                         <button 
                             onClick={() => {
-                                if (!showCallHistory) fetchCallHistory();
                                 setShowCallHistory(!showCallHistory);
                             }} 
                             title="Istoric apeluri"
@@ -1051,10 +1060,15 @@ const Drafturi = () => {
                         {showCallHistory && (
                             <div className="absolute right-0 top-full mt-2 w-[340px] bg-[#13141a] border border-white/5 rounded-2xl shadow-2xl z-50 flex flex-col max-h-[500px]">
                                 <div className="flex justify-between items-center p-4 border-b border-white/5">
-                                    <h3 className="text-white font-medium flex items-center gap-2 text-sm">
+                                    <div className="flex items-center gap-2">
                                         <span className="material-icons-round text-indigo-400 text-lg">history</span>
-                                        Istoric Apeluri Azi
-                                    </h3>
+                                        <input 
+                                            type="date" 
+                                            value={callHistoryDate}
+                                            onChange={(e) => setCallHistoryDate(e.target.value)}
+                                            className="bg-transparent text-white font-medium text-sm focus:outline-none cursor-pointer hover:text-indigo-300 transition-colors [color-scheme:dark]"
+                                        />
+                                    </div>
                                     <div className="flex items-center gap-2">
                                         <button onClick={fetchCallHistory} className="text-gray-500 hover:text-indigo-400 transition-colors" title="Reîncarcă">
                                             <span className={`material-icons-round text-sm ${loadingCallHistory ? 'animate-spin' : ''}`}>refresh</span>
