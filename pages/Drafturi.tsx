@@ -219,6 +219,7 @@ const Drafturi = () => {
     const [showCallHistory, setShowCallHistory] = useState(false);
     const [callHistoryLogs, setCallHistoryLogs] = useState<any[]>([]);
     const [loadingCallHistory, setLoadingCallHistory] = useState(false);
+    const [callHistoryFilter, setCallHistoryFilter] = useState<'all' | 'answered' | 'missed' | 'voicemail'>('all');
 
     const fetchCallHistory = async () => {
         if (!profile?.id) return;
@@ -1063,6 +1064,15 @@ const Drafturi = () => {
                                         </button>
                                     </div>
                                 </div>
+                                
+                                {/* Filter Chips */}
+                                <div className="px-4 py-2 border-b border-white/5 flex gap-2 overflow-x-auto scrollbar-hide">
+                                    <button onClick={() => setCallHistoryFilter('all')} className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${callHistoryFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}>Toate</button>
+                                    <button onClick={() => setCallHistoryFilter('answered')} className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${callHistoryFilter === 'answered' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-emerald-400'}`}>Răspunse</button>
+                                    <button onClick={() => setCallHistoryFilter('missed')} className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${callHistoryFilter === 'missed' ? 'bg-red-500/20 text-red-400' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-red-400'}`}>Pierdute</button>
+                                    <button onClick={() => setCallHistoryFilter('voicemail')} className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${callHistoryFilter === 'voicemail' ? 'bg-orange-500/20 text-orange-400' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-orange-400'}`}>Voicemail</button>
+                                </div>
+
                                 <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
                                     {loadingCallHistory ? (
                                         <div className="text-center p-4 text-gray-400 text-sm animate-pulse">Se încarcă...</div>
@@ -1070,7 +1080,14 @@ const Drafturi = () => {
                                         <div className="text-center p-4 text-gray-500 text-sm">Nu există apeluri în sesiunea curentă.</div>
                                     ) : (
                                         <div className="flex flex-col gap-1.5">
-                                            {callHistoryLogs.map((log) => {
+                                            {callHistoryLogs.filter(log => {
+                                                if (callHistoryFilter === 'all') return true;
+                                                if (callHistoryFilter === 'voicemail') return log.status === 'voicemail';
+                                                const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
+                                                if (callHistoryFilter === 'answered') return isAnswered;
+                                                if (callHistoryFilter === 'missed') return !isAnswered && log.status !== 'voicemail';
+                                                return true;
+                                            }).map((log) => {
                                                 const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
                                                 const iconColor = isAnswered ? 'text-emerald-500' : 'text-red-500';
                                                 
