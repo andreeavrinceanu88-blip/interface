@@ -221,6 +221,8 @@ const Drafturi = () => {
     const [loadingCallHistory, setLoadingCallHistory] = useState(false);
     const [callHistoryFilter, setCallHistoryFilter] = useState<'all' | 'answered' | 'missed' | 'voicemail'>('all');
     const [callHistoryDate, setCallHistoryDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [callHistoryPage, setCallHistoryPage] = useState(0);
+    const CALL_HISTORY_PAGE_SIZE = 10;
 
     useEffect(() => {
         if (showCallHistory) {
@@ -1081,10 +1083,10 @@ const Drafturi = () => {
                                 
                                 {/* Filter Chips */}
                                 <div className="px-3 py-2 border-b border-white/5 flex flex-wrap gap-1.5">
-                                    <button onClick={() => setCallHistoryFilter('all')} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'}`}>Toate</button>
-                                    <button onClick={() => setCallHistoryFilter('answered')} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'answered' ? 'bg-emerald-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-emerald-400'}`}>Răspunse</button>
-                                    <button onClick={() => setCallHistoryFilter('missed')} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'missed' ? 'bg-red-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-red-400'}`}>Pierdute</button>
-                                    <button onClick={() => setCallHistoryFilter('voicemail')} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'voicemail' ? 'bg-orange-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-orange-400'}`}>Voicemail</button>
+                                    <button onClick={() => { setCallHistoryFilter('all'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'}`}>Toate</button>
+                                    <button onClick={() => { setCallHistoryFilter('answered'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'answered' ? 'bg-emerald-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-emerald-400'}`}>Răspunse</button>
+                                    <button onClick={() => { setCallHistoryFilter('missed'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'missed' ? 'bg-red-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-red-400'}`}>Pierdute</button>
+                                    <button onClick={() => { setCallHistoryFilter('voicemail'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'voicemail' ? 'bg-orange-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-orange-400'}`}>Voicemail</button>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
@@ -1094,14 +1096,19 @@ const Drafturi = () => {
                                         <div className="text-center p-4 text-gray-500 text-sm">Nu există apeluri în sesiunea curentă.</div>
                                     ) : (
                                         <div className="flex flex-col gap-1.5">
-                                            {callHistoryLogs.filter(log => {
-                                                if (callHistoryFilter === 'all') return true;
-                                                if (callHistoryFilter === 'voicemail') return log.status === 'voicemail';
-                                                const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
-                                                if (callHistoryFilter === 'answered') return isAnswered;
-                                                if (callHistoryFilter === 'missed') return !isAnswered && log.status !== 'voicemail';
-                                                return true;
-                                            }).map((log) => {
+                                            {(() => {
+                                                const filtered = callHistoryLogs.filter(log => {
+                                                    if (callHistoryFilter === 'all') return true;
+                                                    if (callHistoryFilter === 'voicemail') return log.status === 'voicemail';
+                                                    const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
+                                                    if (callHistoryFilter === 'answered') return isAnswered;
+                                                    if (callHistoryFilter === 'missed') return !isAnswered && log.status !== 'voicemail';
+                                                    return true;
+                                                });
+                                                const totalPages = Math.ceil(filtered.length / CALL_HISTORY_PAGE_SIZE);
+                                                const paginated = filtered.slice(callHistoryPage * CALL_HISTORY_PAGE_SIZE, (callHistoryPage + 1) * CALL_HISTORY_PAGE_SIZE);
+                                                return <>
+                                            {paginated.map((log) => {
                                                 const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
                                                 const iconColor = isAnswered ? 'text-emerald-500' : 'text-red-500';
                                                 
@@ -1129,6 +1136,27 @@ const Drafturi = () => {
                                                     </div>
                                                 );
                                             })}
+                                        {totalPages > 1 && (
+                                            <div className="flex items-center justify-between pt-2 px-1">
+                                                <button 
+                                                    onClick={() => setCallHistoryPage(p => Math.max(0, p - 1))} 
+                                                    disabled={callHistoryPage === 0}
+                                                    className="flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                >
+                                                    <span className="material-icons-round text-[14px]">chevron_left</span>
+                                                </button>
+                                                <span className="text-[11px] text-gray-500">{callHistoryPage + 1} / {totalPages}</span>
+                                                <button 
+                                                    onClick={() => setCallHistoryPage(p => Math.min(totalPages - 1, p + 1))} 
+                                                    disabled={callHistoryPage >= totalPages - 1}
+                                                    className="flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                >
+                                                    <span className="material-icons-round text-[14px]">chevron_right</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                        </>;
+                                            })()}
                                         </div>
                                     )}
                                 </div>
