@@ -230,7 +230,7 @@ const Drafturi = () => {
             const { data, error } = await supabase
                 .from('call_logs')
                 .select('*')
-                .eq('operator_id', profile.id)
+                .or(`operator_id.eq.${profile.id},operator_id.is.null`)
                 .gte('created_at', today.toISOString())
                 .order('created_at', { ascending: false })
                 .limit(100);
