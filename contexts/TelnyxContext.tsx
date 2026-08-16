@@ -47,6 +47,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const profileRef = useRef(profile);
     const activeOrderIdRef = useRef<string | null>(null);
     const callStartTimeRef = useRef<number | null>(null);
+    const loggedCallsRef = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         profileRef.current = profile;
@@ -158,9 +159,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             const roHourStr = parts.find(p => p.type === 'hour')?.value;
             const roHour = roHourStr ? parseInt(roHourStr, 10) : new Date().getHours();
 
-            if (roHour < 9 || roHour >= 17) {
+            if (roHour < 9 || roHour >= 18) {
                 console.log(`[Ringtone] Muted: Outside business hours (current hour: ${roHour})`);
-                return; // Mute ringtone outside 9:00 - 17:00
+                return; // Mute ringtone outside 9:00 - 18:00
             }
         } catch (e) {
             console.error('[Ringtone] Failed to check business hours:', e);
@@ -422,7 +423,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         const finalStatus = call.direction === 'inbound' && !wasActive ? 'missed' : callStatus;
 
                         // Save call log for ALL calls (inbound & outbound)
-                        if (logOrderId && opId) {
+                        const callSessionId = call.options?.callSessionId || call.callSessionId;
+                        
+                        if (logOrderId && opId && callSessionId && !loggedCallsRef.current.has(callSessionId)) {
+                            loggedCallsRef.current.add(callSessionId);
                             supabaseAdmin.from('call_logs').insert({
                                 operator_id: opId,
                                 order_id: logOrderId,
