@@ -52,6 +52,35 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         profileRef.current = profile;
     }, [profile]);
 
+    // ── Operator Presence Heartbeat (every 30s)
+    useEffect(() => {
+        if (!profile?.id) return;
+        
+        const sendHeartbeat = () => {
+            supabaseAdmin.from('operator_presence').upsert({
+                operator_id: profile.id,
+                last_seen: new Date().toISOString()
+            }, { onConflict: 'operator_id' }).then(({ error }) => {
+                if (error) console.error('[Presence] Heartbeat error:', error);
+            });
+        };
+
+        // Send immediately on mount
+        sendHeartbeat();
+        
+        // Then every 30 seconds
+        const interval = setInterval(sendHeartbeat, 30000);
+
+        return () => {
+            clearInterval(interval);
+            // On unmount (tab close/logout), delete presence
+            supabaseAdmin.from('operator_presence')
+                .delete()
+                .eq('operator_id', profile.id)
+                .then(() => {});
+        };
+    }, [profile?.id]);
+
     const playRingback = () => {
         try {
             if (!audioCtxRef.current) {
