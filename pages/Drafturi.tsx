@@ -1066,7 +1066,7 @@ const Drafturi = () => {
                                             type="date" 
                                             value={callHistoryDate}
                                             onChange={(e) => setCallHistoryDate(e.target.value)}
-                                            className="bg-transparent text-white font-medium text-sm focus:outline-none cursor-pointer hover:text-indigo-300 transition-colors [color-scheme:dark]"
+                                            className="bg-[#1a1b23] border border-white/10 rounded-lg px-2.5 py-1 text-gray-200 font-medium text-[13px] focus:outline-none focus:border-indigo-500 cursor-pointer hover:bg-white/5 transition-all [color-scheme:dark]"
                                         />
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -1080,11 +1080,11 @@ const Drafturi = () => {
                                 </div>
                                 
                                 {/* Filter Chips */}
-                                <div className="px-4 py-2 border-b border-white/5 flex gap-2 overflow-x-auto scrollbar-hide">
-                                    <button onClick={() => setCallHistoryFilter('all')} className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${callHistoryFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}>Toate</button>
-                                    <button onClick={() => setCallHistoryFilter('answered')} className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${callHistoryFilter === 'answered' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-emerald-400'}`}>Răspunse</button>
-                                    <button onClick={() => setCallHistoryFilter('missed')} className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${callHistoryFilter === 'missed' ? 'bg-red-500/20 text-red-400' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-red-400'}`}>Pierdute</button>
-                                    <button onClick={() => setCallHistoryFilter('voicemail')} className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${callHistoryFilter === 'voicemail' ? 'bg-orange-500/20 text-orange-400' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-orange-400'}`}>Voicemail</button>
+                                <div className="px-3 py-2.5 border-b border-white/5 flex gap-1.5 overflow-x-auto scrollbar-hide">
+                                    <button onClick={() => setCallHistoryFilter('all')} className={`px-3.5 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all shadow-sm ${callHistoryFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'}`}>Toate</button>
+                                    <button onClick={() => setCallHistoryFilter('answered')} className={`px-3.5 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all shadow-sm ${callHistoryFilter === 'answered' ? 'bg-emerald-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-emerald-400'}`}>Răspunse</button>
+                                    <button onClick={() => setCallHistoryFilter('missed')} className={`px-3.5 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all shadow-sm ${callHistoryFilter === 'missed' ? 'bg-red-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-red-400'}`}>Pierdute</button>
+                                    <button onClick={() => setCallHistoryFilter('voicemail')} className={`px-3.5 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all shadow-sm ${callHistoryFilter === 'voicemail' ? 'bg-orange-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-orange-400'}`}>Voicemail</button>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
