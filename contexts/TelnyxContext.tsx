@@ -302,7 +302,15 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             console.log('[Telnyx] 📞 Inbound call detected from:', call.options?.remoteCallerNumber);
                             setIncomingCall(call);
                             lookupCaller(call.options.remoteCallerNumber);
-                            playIncomingRingtone();
+                            // Only play ringtone if NOT already in an active call
+                            setCallState(prev => {
+                                if (prev !== 'active') {
+                                    playIncomingRingtone();
+                                } else {
+                                    console.log('[Telnyx] Suppressing ringtone — already in active call');
+                                }
+                                return prev;
+                            });
                         } else {
                             setCallState('calling');
                             setActiveCall(call);
@@ -356,16 +364,19 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         tryAttachAudio();
                     } 
                     else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
+                        // Determine if THIS ending call is the incoming one or the active one
+                        const isEndingIncoming = incomingCall && (call.id === incomingCall.id || call === incomingCall);
+                        const isEndingActive = activeCall && (call.id === activeCall.id || call === activeCall);
+                        
                         stopRingback();
                         stopIncomingRingtone();
-                        if (audioRef.current) audioRef.current.srcObject = null;
                         
                         // Extract SIP hangup reason
                         const sipCode = call.cause || call.sipCode || call.options?.sipCode;
                         const sipReason = call.causeMessage || call.sipReason || call.options?.sipReason;
                         const rawReason = sipReason || sipCode || call.hangupCause || '';
                         
-                        console.log('[Telnyx] Call ended — raw:', rawReason, '| sipCode:', sipCode, '| sipReason:', sipReason, '| cause:', call.cause, '| causeMessage:', call.causeMessage, '| hangupCause:', call.hangupCause);
+                        console.log('[Telnyx] Call ended — raw:', rawReason, '| sipCode:', sipCode, '| sipReason:', sipReason, '| cause:', call.cause, '| causeMessage:', call.causeMessage, '| hangupCause:', call.hangupCause, '| isEndingIncoming:', isEndingIncoming, '| isEndingActive:', isEndingActive);
                         
                         // Map common SIP codes/reasons to user-friendly Romanian text
                         const reasonMap: Record<string, string> = {
@@ -442,30 +453,42 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             }
                         }
 
-                        // Set hangup reason for UI display — show all reasons except normal endings
-                        if (friendlyReason && friendlyReason !== 'Apel încheiat normal' && friendlyReason !== 'Apel încheiat' && friendlyReason !== 'Apel anulat') {
-                            setLastHangupReason(friendlyReason);
+                        // If the ending call is just the incoming (secondary) call while we have an active call, 
+                        // only clean up the incoming call — DON'T touch the active call
+                        if (isEndingIncoming && !isEndingActive && activeCall) {
+                            console.log('[Telnyx] Secondary incoming call ended — keeping active call alive');
+                            setIncomingCall(null);
+                            setIncomingCallerInfo(null);
+                            // Don't change callState, don't touch activeCall or audio
                         } else {
-                            setLastHangupReason(null);
-                        }
-                        
-                        // Reset refs
-                        callStartTimeRef.current = null;
-                        activeOrderIdRef.current = null;
-
-                        setCallState(prev => {
-                            if (prev === 'calling' || prev === 'ringing') {
-                                playRejectedBeeps();
-                                setTimeout(() => { setCallState('idle'); setLastHangupReason(null); }, 8000);
-                                return 'rejected';
+                            // This is the main/active call ending — full teardown
+                            if (audioRef.current) audioRef.current.srcObject = null;
+                            
+                            // Set hangup reason for UI display — show all reasons except normal endings
+                            if (friendlyReason && friendlyReason !== 'Apel încheiat normal' && friendlyReason !== 'Apel încheiat' && friendlyReason !== 'Apel anulat') {
+                                setLastHangupReason(friendlyReason);
+                            } else {
+                                setLastHangupReason(null);
                             }
-                            return 'idle';
-                        });
-                        
-                        setActiveCall(null);
-                        setIncomingCall(null);
-                        setIncomingCallerInfo(null);
-                        setIsMuted(false);
+                            
+                            // Reset refs
+                            callStartTimeRef.current = null;
+                            activeOrderIdRef.current = null;
+
+                            setCallState(prev => {
+                                if (prev === 'calling' || prev === 'ringing') {
+                                    playRejectedBeeps();
+                                    setTimeout(() => { setCallState('idle'); setLastHangupReason(null); }, 8000);
+                                    return 'rejected';
+                                }
+                                return 'idle';
+                            });
+                            
+                            setActiveCall(null);
+                            setIncomingCall(null);
+                            setIncomingCallerInfo(null);
+                            setIsMuted(false);
+                        }
                     }
                 }
             });
