@@ -161,24 +161,6 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const playIncomingRingtone = () => {
         if (ringtoneIntervalRef.current) return; // Already playing
 
-        try {
-            const now = new Date();
-            const parts = new Intl.DateTimeFormat('en-GB', {
-                timeZone: 'Europe/Bucharest',
-                hour: 'numeric',
-                hourCycle: 'h23'
-            }).formatToParts(now);
-            const roHourStr = parts.find(p => p.type === 'hour')?.value;
-            const roHour = roHourStr ? parseInt(roHourStr, 10) : new Date().getHours();
-
-            if (roHour < 9 || roHour >= 18) {
-                console.log(`[Ringtone] Muted: Outside business hours (current hour: ${roHour})`);
-                return; // Mute ringtone outside 9:00 - 18:00
-            }
-        } catch (e) {
-            console.error('[Ringtone] Failed to check business hours:', e);
-        }
-
         // Nokia Grande Valse — the iconic 2000s ringtone
         // Notes: [frequency, duration in seconds]
         const melody: [number, number][] = [
