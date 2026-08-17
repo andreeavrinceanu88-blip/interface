@@ -25,6 +25,8 @@ interface TelnyxContextType {
     toggleMute: () => void;
     isMuted: boolean;
     audioRef: React.RefObject<HTMLAudioElement>;
+    ringtoneVolume: number;
+    setRingtoneVolume: (vol: number) => void;
 }
 
 const TelnyxContext = createContext<TelnyxContextType | null>(null);
@@ -38,6 +40,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const [incomingCallerInfo, setIncomingCallerInfo] = useState<CallerInfo | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [lastHangupReason, setLastHangupReason] = useState<string | null>(null);
+    const [ringtoneVolume, setRingtoneVolume] = useState(() => {
+        const saved = localStorage.getItem('telnyx_ringtone_vol');
+        return saved ? parseFloat(saved) : 0.15; // default lower volume
+    });
 
     const clientRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -48,6 +54,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const activeOrderIdRef = useRef<string | null>(null);
     const callStartTimeRef = useRef<number | null>(null);
     const loggedCallsRef = useRef<Set<string>>(new Set());
+    const ringtoneVolumeRef = useRef(ringtoneVolume);
 
     useEffect(() => {
         profileRef.current = profile;
@@ -81,6 +88,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 .then(() => {});
         };
     }, [profile?.id]);
+
+    useEffect(() => {
+        localStorage.setItem('telnyx_ringtone_vol', ringtoneVolume.toString());
+        ringtoneVolumeRef.current = ringtoneVolume;
+    }, [ringtoneVolume]);
 
     const playRingback = () => {
         try {
@@ -193,7 +205,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 ringtoneCtxRef.current = ctx;
                 
                 const gainNode = ctx.createGain();
-                gainNode.gain.value = 0.35;
+                gainNode.gain.value = ringtoneVolumeRef.current;
                 gainNode.connect(ctx.destination);
 
                 let time = ctx.currentTime + 0.05;
@@ -550,7 +562,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             value={{
                 isReady, callState, activeCall, incomingCall, incomingCallerInfo, lastHangupReason,
                 makeCall, hangup, answerIncoming, rejectIncoming, toggleMute, isMuted,
-                audioRef
+                audioRef, ringtoneVolume, setRingtoneVolume
             }}
         >
             {children}

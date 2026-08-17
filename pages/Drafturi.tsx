@@ -136,7 +136,7 @@ const formatPhoneNumber = (phone: string | null | undefined): string => {
 const Drafturi = () => {
     const { profile } = useAuth();
     const userStores: string[] = profile?.stores || [];
-    const { isReady, callState: telnyxCallState, makeCall, hangup, toggleMute, isMuted: telnyxMuted, lastHangupReason } = useTelnyx();
+    const { isReady, callState: telnyxCallState, makeCall, hangup, toggleMute, isMuted: telnyxMuted, lastHangupReason, ringtoneVolume, setRingtoneVolume } = useTelnyx();
 
     // ── Filters
     const [viewMode, setViewMode] = useState<'drafturi' | 'comenzi'>('drafturi');
@@ -1162,6 +1162,21 @@ const Drafturi = () => {
                                 </div>
                             </div>
                         )}
+                    </div>
+
+                    {/* Ringtone Volume Control */}
+                    <div className="flex items-center gap-2 bg-[#1a1b23] border border-white/5 rounded-xl px-3 py-1.5 h-[36px] shadow-sm">
+                        <span className="material-icons-round text-gray-400 text-[16px]">volume_up</span>
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.05"
+                            value={ringtoneVolume}
+                            onChange={(e) => setRingtoneVolume(parseFloat(e.target.value))}
+                            className="w-16 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-all"
+                            title="Volum sonerie"
+                        />
                     </div>
 
                     {/* Dialer toggle */}
