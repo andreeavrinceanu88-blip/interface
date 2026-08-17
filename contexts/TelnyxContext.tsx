@@ -53,6 +53,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const profileRef = useRef(profile);
     const activeOrderIdRef = useRef<string | null>(null);
     const callStartTimeRef = useRef<number | null>(null);
+    const activeCallRef = useRef<any>(null);
+    const incomingCallRef = useRef<any>(null);
     const loggedCallsRef = useRef<Set<string>>(new Set());
     const ringtoneVolumeRef = useRef(ringtoneVolume);
 
@@ -455,9 +457,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
                         // If the ending call is just the incoming (secondary) call while we have an active call, 
                         // only clean up the incoming call — DON'T touch the active call
-                        if (isEndingIncoming && !isEndingActive && activeCall) {
+                        if (isEndingIncoming && !isEndingActive && activeCallRef.current) {
                             console.log('[Telnyx] Secondary incoming call ended — keeping active call alive');
                             setIncomingCall(null);
+                            incomingCallRef.current = null;
                             setIncomingCallerInfo(null);
                             // Don't change callState, don't touch activeCall or audio
                         } else {
@@ -486,6 +489,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             
                             setActiveCall(null);
                             setIncomingCall(null);
+                            incomingCallRef.current = null;
                             setIncomingCallerInfo(null);
                             setIsMuted(false);
                         }
@@ -546,7 +550,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             stopIncomingRingtone();
             incomingCall.hangup();
             setIncomingCall(null);
-            setIncomingCallerInfo(null);
+                            incomingCallRef.current = null;
+                            setIncomingCallerInfo(null);
         }
     };
 
