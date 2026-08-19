@@ -462,9 +462,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             setIncomingCall(null);
                             incomingCallRef.current = null;
                             setIncomingCallerInfo(null);
-                            // Don't change callState, don't touch activeCall or audio
                         } else {
-                            // This is the main/active call ending — full teardown
+                            // This is the active call ending (or the only call ending)
                             if (audioRef.current) audioRef.current.srcObject = null;
                             
                             // Set hangup reason for UI display — show all reasons except normal endings
@@ -487,14 +486,22 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                                     setTimeout(() => { setCallState('idle'); setLastHangupReason(null); }, 8000);
                                     return 'rejected';
                                 }
+                                if (prev === 'rejected') return 'rejected';
                                 return 'idle';
                             });
                             
                             setActiveCall(null);
-                            setIncomingCall(null);
-                            incomingCallRef.current = null;
-                            setIncomingCallerInfo(null);
+                            activeCallRef.current = null;
                             setIsMuted(false);
+                            
+                            // Only wipe the incoming call if it's NOT explicitly an active-only teardown while an incoming is alive
+                            if (!(isEndingActive && !isEndingIncoming && incomingCallRef.current)) {
+                                setIncomingCall(null);
+                                incomingCallRef.current = null;
+                                setIncomingCallerInfo(null);
+                            } else {
+                                console.log('[Telnyx] Active call ended — keeping secondary incoming call alive');
+                            }
                         }
                     }
                 }
@@ -532,6 +539,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             video: false,
         });
         setActiveCall(call);
+        activeCallRef.current = call;
         setCallState('calling');
     };
 
