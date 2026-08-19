@@ -801,7 +801,12 @@ const Drafturi = () => {
                 if (selectedBrand.toLowerCase() === 'vitadomus') callerId = '+40751064714';
                 if (selectedBrand.toLowerCase() === 'tamtrend') callerId = '+40775393060';
             }
-            const cleanDestination = phoneNumber.replace(/\s/g, '');
+            let cleanDestination = phoneNumber.replace(/\s/g, '');
+            if (cleanDestination.startsWith('07')) {
+                cleanDestination = '+40' + cleanDestination.slice(1);
+            } else if (cleanDestination.startsWith('40') && cleanDestination.length === 11) {
+                cleanDestination = '+' + cleanDestination;
+            }
             const orderIdStr = selectedId ? selectedId.toString() : undefined;
             makeCall(cleanDestination, callerId, orderIdStr);
         } else {

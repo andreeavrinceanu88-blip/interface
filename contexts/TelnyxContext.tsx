@@ -542,7 +542,12 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
     const makeCall = (destination: string, callerId?: string, orderId?: string) => {
         if (!clientRef.current) return;
-        
+        if (activeCallRef.current) return; // Prevent concurrent outbound
+
+        let finalDest = destination;
+        if (finalDest.startsWith('07')) finalDest = '+40' + finalDest.slice(1);
+        else if (finalDest.startsWith('40') && finalDest.length === 11) finalDest = '+' + finalDest;
+
         // Start synthetic ringback immediately on click to satisfy AudioContext user gesture requirements
         playRingback();
         
@@ -550,10 +555,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         callStartTimeRef.current = null; // Reset on new call
         setLastHangupReason(null); // Clear previous reason
         setCallLogs([]); // Clear previous logs
-        addLog(`Inițiat apel către ${destination}`);
+        addLog(`Inițiat apel către ${finalDest}`);
         
         const call = clientRef.current.newCall({
-            destinationNumber: destination,
+            destinationNumber: finalDest,
             callerNumber: callerId || 'Unknown',
             audio: true,
             video: false,
