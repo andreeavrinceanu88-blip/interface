@@ -303,6 +303,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             // Inbound call (direction is 'inbound' or undefined)
                             console.log('[Telnyx] 📞 Inbound call detected from:', call.options?.remoteCallerNumber);
                             setIncomingCall(call);
+                            incomingCallRef.current = call;
                             lookupCaller(call.options.remoteCallerNumber);
                             // Only play ringtone if NOT already in an active call
                             setCallState(prev => {
@@ -316,6 +317,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         } else {
                             setCallState('calling');
                             setActiveCall(call);
+                            activeCallRef.current = call;
                             playRingback();
                         }
                         // Try attaching audio early (some calls skip 'active')
@@ -326,7 +328,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         stopIncomingRingtone();
                         setCallState('active');
                         setActiveCall(call);
+                        activeCallRef.current = call;
                         setIncomingCall(null);
+                        incomingCallRef.current = null;
                         
                         // Set start time for duration tracking
                         if (callStartTimeRef.current === null) {
@@ -366,9 +370,14 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         tryAttachAudio();
                     } 
                     else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
-                        // Determine if THIS ending call is the incoming one or the active one
-                        const isEndingIncoming = incomingCall && (call.id === incomingCall.id || call === incomingCall);
-                        const isEndingActive = activeCall && (call.id === activeCall.id || call === activeCall);
+                        const getCallId = (c: any) => c?.options?.callSessionId || c?.callSessionId || c?.id;
+                        const callId = getCallId(call);
+                        const isEndingIncoming = incomingCallRef.current && (
+                            (callId && callId === getCallId(incomingCallRef.current)) || call === incomingCallRef.current
+                        );
+                        const isEndingActive = activeCallRef.current && (
+                            (callId && callId === getCallId(activeCallRef.current)) || call === activeCallRef.current
+                        );
                         
                         stopRingback();
                         stopIncomingRingtone();
