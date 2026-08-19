@@ -371,7 +371,7 @@ const Drafturi = () => {
     useEffect(() => {
         if (callState === 'rejected') {
             const reason = lastHangupReason || 'Apel respins / Nu a răspuns';
-            showShopifyNotif(reason, 'error');
+            showShopifyNotif(`📞 Eroare apel: ${reason}`, 'error');
         }
     }, [callState]);
 

@@ -468,8 +468,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             if (audioRef.current) audioRef.current.srcObject = null;
                             
                             // Set hangup reason for UI display — show all reasons except normal endings
-                            if (friendlyReason && friendlyReason !== 'Apel încheiat normal' && friendlyReason !== 'Apel încheiat' && friendlyReason !== 'Apel anulat') {
-                                setLastHangupReason(friendlyReason);
+                            let finalReason = friendlyReason;
+                            if (finalReason !== 'Apel încheiat normal' && finalReason !== 'Apel încheiat' && finalReason !== 'Apel anulat') {
+                                if (sipCode) finalReason = `${finalReason || 'Eroare'} (SIP ${sipCode})`;
+                                else if (rawReason) finalReason = `${finalReason || 'Eroare'} (${rawReason})`;
+                                setLastHangupReason(finalReason || 'Apel respins / Nu a răspuns');
                             } else {
                                 setLastHangupReason(null);
                             }
