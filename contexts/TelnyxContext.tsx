@@ -26,6 +26,7 @@ interface TelnyxContextType {
     isMuted: boolean;
     audioRef: React.RefObject<HTMLAudioElement>;
     ringtoneVolume: number;
+    callLogs: string[];
     setRingtoneVolume: (vol: number) => void;
 }
 
@@ -40,6 +41,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const [incomingCallerInfo, setIncomingCallerInfo] = useState<CallerInfo | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [lastHangupReason, setLastHangupReason] = useState<string | null>(null);
+    const [callLogs, setCallLogs] = useState<string[]>([]);
+    
+    const addLog = (msg: string) => {
+        setCallLogs(prev => [...prev.slice(-49), `${new Date().toLocaleTimeString('ro-RO', {hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit'})}: ${msg}`]);
+    };
     const [ringtoneVolume, setRingtoneVolume] = useState(() => {
         const saved = localStorage.getItem('telnyx_ringtone_vol');
         return saved ? parseFloat(saved) : 0.15; // default lower volume
@@ -280,9 +286,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             client.on('telnyx.error', () => setIsReady(false));
             
             client.on('telnyx.notification', (notification: any) => {
-                const call = notification.call;
-                if (notification.type === 'callUpdate') {
-                    
+                if (notification.type === 'callUpdate' && notification.call) {
+                    const call = notification.call;
+                    const eventMsg = `Stare: ${call.state} | Dir: ${call.direction || 'N/A'}`;
+                    addLog(eventMsg);
                     console.log('[Telnyx] callUpdate state:', call.state, '| direction:', call.direction, '| remoteStream:', !!call.remoteStream, '| remoteCallerNumber:', call.options?.remoteCallerNumber, '| callerNumber:', call.options?.callerNumber, '| destinationNumber:', call.options?.destinationNumber);
 
                     // Helper: try to attach remote audio whenever a stream is available
@@ -481,8 +488,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                                 if (sipCode) finalReason = `${finalReason || 'Eroare'} (SIP ${sipCode})`;
                                 else if (rawReason) finalReason = `${finalReason || 'Eroare'} (${rawReason})`;
                                 setLastHangupReason(finalReason || 'Apel respins / Nu a răspuns');
+                                addLog(`Eroare: ${finalReason}`);
                             } else {
                                 setLastHangupReason(null);
+                                addLog('Apel încheiat.');
                             }
                             
                             // Reset refs
@@ -540,6 +549,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         activeOrderIdRef.current = orderId || null;
         callStartTimeRef.current = null; // Reset on new call
         setLastHangupReason(null); // Clear previous reason
+        setCallLogs([]); // Clear previous logs
+        addLog(`Inițiat apel către ${destination}`);
         
         const call = clientRef.current.newCall({
             destinationNumber: destination,

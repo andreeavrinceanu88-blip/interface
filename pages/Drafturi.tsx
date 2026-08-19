@@ -136,7 +136,7 @@ const formatPhoneNumber = (phone: string | null | undefined): string => {
 const Drafturi = () => {
     const { profile } = useAuth();
     const userStores: string[] = profile?.stores || [];
-    const { isReady, callState: telnyxCallState, makeCall, hangup, toggleMute, isMuted: telnyxMuted, lastHangupReason, ringtoneVolume, setRingtoneVolume } = useTelnyx();
+    const { isReady, callState: telnyxCallState, makeCall, hangup, toggleMute, isMuted: telnyxMuted, lastHangupReason, ringtoneVolume, setRingtoneVolume, callLogs } = useTelnyx();
 
     // ── Filters
     const [viewMode, setViewMode] = useState<'drafturi' | 'comenzi'>('drafturi');
@@ -2109,6 +2109,15 @@ const Drafturi = () => {
                                     </button>
                                 )}
                             </div>
+
+                            {/* Technical Logs (visual) */}
+                            {callLogs && callLogs.length > 0 && (
+                                <div className="w-full mt-4 h-24 bg-black/40 border border-white/5 rounded-xl p-2 overflow-y-auto flex flex-col gap-1 scroll-smooth" ref={(el) => { if(el) el.scrollTop = el.scrollHeight; }}>
+                                    {callLogs.map((log, i) => (
+                                        <div key={i} className="text-[10px] text-gray-400 font-mono leading-tight">{log}</div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
