@@ -1262,15 +1262,22 @@ const Drafturi = () => {
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <span className="text-xs font-semibold text-gray-400">#{order.id} <span className="font-normal ml-1 text-gray-400">{fmtDate(order.created_at).split(',')[0]}</span></span>
-                                            {(!order.cerere_adresa || order.cerere_adresa.trim() === '' || order.cerere_adresa.trim() === '-') ? (
-                                                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center justify-center shrink-0 shadow-sm" title="Adresă corectă">
-                                                    <span className="material-icons-round text-[16px] text-emerald-400">home</span>
-                                                </div>
-                                            ) : (
-                                                <div className="w-7 h-7 rounded-lg bg-red-500/20 border-2 border-red-500/50 flex items-center justify-center shrink-0 shadow-sm" title={`Adresă greșită: ${order.cerere_adresa}`}>
-                                                    <span className="material-icons-round text-[16px] text-red-400">home</span>
-                                                </div>
-                                            )}
+                                            <div className="flex gap-1.5 shrink-0">
+                                                {(order.tags?.toLowerCase().includes('dublura') || order.notes?.toLowerCase().includes('dublura')) && (
+                                                    <div className="w-7 h-7 rounded-lg bg-orange-500/20 border-2 border-orange-500/50 flex items-center justify-center shadow-sm" title="Posibilă dublură">
+                                                        <span className="text-[14px]">👥</span>
+                                                    </div>
+                                                )}
+                                                {(!order.cerere_adresa || order.cerere_adresa.trim() === '' || order.cerere_adresa.trim() === '-') ? (
+                                                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center justify-center shadow-sm" title="Adresă corectă">
+                                                        <span className="material-icons-round text-[16px] text-emerald-400">home</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-7 h-7 rounded-lg bg-red-500/20 border-2 border-red-500/50 flex items-center justify-center shadow-sm" title={`Adresă greșită: ${order.cerere_adresa}`}>
+                                                        <span className="material-icons-round text-[16px] text-red-400">home</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="flex justify-between items-center mb-1.5">
                                             <p className="text-base font-bold text-white leading-tight truncate pr-2">{order.name || 'Client Nou'}</p>
