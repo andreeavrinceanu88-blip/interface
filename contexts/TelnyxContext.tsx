@@ -447,17 +447,60 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
                         // Save call log for ALL calls (inbound & outbound)
                         const callSessionId = call.options?.callSessionId || call.callSessionId;
+                        const isErrorCall = callStatus === 'rejected' && rawReason && rawReason !== 'ORIGINATOR_CANCEL' && rawReason !== 'NORMAL_CLEARING';
                         
-                        if (logOrderId && opId && callSessionId && !loggedCallsRef.current.has(callSessionId)) {
+                        // For error calls, always log even without an order_id (use phone number)
+                        const fallbackOrderId = isErrorCall 
+                            ? `ERR:${call.options?.destinationNumber || call.options?.remoteCallerNumber || 'unknown'}`
+                            : null;
+                        const effectiveOrderId = logOrderId || fallbackOrderId;
+                        
+                        if (opId && callSessionId && effectiveOrderId && !loggedCallsRef.current.has(callSessionId)) {
                             loggedCallsRef.current.add(callSessionId);
-                            supabaseAdmin.from('call_logs').insert({
+                            
+                            const logPayload: any = {
                                 operator_id: opId,
-                                order_id: logOrderId,
+                                order_id: effectiveOrderId,
                                 duration_secs: duration,
-                                status: finalStatus
-                            }).then(({error}) => {
-                                if (error) console.error('[Telnyx] Error saving call log:', error);
-                                else console.log(`[Telnyx] Call log saved: status=${finalStatus}, duration=${duration}s, reason=${rawReason}`);
+                                status: finalStatus,
+                                // New columns (safe to include — if columns don't exist yet they'll be ignored)
+                                error_code: rawReason || null,
+                                error_message: friendlyReason || null,
+                                destination_number: call.options?.destinationNumber || call.options?.remoteCallerNumber || null,
+                                caller_id: call.options?.callerNumber || null,
+                                call_direction: call.direction || 'outbound',
+                                raw_sip_data: {
+                                    sipCode,
+                                    sipReason,
+                                    cause: call.cause,
+                                    causeMessage: call.causeMessage,
+                                    hangupCause: call.hangupCause,
+                                    callState: call.state,
+                                    callSessionId,
+                                    timestamp: new Date().toISOString()
+                                }
+                            };
+                            
+                            supabaseAdmin.from('call_logs').insert(logPayload).then(({error}) => {
+                                if (error) {
+                                    // If new columns don't exist yet, retry with just the basic fields
+                                    if (error.code === '42703') { // column does not exist
+                                        console.warn('[Telnyx] New columns not yet in DB, saving basic log. Please run the SQL migration.');
+                                        supabaseAdmin.from('call_logs').insert({
+                                            operator_id: opId,
+                                            order_id: effectiveOrderId,
+                                            duration_secs: duration,
+                                            status: finalStatus,
+                                        }).then(({error: e2}) => {
+                                            if (e2) console.error('[Telnyx] Error saving basic call log:', e2);
+                                            else console.log(`[Telnyx] Basic call log saved (migration pending)`);
+                                        });
+                                    } else {
+                                        console.error('[Telnyx] Error saving call log:', error);
+                                    }
+                                } else {
+                                    console.log(`[Telnyx] ✅ Call log saved: status=${finalStatus}, duration=${duration}s, error=${rawReason || 'none'}`);
+                                }
                             });
                             
                             // Also mark processed_by on the order (only for outbound calls where we have a real order ID)
