@@ -201,6 +201,7 @@ const Drafturi = () => {
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [callerIdMode, setCallerIdMode] = useState<'brand' | 'landline'>('landline');
     const clientRef = useRef<any>(null);
     const callRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -796,8 +797,10 @@ const Drafturi = () => {
         if (callState === 'idle' || callState === 'rejected') {
             if (!isReady) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
             try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { alert('Este nevoie de acces la microfon pentru a suna!'); return; }
-            let callerId = import.meta.env?.VITE_TELNYX_CALLER_ID ?? '+40751064714';
-            if (selectedBrand) {
+            let callerId = '+40363060018'; // Default to landline
+            if (callerIdMode === 'landline') {
+                callerId = '+40363060018';
+            } else if (selectedBrand) {
                 if (selectedBrand.toLowerCase() === 'vitadomus') callerId = '+40751064714';
                 if (selectedBrand.toLowerCase() === 'tamtrend') callerId = '+40775393060';
             }
@@ -2074,6 +2077,22 @@ const Drafturi = () => {
                                             <span className="material-icons-round">backspace</span>
                                         </button>
                                     )}
+                                </div>
+
+                                {/* Caller ID Selector */}
+                                <div className={`flex w-full mb-4 bg-[#1a1b23] rounded-lg p-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                                    <button
+                                        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'landline' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                                        onClick={() => setCallerIdMode('landline')}
+                                    >
+                                        Fix (0363)
+                                    </button>
+                                    <button
+                                        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'brand' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                                        onClick={() => setCallerIdMode('brand')}
+                                    >
+                                        Mobil Brand
+                                    </button>
                                 </div>
 
                                 {/* Keypad */}
