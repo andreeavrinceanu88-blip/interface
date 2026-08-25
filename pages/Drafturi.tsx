@@ -1220,10 +1220,10 @@ const Drafturi = () => {
                                                         <div className="flex justify-between items-center pl-6">
                                                             <div className="flex items-center gap-2 truncate">
                                                                 <span className="text-xs text-gray-400 capitalize">{log.status} {log.error_message || log.reason ? `(${log.error_message || log.reason})` : ''}</span>
-                                                                {!isInbound && (
+                                                                {(log.enriched_order_number || (!isInbound && !isManualDial)) && (
                                                                     <>
                                                                         <span className="text-[10px] text-gray-500">•</span>
-                                                                        <span className="text-xs text-indigo-400 font-medium truncate">{orderLabel}</span>
+                                                                        <span className="text-xs text-indigo-400 font-medium truncate">{log.enriched_order_number || orderLabel}</span>
                                                                     </>
                                                                 )}
                                                                 {storeName && (
