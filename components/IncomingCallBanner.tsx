@@ -68,7 +68,14 @@ export default function IncomingCallBanner() {
                                         <div className="flex justify-between items-center mb-1.5">
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[10px] font-bold ${typeColor}`}>{typeLabel}</span>
-                                                <span className="text-white text-sm font-medium">{o.order_number}</span>
+                                                <a 
+                                                    href={`https://admin.shopify.com/store/${o.store_name?.toLowerCase() || 'vitadomus'}/${o.type === 'draft' ? 'draft_orders' : 'orders'}/${o.order_id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-white text-sm font-medium hover:text-cyan-400 hover:underline cursor-pointer"
+                                                >
+                                                    {o.order_number}
+                                                </a>
                                             </div>
                                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${statusColor}`}>{safeStatus}</span>
                                         </div>
@@ -158,7 +165,14 @@ export default function IncomingCallBanner() {
                                         <div className="flex justify-between items-center mb-1.5">
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[10px] font-bold ${typeColor}`}>{typeLabel}</span>
-                                                <span className="text-white text-sm font-medium">{o.order_number}</span>
+                                                <a 
+                                                    href={`https://admin.shopify.com/store/${o.store_name?.toLowerCase() || 'vitadomus'}/${o.type === 'draft' ? 'draft_orders' : 'orders'}/${o.order_id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-white text-sm font-medium hover:text-cyan-400 hover:underline cursor-pointer"
+                                                >
+                                                    {o.order_number}
+                                                </a>
                                             </div>
                                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${statusColor}`}>{safeStatus}</span>
                                         </div>
