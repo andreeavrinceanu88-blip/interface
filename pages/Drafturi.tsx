@@ -250,7 +250,37 @@ const Drafturi = () => {
                 .limit(100);
                 
             if (!error && data) {
-                setCallHistoryLogs(data);
+                // Enrich data with order info
+                const validOrderIds = Array.from(new Set(
+                    data.map(d => d.order_id).filter(id => id && !id.toString().startsWith('INBOUND:') && !id.toString().startsWith('ERR:'))
+                ));
+                
+                const enrichedData = [...data];
+                
+                if (validOrderIds.length > 0) {
+                    const { data: ordersData } = await supabaseAdmin
+                        .from('orders')
+                        .select('id, order_id, client_personal_id, store_name, phone_number')
+                        .in('id', validOrderIds.map(v => Number(v)).filter(n => !isNaN(n)));
+                        
+                    if (ordersData && ordersData.length > 0) {
+                        const orderMap = {};
+                        ordersData.forEach(o => {
+                            orderMap[String(o.id)] = o;
+                        });
+                        
+                        enrichedData.forEach(log => {
+                            if (log.order_id && orderMap[log.order_id]) {
+                                const o = orderMap[log.order_id];
+                                log.enriched_store_name = o.store_name;
+                                log.enriched_phone = o.phone_number;
+                                log.enriched_order_number = o.client_personal_id || `#${o.id || o.order_id}`;
+                            }
+                        });
+                    }
+                }
+                
+                setCallHistoryLogs(enrichedData);
             }
         } catch (e) {
             console.error('Error fetching call history:', e);
@@ -1120,25 +1150,45 @@ const Drafturi = () => {
                                                 const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
                                                 const iconColor = isAnswered ? 'text-emerald-500' : 'text-red-500';
                                                 
-                                                const isInbound = log.order_id && log.order_id.startsWith('INBOUND:');
+                                                const isInbound = log.order_id && log.order_id.toString().startsWith('INBOUND:');
                                                 const icon = isInbound ? (isAnswered ? 'call_received' : 'phone_missed') : 'call_made';
-                                                const displayName = isInbound ? log.order_id.split(':')[1] : `Comanda ${log.order_id.startsWith('#') ? log.order_id : '#' + log.order_id}`;
+                                                
+                                                const orderLabel = isInbound 
+                                                    ? 'Apel intrare' 
+                                                    : (log.enriched_order_number || `Comanda ${log.order_id?.toString().startsWith('#') ? log.order_id : '#' + log.order_id}`);
+                                                    
+                                                const phoneNum = log.enriched_phone || log.destination_number || (isInbound ? log.order_id.split(':')[1] : '');
+                                                const storeName = log.enriched_store_name;
                                                 
                                                 return (
                                                     <div key={log.id} className="flex flex-col p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
                                                         <div className="flex justify-between items-center mb-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`material-icons-round text-[16px] ${iconColor}`}>{icon}</span>
-                                                                <span className="text-white text-sm font-medium">{displayName}</span>
+                                                            <div className="flex items-center gap-2 truncate">
+                                                                <span className={`material-icons-round text-[16px] ${iconColor} shrink-0`}>{icon}</span>
+                                                                <span className="text-white text-sm font-medium truncate" title={phoneNum}>{phoneNum || orderLabel}</span>
                                                             </div>
-                                                            <span className="text-[11px] text-gray-500">
+                                                            <span className="text-[11px] text-gray-500 shrink-0">
                                                                 {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             </span>
                                                         </div>
                                                         <div className="flex justify-between items-center pl-6">
-                                                            <span className="text-xs text-gray-400 capitalize">{log.status} {log.reason ? `(${log.reason})` : ''}</span>
+                                                            <div className="flex items-center gap-2 truncate">
+                                                                <span className="text-xs text-gray-400 capitalize">{log.status} {log.error_message || log.reason ? `(${log.error_message || log.reason})` : ''}</span>
+                                                                {!isInbound && (
+                                                                    <>
+                                                                        <span className="text-[10px] text-gray-500">•</span>
+                                                                        <span className="text-xs text-indigo-400 font-medium truncate">{orderLabel}</span>
+                                                                    </>
+                                                                )}
+                                                                {storeName && (
+                                                                    <>
+                                                                        <span className="text-[10px] text-gray-500">•</span>
+                                                                        <span className="text-[10px] text-gray-400 capitalize border border-white/10 bg-white/5 px-1.5 py-0.5 rounded">{storeName}</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                             {log.duration_secs > 0 && (
-                                                                <span className="text-xs text-gray-400 font-mono bg-[#13141a] px-1.5 py-0.5 rounded-md border border-white/5">{formatCallTimer(log.duration_secs)}</span>
+                                                                <span className="text-xs text-gray-400 font-mono bg-[#13141a] px-1.5 py-0.5 rounded-md border border-white/5 shrink-0 ml-2">{formatCallTimer(log.duration_secs)}</span>
                                                             )}
                                                         </div>
                                                     </div>
