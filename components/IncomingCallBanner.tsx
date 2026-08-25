@@ -9,7 +9,7 @@ const getShopifyStoreCode = (storeName?: string) => {
 };
 
 export default function IncomingCallBanner() {
-    const { incomingCall, incomingCallerInfo, answerIncoming, rejectIncoming, callState, hangup, activeCall, toggleMute, isMuted } = useTelnyx();
+    const { incomingCall, incomingCallerInfo, answerIncoming, rejectIncoming, callState, hangup, activeCall, toggleMute, isMuted, markForCallback } = useTelnyx();
 
     const showActiveInbound = callState === 'active' && activeCall && activeCall.direction === 'inbound';
     const showIncoming = !!incomingCall;
@@ -34,6 +34,13 @@ export default function IncomingCallBanner() {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => { markForCallback(); }}
+                                title="Salvează în De sunat"
+                                className="px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+                            >
+                                <span className="material-icons-round">schedule</span>
+                            </button>
                             <button 
                                 onClick={toggleMute}
                                 className={`px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 ${isMuted ? 'bg-amber-500/20 text-amber-500' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
@@ -128,6 +135,12 @@ export default function IncomingCallBanner() {
                         </div>
 
                         <div className="flex items-center gap-3 shrink-0">
+                            <button
+                                onClick={() => { markForCallback(); rejectIncoming(); }}
+                                className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
+                            >
+                                <span className="material-icons-round">schedule</span>
+                            </button>
                             <button 
                                 onClick={rejectIncoming}
                                 className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"

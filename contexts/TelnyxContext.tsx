@@ -22,6 +22,7 @@ interface TelnyxContextType {
     hangup: () => void;
     answerIncoming: () => void;
     rejectIncoming: () => void;
+    markForCallback: () => void;
     toggleMute: () => void;
     isMuted: boolean;
     audioRef: React.RefObject<HTMLAudioElement>;
@@ -64,6 +65,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const loggedCallsRef = useRef<Set<string>>(new Set());
     const ringtoneVolumeRef = useRef(ringtoneVolume);
     const callCooldownUntilRef = useRef<number>(0); // Timestamp after which new calls are allowed
+    const needsCallbackRef = useRef<boolean>(false);
 
     useEffect(() => {
         profileRef.current = profile;
@@ -312,6 +314,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             console.log('[Telnyx] 📞 Inbound call detected from:', call.options?.remoteCallerNumber);
                             setIncomingCall(call);
                             incomingCallRef.current = call;
+                            needsCallbackRef.current = false; // Reset on new inbound call
                             lookupCaller(call.options.remoteCallerNumber);
                             // Only play ringtone if NOT already in an active call
                             setCallState(prev => {
@@ -471,6 +474,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                                 destination_number: call.options?.destinationNumber || call.options?.remoteCallerNumber || null,
                                 caller_id: call.options?.callerNumber || null,
                                 call_direction: call.direction || 'outbound',
+                                needs_callback: needsCallbackRef.current,
                                 raw_sip_data: {
                                     sipCode,
                                     sipReason,
@@ -492,6 +496,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                                         order_id: effectiveOrderId,
                                         duration_secs: duration,
                                         status: finalStatus,
+                                        needs_callback: needsCallbackRef.current
                                     }).then(({error: e2}) => {
                                         if (e2) console.error('[Telnyx] Error saving basic call log:', e2);
                                         else console.log(`[Telnyx] ✅ Basic call log saved (migration pending)`);
@@ -614,6 +619,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         callStartTimeRef.current = null; // Reset on new call
         setLastHangupReason(null); // Clear previous reason
         setCallLogs([]); // Clear previous logs
+        needsCallbackRef.current = false; // Reset callback flag
         addLog(`Inițiat apel către ${finalDest}`);
         
         const call = clientRef.current.newCall({
@@ -653,6 +659,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             incomingCallRef.current = null;
             setIncomingCallerInfo(null);
         }
+    };
+
+    const markForCallback = () => {
+        needsCallbackRef.current = true;
+        addLog('Marcat pentru "De sunat"');
     };
 
     const toggleMute = () => {

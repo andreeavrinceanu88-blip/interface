@@ -220,7 +220,7 @@ const Drafturi = () => {
     const [showCallHistory, setShowCallHistory] = useState(false);
     const [callHistoryLogs, setCallHistoryLogs] = useState<any[]>([]);
     const [loadingCallHistory, setLoadingCallHistory] = useState(false);
-    const [callHistoryFilter, setCallHistoryFilter] = useState<'all' | 'answered' | 'missed' | 'voicemail'>('all');
+    const [callHistoryFilter, setCallHistoryFilter] = useState<'all' | 'answered' | 'missed' | 'voicemail' | 'callback'>('all');
     const [callHistoryDate, setCallHistoryDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [callHistoryPage, setCallHistoryPage] = useState(0);
     const CALL_HISTORY_PAGE_SIZE = 10;
@@ -230,6 +230,14 @@ const Drafturi = () => {
             fetchCallHistory();
         }
     }, [callHistoryDate, showCallHistory]);
+
+    const resolveCallback = async (logId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const { error } = await supabaseAdmin.from('call_logs').update({ needs_callback: false }).eq('id', logId);
+        if (!error) {
+            setCallHistoryLogs(prev => prev.map(log => log.id === logId ? { ...log, needs_callback: false } : log));
+        }
+    };
 
     const fetchCallHistory = async () => {
         if (!profile?.id) return;
@@ -1170,6 +1178,7 @@ const Drafturi = () => {
                                     <button onClick={() => { setCallHistoryFilter('answered'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'answered' ? 'bg-emerald-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-emerald-400'}`}>Răspunse</button>
                                     <button onClick={() => { setCallHistoryFilter('missed'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'missed' ? 'bg-red-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-red-400'}`}>Pierdute</button>
                                     <button onClick={() => { setCallHistoryFilter('voicemail'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'voicemail' ? 'bg-orange-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-orange-400'}`}>Voicemail</button>
+                                    <button onClick={() => { setCallHistoryFilter('callback'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'callback' ? 'bg-amber-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-amber-400'}`}>De sunat</button>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
@@ -1181,6 +1190,7 @@ const Drafturi = () => {
                                         <div className="flex flex-col gap-1.5">
                                             {(() => {
                                                 const filtered = callHistoryLogs.filter(log => {
+                                                    if (callHistoryFilter === 'callback') return log.needs_callback === true;
                                                     if (callHistoryFilter === 'all') return true;
                                                     if (callHistoryFilter === 'voicemail') return log.status === 'voicemail';
                                                     const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
@@ -1233,9 +1243,20 @@ const Drafturi = () => {
                                                                     </>
                                                                 )}
                                                             </div>
-                                                            {log.duration_secs > 0 && (
-                                                                <span className="text-xs text-gray-400 font-mono bg-[#13141a] px-1.5 py-0.5 rounded-md border border-white/5 shrink-0 ml-2">{formatCallTimer(log.duration_secs)}</span>
-                                                            )}
+                                                            <div className="flex items-center gap-2">
+                                                                {log.needs_callback && (
+                                                                    <button 
+                                                                        onClick={(e) => resolveCallback(log.id, e)}
+                                                                        className="flex items-center justify-center bg-amber-500/10 text-amber-500 hover:bg-emerald-500/20 hover:text-emerald-400 p-1 rounded-md transition-colors"
+                                                                        title="Marchează ca rezolvat"
+                                                                    >
+                                                                        <span className="material-icons-round text-[14px]">done</span>
+                                                                    </button>
+                                                                )}
+                                                                {log.duration_secs > 0 && (
+                                                                    <span className="text-xs text-gray-400 font-mono bg-[#13141a] px-1.5 py-0.5 rounded-md border border-white/5 shrink-0">{formatCallTimer(log.duration_secs)}</span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 );
