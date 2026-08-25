@@ -279,7 +279,7 @@ const Drafturi = () => {
                 if (validOrderIds.length > 0) {
                     const { data: ordersData } = await supabaseAdmin
                         .from('orders')
-                        .select('id, order_id, client_personal_id, store_name, phone_number')
+                        .select('id, order_id, client_personal_id, store_name, phone_number, name')
                         .in('id', validOrderIds.map(v => Number(v)).filter(n => !isNaN(n)));
                         
                     if (ordersData && ordersData.length > 0) {
@@ -295,7 +295,7 @@ const Drafturi = () => {
                     if (orQuery) {
                         const { data: phoneOrdersData } = await supabaseAdmin
                             .from('orders')
-                            .select('id, order_id, client_personal_id, store_name, phone_number')
+                            .select('id, order_id, client_personal_id, store_name, phone_number, name')
                             .or(orQuery)
                             .order('created_at', { ascending: false });
                             
@@ -322,6 +322,7 @@ const Drafturi = () => {
                             if (o) {
                                 log.enriched_store_name = o.store_name;
                                 log.enriched_phone = o.phone_number;
+                                log.enriched_client_name = o.name;
                                 log.enriched_order_number = o.client_personal_id || `#${o.id || o.order_id}`;
                             }
                         }
@@ -329,6 +330,7 @@ const Drafturi = () => {
                         const o = orderMap[orderStr];
                         log.enriched_store_name = o.store_name;
                         log.enriched_phone = o.phone_number;
+                        log.enriched_client_name = o.name;
                         log.enriched_order_number = o.client_personal_id || `#${o.id || o.order_id}`;
                     }
                 });
@@ -1222,6 +1224,12 @@ const Drafturi = () => {
                                                             <div className="flex items-center gap-2 truncate">
                                                                 <span className={`material-icons-round text-[16px] ${iconColor} shrink-0`}>{icon}</span>
                                                                 <span className="text-white text-sm font-medium truncate" title={phoneNum}>{phoneNum || orderLabel}</span>
+                                                                {log.enriched_client_name && (
+                                                                    <>
+                                                                        <span className="text-[10px] text-gray-500">•</span>
+                                                                        <span className="text-[13px] text-gray-300 truncate">{log.enriched_client_name}</span>
+                                                                    </>
+                                                                )}
                                                             </div>
                                                             <span className="text-[11px] text-gray-500 shrink-0">
                                                                 {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
