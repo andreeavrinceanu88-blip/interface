@@ -69,7 +69,7 @@ export default function IncomingCallBanner() {
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[10px] font-bold ${typeColor}`}>{typeLabel}</span>
                                                 <a 
-                                                    href={`https://admin.shopify.com/store/${o.store_name?.toLowerCase() || 'vitadomus'}/${o.type === 'draft' ? 'draft_orders' : 'orders'}/${o.order_id}`}
+                                                    href={`https://admin.shopify.com/store/${o.store_name?.toLowerCase() === 'tamtrend' ? 'z10zqc-mz' : (o.store_name?.toLowerCase() || 'vitadomus')}/${o.type === 'draft' ? 'draft_orders' : 'orders'}/${o.order_id}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-white text-sm font-medium hover:text-cyan-400 hover:underline cursor-pointer"
@@ -166,7 +166,7 @@ export default function IncomingCallBanner() {
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[10px] font-bold ${typeColor}`}>{typeLabel}</span>
                                                 <a 
-                                                    href={`https://admin.shopify.com/store/${o.store_name?.toLowerCase() || 'vitadomus'}/${o.type === 'draft' ? 'draft_orders' : 'orders'}/${o.order_id}`}
+                                                    href={`https://admin.shopify.com/store/${o.store_name?.toLowerCase() === 'tamtrend' ? 'z10zqc-mz' : (o.store_name?.toLowerCase() || 'vitadomus')}/${o.type === 'draft' ? 'draft_orders' : 'orders'}/${o.order_id}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-white text-sm font-medium hover:text-cyan-400 hover:underline cursor-pointer"
