@@ -365,15 +365,13 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     }
                     else if (call.state === 'answering' || call.state === 'early' || call.state === 'trying') {
                         console.log('[Telnyx] Intermediate state:', call.state);
-                        // When 'early' media arrives (carrier announcement), stop our synthetic ringback
-                        // so the user can hear the remote audio (e.g. "number invalid" robot)
+                        // When 'early' media arrives (carrier ringback/announcement), stop our synthetic
+                        // ringback so the user can hear the real carrier audio (busy tone, announcement, etc.)
+                        // BUT do NOT mark as 'active' — early ≠ answered. Timer must not start.
                         if (call.state === 'early' && call.remoteStream) {
                             stopRingback();
-                            // Mark call as active so UI shows it's connected
-                            setCallState('active');
-                            if (callStartTimeRef.current === null) {
-                                callStartTimeRef.current = Date.now();
-                            }
+                            // Relay carrier audio (real ringback / announcements) — do NOT set 'active'
+                            // callState stays 'calling' until Telnyx fires actual 'active' state
                         }
                         tryAttachAudio();
                     } 
