@@ -61,6 +61,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const activeOrderIdRef = useRef<string | null>(null);
     const callStartTimeRef = useRef<number | null>(null);
     const activeCallRef = useRef<any>(null);
+    const incomingCallsRef = useRef<any[]>([]);
     const loggedCallsRef = useRef<Set<string>>(new Set());
     const ringtoneVolumeRef = useRef(ringtoneVolume);
     const callCooldownUntilRef = useRef<number>(0); // Timestamp after which new calls are allowed
@@ -317,7 +318,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             console.log('[Telnyx] 📞 Inbound call detected from:', call.options?.remoteCallerNumber);
                             setIncomingCalls(prev => {
                                 if (prev.find(c => (c.id || c.options?.callSessionId) === callId)) return prev;
-                                return [...prev, call];
+                                const next = [...prev, call];
+                                incomingCallsRef.current = next;
+                                return next;
                             });
                             needsCallbackRef.current = false; // Reset on new inbound call
                             lookupCaller(call.options.remoteCallerNumber, callId);
@@ -346,7 +349,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         setActiveCall(call);
                         activeCallRef.current = call;
                         const callId = call.id || call.options?.callSessionId;
-                        setIncomingCalls(prev => prev.filter(c => (c.id || c.options?.callSessionId) !== callId));
+                        setIncomingCalls(prev => {
+                            const next = prev.filter(c => (c.id || c.options?.callSessionId) !== callId);
+                            incomingCallsRef.current = next;
+                            return next;
+                        });
                         
                         // Set start time for duration tracking
                         if (callStartTimeRef.current === null) {
@@ -387,12 +394,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         const getCallId = (c: any) => c?.options?.callSessionId || c?.callSessionId || c?.id;
                         const callId = getCallId(call);
                         
-                        let isEndingIncoming = false;
+                        const isEndingIncoming = incomingCallsRef.current.some(c => getCallId(c) === callId);
+                        
                         setIncomingCalls(prev => {
-                            if (prev.find(c => getCallId(c) === callId)) {
-                                isEndingIncoming = true;
-                            }
                             const remaining = prev.filter(c => getCallId(c) !== callId);
+                            incomingCallsRef.current = remaining;
                             if (remaining.length === 0) {
                                 stopIncomingRingtone();
                             }
