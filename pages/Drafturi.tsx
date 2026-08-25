@@ -251,6 +251,28 @@ const Drafturi = () => {
         }
     };
 
+    const handleCallFromHistory = (phoneNum: string, storeName: string, orderId: any, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!phoneNum) return;
+        
+        if (storeName) {
+            setSelectedBrand(storeName);
+            setCallerIdMode('brand');
+        } else {
+            setCallerIdMode('landline');
+        }
+        
+        // Strip everything except digits and +
+        const cleanNum = phoneNum.replace(/[^\d+]/g, '');
+        setPhoneNumber(cleanNum);
+        setDialerOpen(true);
+        
+        // Use timeout to allow states to settle if needed, or just pass directly
+        setTimeout(() => {
+            handleCallAction(cleanNum, storeName);
+        }, 100);
+    };
+
     const fetchCallHistory = async () => {
         if (!profile?.id) return;
         setLoadingCallHistory(true);
@@ -889,19 +911,22 @@ const Drafturi = () => {
 
     const handleKeypadPress = (key: string) => setPhoneNumber(prev => formatDialerNumber(prev + key));
     const handleDelete = () => setPhoneNumber(prev => formatDialerNumber(prev.trimEnd().slice(0, -1)));
-    const handleCallAction = async () => {
-        if (!phoneNumber) return;
+    const handleCallAction = async (overrideNumber?: string, overrideBrand?: string) => {
+        const targetNumber = overrideNumber || phoneNumber;
+        if (!targetNumber) return;
         if (callState === 'idle' || callState === 'rejected') {
             if (!isReady) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
             try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { alert('Este nevoie de acces la microfon pentru a suna!'); return; }
             let callerId = '+40363060018'; // Default to landline
-            if (callerIdMode === 'landline') {
+            
+            const brandToUse = overrideBrand || selectedBrand;
+            if (overrideBrand || callerIdMode === 'brand') {
+                if (brandToUse?.toLowerCase() === 'vitadomus') callerId = '+40751064714';
+                if (brandToUse?.toLowerCase() === 'tamtrend') callerId = '+40775393060';
+            } else if (callerIdMode === 'landline') {
                 callerId = '+40363060018';
-            } else if (selectedBrand) {
-                if (selectedBrand.toLowerCase() === 'vitadomus') callerId = '+40751064714';
-                if (selectedBrand.toLowerCase() === 'tamtrend') callerId = '+40775393060';
             }
-            let cleanDestination = phoneNumber.replace(/\s/g, '');
+            let cleanDestination = targetNumber.replace(/\s/g, '');
             if (cleanDestination.startsWith('07')) {
                 cleanDestination = '+40' + cleanDestination.slice(1);
             } else if (cleanDestination.startsWith('40') && cleanDestination.length === 11) {
@@ -1234,8 +1259,19 @@ const Drafturi = () => {
                                                     <div key={log.id} className="flex flex-col p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors group relative">
                                                         <div className="flex justify-between items-center mb-1">
                                                             <div className="flex items-center gap-2 truncate">
-                                                                <span className={`material-icons-round text-[16px] ${iconColor} shrink-0`}>{icon}</span>
-                                                                <span className="text-white text-sm font-medium truncate" title={phoneNum}>{phoneNum || orderLabel}</span>
+                                                                <span 
+                                                                    className={`material-icons-round text-[16px] ${iconColor} shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
+                                                                    onClick={(e) => handleCallFromHistory(phoneNum, storeName, log.order_id, e)}
+                                                                >
+                                                                    {icon}
+                                                                </span>
+                                                                <span 
+                                                                    className="text-white text-sm font-medium truncate cursor-pointer hover:text-cyan-400 transition-colors" 
+                                                                    title={phoneNum}
+                                                                    onClick={(e) => handleCallFromHistory(phoneNum, storeName, log.order_id, e)}
+                                                                >
+                                                                    {phoneNum || orderLabel}
+                                                                </span>
                                                                 {log.enriched_client_name && (
                                                                     <>
                                                                         <span className="text-[10px] text-gray-500">•</span>
