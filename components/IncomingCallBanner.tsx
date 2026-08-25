@@ -20,10 +20,10 @@ export default function IncomingCallBanner() {
     if (!showActiveInbound && incomingCalls.length === 0) return null;
 
     return (
-        <div className="fixed top-0 left-0 right-0 z-[9999] p-4 flex flex-col items-center gap-3 animate-slideDown">
+        <div className="fixed top-0 left-0 right-0 z-[9999] p-4 flex flex-col items-center gap-3 animate-slideDown pointer-events-none">
             {/* Active inbound call widget (always on top) */}
             {showActiveInbound && (
-                <div className="bg-[#13141a] border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)] rounded-2xl flex flex-col w-full max-w-3xl overflow-hidden">
+                <div className="bg-[#13141a] border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)] rounded-2xl flex flex-col w-full max-w-3xl overflow-hidden pointer-events-auto">
                     <div className="p-4 flex items-center gap-6">
                         <div className="bg-emerald-500/10 p-3 rounded-xl">
                             <span className="material-icons-round text-emerald-400 text-3xl animate-pulse">phone_in_talk</span>
@@ -122,7 +122,7 @@ export default function IncomingCallBanner() {
                 const info = callerInfos[callId];
                 
                 return (
-                <div key={callId} className="bg-[#13141a] border border-cyan-500/30 shadow-[0_0_20px_rgba(0,210,255,0.2)] rounded-2xl flex flex-col w-full max-w-3xl overflow-hidden">
+                <div key={callId} className="bg-[#13141a] border border-cyan-500/30 shadow-[0_0_20px_rgba(0,210,255,0.2)] rounded-2xl flex flex-col w-full max-w-3xl overflow-hidden pointer-events-auto">
                     {/* Top Row: Caller Info & Buttons */}
                     <div className="p-4 flex items-center gap-5">
                         <div className="bg-cyan-500/10 p-3 rounded-xl animate-pulse shrink-0">
