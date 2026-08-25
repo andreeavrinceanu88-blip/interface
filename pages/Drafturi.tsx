@@ -255,8 +255,19 @@ const Drafturi = () => {
                     data.map(d => d.order_id).filter(id => id && !id.toString().startsWith('INBOUND:') && !id.toString().startsWith('ERR:') && !id.toString().startsWith('OUTBOUND:'))
                 ));
                 
+                const phoneNumbersToLookup = Array.from(new Set(
+                    data
+                        .filter(d => d.order_id && (d.order_id.toString().startsWith('INBOUND:') || d.order_id.toString().startsWith('OUTBOUND:')))
+                        .map(d => {
+                            const p = d.order_id.toString().split(':')[1];
+                            return p ? p.slice(-7) : null;
+                        })
+                        .filter(Boolean)
+                ));
+                
                 const enrichedData = [...data];
                 
+                const orderMap: any = {};
                 if (validOrderIds.length > 0) {
                     const { data: ordersData } = await supabaseAdmin
                         .from('orders')
@@ -264,21 +275,55 @@ const Drafturi = () => {
                         .in('id', validOrderIds.map(v => Number(v)).filter(n => !isNaN(n)));
                         
                     if (ordersData && ordersData.length > 0) {
-                        const orderMap = {};
                         ordersData.forEach(o => {
                             orderMap[String(o.id)] = o;
                         });
-                        
-                        enrichedData.forEach(log => {
-                            if (log.order_id && orderMap[log.order_id]) {
-                                const o = orderMap[log.order_id];
+                    }
+                }
+                
+                const phoneOrdersMap: any = {};
+                if (phoneNumbersToLookup.length > 0) {
+                    const orQuery = phoneNumbersToLookup.slice(0, 50).map(p => `phone_number.ilike.%${p}`).join(',');
+                    if (orQuery) {
+                        const { data: phoneOrdersData } = await supabaseAdmin
+                            .from('orders')
+                            .select('id, order_id, client_personal_id, store_name, phone_number')
+                            .or(orQuery)
+                            .order('created_at', { ascending: false });
+                            
+                        if (phoneOrdersData) {
+                            phoneOrdersData.forEach(o => {
+                                if (o.phone_number) {
+                                    const last7 = String(o.phone_number).slice(-7);
+                                    if (!phoneOrdersMap[last7]) {
+                                        phoneOrdersMap[last7] = o;
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+                
+                enrichedData.forEach(log => {
+                    const orderStr = log.order_id?.toString() || '';
+                    if (orderStr.startsWith('INBOUND:') || orderStr.startsWith('OUTBOUND:')) {
+                        const phone = orderStr.split(':')[1];
+                        if (phone) {
+                            const last7 = phone.slice(-7);
+                            const o = phoneOrdersMap[last7];
+                            if (o) {
                                 log.enriched_store_name = o.store_name;
                                 log.enriched_phone = o.phone_number;
                                 log.enriched_order_number = o.client_personal_id || `#${o.id || o.order_id}`;
                             }
-                        });
+                        }
+                    } else if (orderStr && orderMap[orderStr]) {
+                        const o = orderMap[orderStr];
+                        log.enriched_store_name = o.store_name;
+                        log.enriched_phone = o.phone_number;
+                        log.enriched_order_number = o.client_personal_id || `#${o.id || o.order_id}`;
                     }
-                }
+                });
                 
                 setCallHistoryLogs(enrichedData);
             }
