@@ -181,11 +181,19 @@ export default function IncomingCallBanner() {
                                 // Parse JSON products
                                 let parsedProducts = o.produse || 'Fără produse';
                                 try {
-                                    if (parsedProducts.startsWith('[')) {
-                                        const arr = JSON.parse(parsedProducts);
-                                        parsedProducts = arr.map((item: any) => item.name || item.title || 'Produs').join(', ');
+                                    if (typeof parsedProducts === 'string' && (parsedProducts.startsWith('[') || parsedProducts.startsWith('{'))) {
+                                        const parsed = JSON.parse(parsedProducts);
+                                        if (Array.isArray(parsed)) {
+                                            parsedProducts = parsed.map((item: any) => item.name || item.title || 'Produs').join(', ');
+                                        } else if (parsed?.edges) {
+                                            parsedProducts = parsed.edges.map((edge: any) => edge.node?.name || edge.node?.title || 'Produs').join(', ');
+                                        } else if (parsed?.line_items) {
+                                            parsedProducts = parsed.line_items.map((item: any) => item.name || item.title || 'Produs').join(', ');
+                                        }
                                     }
-                                } catch(e) {}
+                                } catch(e) {
+                                    console.error('Failed to parse products', e);
+                                }
                                 
                                 return (
                                     <div key={i} className="bg-[#13141a] border border-white/10 rounded-xl p-3 flex-1 min-w-[280px]">
