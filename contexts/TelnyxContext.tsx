@@ -63,6 +63,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const incomingCallRef = useRef<any>(null);
     const loggedCallsRef = useRef<Set<string>>(new Set());
     const ringtoneVolumeRef = useRef(ringtoneVolume);
+    const callCooldownUntilRef = useRef<number>(0); // Timestamp after which new calls are allowed
 
     useEffect(() => {
         profileRef.current = profile;
@@ -551,8 +552,15 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                                 return 'idle';
                             });
                             
+                            // Set a 3-second cooldown after call ends to prevent accidental re-dials
+                            callCooldownUntilRef.current = Date.now() + 3000;
+                            
                             setActiveCall(null);
-                            activeCallRef.current = null;
+                            // Only clear the ref on 'destroy', not on 'hangup',
+                            // so the guard in makeCall keeps blocking until fully torn down
+                            if (call.state === 'destroy' || call.state === 'purge') {
+                                activeCallRef.current = null;
+                            }
                             setIsMuted(false);
                             
                             // Only wipe the incoming call if it's NOT explicitly an active-only teardown while an incoming is alive
@@ -585,7 +593,18 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
     const makeCall = (destination: string, callerId?: string, orderId?: string) => {
         if (!clientRef.current) return;
-        if (activeCallRef.current) return; // Prevent concurrent outbound
+        if (activeCallRef.current) {
+            console.warn('[Telnyx] makeCall blocked — call already in progress (activeCallRef set)');
+            return;
+        }
+        
+        // Cooldown: prevent re-calling within 3 seconds of a previous call ending
+        const now = Date.now();
+        if (now < callCooldownUntilRef.current) {
+            const remaining = Math.ceil((callCooldownUntilRef.current - now) / 1000);
+            console.warn(`[Telnyx] makeCall blocked — cooldown active, ${remaining}s remaining`);
+            return;
+        }
 
         let finalDest = destination;
         if (finalDest.startsWith('07')) finalDest = '+40' + finalDest.slice(1);
