@@ -252,7 +252,7 @@ const Drafturi = () => {
             if (!error && data) {
                 // Enrich data with order info
                 const validOrderIds = Array.from(new Set(
-                    data.map(d => d.order_id).filter(id => id && !id.toString().startsWith('INBOUND:') && !id.toString().startsWith('ERR:'))
+                    data.map(d => d.order_id).filter(id => id && !id.toString().startsWith('INBOUND:') && !id.toString().startsWith('ERR:') && !id.toString().startsWith('OUTBOUND:'))
                 ));
                 
                 const enrichedData = [...data];
@@ -1153,11 +1153,12 @@ const Drafturi = () => {
                                                 const isInbound = log.order_id && log.order_id.toString().startsWith('INBOUND:');
                                                 const icon = isInbound ? (isAnswered ? 'call_received' : 'phone_missed') : 'call_made';
                                                 
+                                                const isManualDial = log.order_id && log.order_id.toString().startsWith('OUTBOUND:');
                                                 const orderLabel = isInbound 
                                                     ? 'Apel intrare' 
-                                                    : (log.enriched_order_number || `Comanda ${log.order_id?.toString().startsWith('#') ? log.order_id : '#' + log.order_id}`);
+                                                    : isManualDial ? 'Apel manual' : (log.enriched_order_number || `Comanda ${log.order_id?.toString().startsWith('#') ? log.order_id : '#' + log.order_id}`);
                                                     
-                                                const phoneNum = log.enriched_phone || log.destination_number || (isInbound ? log.order_id.split(':')[1] : '');
+                                                const phoneNum = log.enriched_phone || log.destination_number || ((isInbound || isManualDial) ? log.order_id.split(':')[1] : '');
                                                 const storeName = log.enriched_store_name;
                                                 
                                                 return (

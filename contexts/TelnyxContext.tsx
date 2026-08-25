@@ -445,14 +445,17 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         const finalStatus = call.direction === 'inbound' && !wasActive ? 'missed' : callStatus;
 
                         // Save call log for ALL calls (inbound & outbound)
-                        const callSessionId = call.options?.callSessionId || call.callSessionId;
+                        const callSessionId = call.options?.callSessionId || call.callSessionId || call.id;
                         const isErrorCall = callStatus === 'rejected' && rawReason && rawReason !== 'ORIGINATOR_CANCEL' && rawReason !== 'NORMAL_CLEARING';
                         
                         // For error calls, always log even without an order_id (use phone number)
                         const fallbackOrderId = isErrorCall 
                             ? `ERR:${call.options?.destinationNumber || call.options?.remoteCallerNumber || 'unknown'}`
                             : null;
-                        const effectiveOrderId = logOrderId || fallbackOrderId;
+                        const manualDialOrderId = !logOrderId && call.direction !== 'inbound' 
+                            ? `OUTBOUND:${call.options?.destinationNumber || 'unknown'}` 
+                            : null;
+                        const effectiveOrderId = logOrderId || fallbackOrderId || manualDialOrderId;
                         
                         if (opId && callSessionId && effectiveOrderId && !loggedCallsRef.current.has(callSessionId)) {
                             loggedCallsRef.current.add(callSessionId);
