@@ -9,12 +9,15 @@ const getShopifyStoreCode = (storeName?: string) => {
 };
 
 export default function IncomingCallBanner() {
-    const { incomingCall, incomingCallerInfo, answerIncoming, rejectIncoming, callState, hangup, activeCall, toggleMute, isMuted, markForCallback } = useTelnyx();
+    const { incomingCalls, callerInfos, answerIncoming, rejectIncoming, callState, hangup, activeCall, toggleMute, isMuted, markForCallback } = useTelnyx();
 
     const showActiveInbound = callState === 'active' && activeCall && activeCall.direction === 'inbound';
-    const showIncoming = !!incomingCall;
+    
+    // For active call we can use the callerInfos map if it was inbound
+    const activeCallId = activeCall ? (activeCall.id || activeCall.options?.callSessionId) : null;
+    const activeCallerInfo = activeCallId ? callerInfos[activeCallId] : null;
 
-    if (!showActiveInbound && !showIncoming) return null;
+    if (!showActiveInbound && incomingCalls.length === 0) return null;
 
     return (
         <div className="fixed top-0 left-0 right-0 z-[9999] p-4 flex flex-col items-center gap-3 animate-slideDown">
@@ -29,7 +32,7 @@ export default function IncomingCallBanner() {
                         <div className="flex-1">
                             <p className="text-sm text-emerald-400 font-medium uppercase tracking-wider mb-1">Apel Activ (Inbound)</p>
                             <p className="text-xl text-white font-light truncate">
-                                {incomingCallerInfo?.name || activeCall.options.remoteCallerNumber}
+                                {activeCallerInfo?.name || activeCall.options.remoteCallerNumber}
                             </p>
                         </div>
 
@@ -57,9 +60,9 @@ export default function IncomingCallBanner() {
                         </div>
                     </div>
                     {/* Render Recent Orders for Active Call */}
-                    {(incomingCallerInfo?.recentOrders && incomingCallerInfo.recentOrders.length > 0) ? (
+                    {(activeCallerInfo?.recentOrders && activeCallerInfo.recentOrders.length > 0) ? (
                         <div className="bg-white/5 border-t border-white/5 p-3 flex gap-3 overflow-x-auto scrollbar-hide">
-                            {incomingCallerInfo.recentOrders.map((o, i) => {
+                            {activeCallerInfo.recentOrders.map((o, i) => {
                                 const safeStatus = o.status || 'NOU';
                                 const statusColor = safeStatus === 'confirmat' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                                     : safeStatus === 'anulat' ? 'text-red-400 bg-red-500/10 border-red-500/20'
@@ -105,7 +108,7 @@ export default function IncomingCallBanner() {
                                 );
                             })}
                         </div>
-                    ) : incomingCallerInfo && !incomingCallerInfo.recentOrders ? (
+                    ) : activeCallerInfo && !activeCallerInfo.recentOrders ? (
                         <div className="bg-white/5 border-t border-white/5 p-3 text-center">
                             <p className="text-xs text-gray-500 italic">Client necunoscut — fără comenzi în sistem</p>
                         </div>
@@ -113,9 +116,13 @@ export default function IncomingCallBanner() {
                 </div>
             )}
 
-            {/* Incoming call banner (below active call if both exist) */}
-            {showIncoming && (
-                <div className="bg-[#13141a] border border-cyan-500/30 shadow-[0_0_20px_rgba(0,210,255,0.2)] rounded-2xl flex flex-col w-full max-w-3xl overflow-hidden">
+            {/* Incoming call banners (below active call if both exist) */}
+            {incomingCalls.map(call => {
+                const callId = call.id || call.options?.callSessionId;
+                const info = callerInfos[callId];
+                
+                return (
+                <div key={callId} className="bg-[#13141a] border border-cyan-500/30 shadow-[0_0_20px_rgba(0,210,255,0.2)] rounded-2xl flex flex-col w-full max-w-3xl overflow-hidden">
                     {/* Top Row: Caller Info & Buttons */}
                     <div className="p-4 flex items-center gap-5">
                         <div className="bg-cyan-500/10 p-3 rounded-xl animate-pulse shrink-0">
@@ -125,31 +132,31 @@ export default function IncomingCallBanner() {
                         <div className="flex-1 min-w-0">
                             <p className="text-xs text-cyan-400 font-bold uppercase tracking-wider mb-0.5">Apel Primit</p>
                             <p className="text-xl text-white font-medium truncate">
-                                {incomingCallerInfo?.number || 'Număr Necunoscut'}
+                                {info?.number || call.options?.remoteCallerNumber || 'Număr Necunoscut'}
                             </p>
-                            {incomingCallerInfo?.name && (
+                            {info?.name && (
                                 <p className="text-sm text-gray-400 mt-0.5 truncate">
-                                    {incomingCallerInfo.name}
+                                    {info.name}
                                 </p>
                             )}
                         </div>
 
                         <div className="flex items-center gap-3 shrink-0">
                             <button
-                                onClick={() => { markForCallback(); rejectIncoming(); }}
+                                onClick={() => { markForCallback(); rejectIncoming(callId); }}
                                 className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
                             >
                                 <span className="material-icons-round">schedule</span>
                             </button>
                             <button 
-                                onClick={rejectIncoming}
+                                onClick={() => rejectIncoming(callId)}
                                 className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
                             >
                                 <span className="material-icons-round">call_end</span>
                                 Refuză
                             </button>
                             <button 
-                                onClick={answerIncoming}
+                                onClick={() => answerIncoming(callId)}
                                 className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all flex items-center gap-2"
                             >
                                 <span className="material-icons-round">call</span>
@@ -159,9 +166,9 @@ export default function IncomingCallBanner() {
                     </div>
 
                     {/* Bottom Row: Recent Orders */}
-                    {(incomingCallerInfo?.recentOrders && incomingCallerInfo.recentOrders.length > 0) ? (
+                    {(info?.recentOrders && info.recentOrders.length > 0) ? (
                         <div className="bg-white/5 border-t border-white/5 p-3 flex gap-3 overflow-x-auto scrollbar-hide">
-                            {incomingCallerInfo.recentOrders.map((o, i) => {
+                            {info.recentOrders.map((o, i) => {
                                 const safeStatus = o.status || 'NOU';
                                 const statusColor = safeStatus === 'confirmat' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                                     : safeStatus === 'anulat' ? 'text-red-400 bg-red-500/10 border-red-500/20'
@@ -208,13 +215,14 @@ export default function IncomingCallBanner() {
                                 );
                             })}
                         </div>
-                    ) : incomingCallerInfo && !incomingCallerInfo.recentOrders ? (
+                    ) : info && !info.recentOrders ? (
                         <div className="bg-white/5 border-t border-white/5 p-3 text-center">
                             <p className="text-xs text-gray-500 italic">Client necunoscut — fără comenzi în sistem</p>
                         </div>
                     ) : null}
                 </div>
-            )}
+                );
+            })}
         </div>
     );
 }

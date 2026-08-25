@@ -15,13 +15,13 @@ interface TelnyxContextType {
     isReady: boolean;
     callState: CallState;
     activeCall: any;
-    incomingCall: any;
-    incomingCallerInfo: CallerInfo | null;
+    incomingCalls: any[];
+    callerInfos: Record<string, CallerInfo>;
     lastHangupReason: string | null;
     makeCall: (destination: string, callerId?: string, orderId?: string) => void;
-    hangup: () => void;
-    answerIncoming: () => void;
-    rejectIncoming: () => void;
+    hangup: () => void; // hangs up active call only
+    answerIncoming: (callId?: string) => void;
+    rejectIncoming: (callId?: string) => void;
     markForCallback: () => void;
     toggleMute: () => void;
     isMuted: boolean;
@@ -38,8 +38,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const [isReady, setIsReady] = useState(false);
     const [callState, setCallState] = useState<CallState>('idle');
     const [activeCall, setActiveCall] = useState<any>(null);
-    const [incomingCall, setIncomingCall] = useState<any>(null);
-    const [incomingCallerInfo, setIncomingCallerInfo] = useState<CallerInfo | null>(null);
+    const [incomingCalls, setIncomingCalls] = useState<any[]>([]);
+    const [callerInfos, setCallerInfos] = useState<Record<string, CallerInfo>>({});
     const [isMuted, setIsMuted] = useState(false);
     const [lastHangupReason, setLastHangupReason] = useState<string | null>(null);
     const [callLogs, setCallLogs] = useState<string[]>([]);
@@ -61,7 +61,6 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const activeOrderIdRef = useRef<string | null>(null);
     const callStartTimeRef = useRef<number | null>(null);
     const activeCallRef = useRef<any>(null);
-    const incomingCallRef = useRef<any>(null);
     const loggedCallsRef = useRef<Set<string>>(new Set());
     const ringtoneVolumeRef = useRef(ringtoneVolume);
     const callCooldownUntilRef = useRef<number>(0); // Timestamp after which new calls are allowed
@@ -241,7 +240,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const lookupCaller = async (phoneNumber: string) => {
+    const lookupCaller = async (phoneNumber: string, callId: string) => {
         if (!phoneNumber) return;
         const last7 = phoneNumber.slice(-7);
         try {
@@ -253,27 +252,30 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 .limit(2);
             
             if (data && data.length > 0 && !error) {
-                setIncomingCallerInfo({
-                    number: phoneNumber,
-                    name: data[0].name,
-                    orderId: String(data[0].order_id || data[0].id),
-                    recentOrders: data.map(o => ({
-                        order_number: o.client_personal_id || `#${o.id || o.order_id}`,
-                        order_id: o.order_id,
-                        store_name: o.store_name,
-                        produse: o.produse,
-                        status: o.status,
-                        type: o.type,
-                        value: o.value,
-                        created_at: o.created_at,
-                    })),
-                });
+                setCallerInfos(prev => ({
+                    ...prev,
+                    [callId]: {
+                        number: phoneNumber,
+                        name: data[0].name,
+                        orderId: String(data[0].order_id || data[0].id),
+                        recentOrders: data.map(o => ({
+                            order_number: o.client_personal_id || `#${o.id || o.order_id}`,
+                            order_id: o.order_id,
+                            store_name: o.store_name,
+                            produse: o.produse,
+                            status: o.status,
+                            type: o.type,
+                            value: o.value,
+                            created_at: o.created_at,
+                        })),
+                    }
+                }));
             } else {
-                setIncomingCallerInfo({ number: phoneNumber });
+                setCallerInfos(prev => ({ ...prev, [callId]: { number: phoneNumber } }));
             }
         } catch (err) {
             console.error('Caller lookup error', err);
-            setIncomingCallerInfo({ number: phoneNumber });
+            setCallerInfos(prev => ({ ...prev, [callId]: { number: phoneNumber } }));
         }
     };
 
@@ -311,11 +313,14 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     if (call.state === 'ringing') {
                         if (call.direction !== 'outbound') {
                             // Inbound call (direction is 'inbound' or undefined)
+                            const callId = call.id || call.options?.callSessionId;
                             console.log('[Telnyx] 📞 Inbound call detected from:', call.options?.remoteCallerNumber);
-                            setIncomingCall(call);
-                            incomingCallRef.current = call;
+                            setIncomingCalls(prev => {
+                                if (prev.find(c => (c.id || c.options?.callSessionId) === callId)) return prev;
+                                return [...prev, call];
+                            });
                             needsCallbackRef.current = false; // Reset on new inbound call
-                            lookupCaller(call.options.remoteCallerNumber);
+                            lookupCaller(call.options.remoteCallerNumber, callId);
                             // Only play ringtone if NOT already in an active call
                             setCallState(prev => {
                                 if (prev !== 'active') {
@@ -340,8 +345,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         setCallState('active');
                         setActiveCall(call);
                         activeCallRef.current = call;
-                        setIncomingCall(null);
-                        incomingCallRef.current = null;
+                        const callId = call.id || call.options?.callSessionId;
+                        setIncomingCalls(prev => prev.filter(c => (c.id || c.options?.callSessionId) !== callId));
                         
                         // Set start time for duration tracking
                         if (callStartTimeRef.current === null) {
@@ -381,15 +386,24 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
                         const getCallId = (c: any) => c?.options?.callSessionId || c?.callSessionId || c?.id;
                         const callId = getCallId(call);
-                        const isEndingIncoming = incomingCallRef.current && (
-                            (callId && callId === getCallId(incomingCallRef.current)) || call === incomingCallRef.current
-                        );
+                        
+                        let isEndingIncoming = false;
+                        setIncomingCalls(prev => {
+                            if (prev.find(c => getCallId(c) === callId)) {
+                                isEndingIncoming = true;
+                            }
+                            const remaining = prev.filter(c => getCallId(c) !== callId);
+                            if (remaining.length === 0) {
+                                stopIncomingRingtone();
+                            }
+                            return remaining;
+                        });
+                        
                         const isEndingActive = activeCallRef.current && (
                             (callId && callId === getCallId(activeCallRef.current)) || call === activeCallRef.current
                         );
                         
                         stopRingback();
-                        stopIncomingRingtone();
                         
                         // Extract SIP hangup reason
                         const sipCode = call.cause || call.sipCode || call.options?.sipCode;
@@ -521,9 +535,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         // only clean up the incoming call — DON'T touch the active call
                         if (isEndingIncoming && !isEndingActive && activeCallRef.current) {
                             console.log('[Telnyx] Secondary incoming call ended — keeping active call alive');
-                            setIncomingCall(null);
-                            incomingCallRef.current = null;
-                            setIncomingCallerInfo(null);
+                            // Handled by setIncomingCalls above
                         } else {
                             // This is the active call ending (or the only call ending)
                             if (audioRef.current) audioRef.current.srcObject = null;
@@ -565,14 +577,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             }
                             setIsMuted(false);
                             
-                            // Only wipe the incoming call if it's NOT explicitly an active-only teardown while an incoming is alive
-                            if (!(isEndingActive && !isEndingIncoming && incomingCallRef.current)) {
-                                setIncomingCall(null);
-                                incomingCallRef.current = null;
-                                setIncomingCallerInfo(null);
-                            } else {
-                                console.log('[Telnyx] Active call ended — keeping secondary incoming call alive');
-                            }
+                            // Incoming calls are now managed separately via setIncomingCalls filter
                         }
                     }
                 }
@@ -635,30 +640,38 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
     const hangup = () => {
         if (activeCall) activeCall.hangup();
-        if (incomingCall) incomingCall.hangup();
+        // Do not hangup ringing calls automatically to avoid dropping queued calls!
         setCallState('idle');
     };
 
-    const answerIncoming = () => {
-        if (incomingCall) {
-            stopIncomingRingtone();
-            incomingCall.answer();
-        }
+    const answerIncoming = (callId?: string) => {
+        setIncomingCalls(prev => {
+            const call = callId 
+                ? prev.find(c => (c.id || c.options?.callSessionId) === callId) 
+                : prev[0];
+            if (call) {
+                stopIncomingRingtone();
+                call.answer();
+            }
+            return prev;
+        });
     };
 
-    const rejectIncoming = () => {
-        if (incomingCall) {
-            stopIncomingRingtone();
-            // Try reject() first (sends 486 Busy to caller), fall back to hangup()
-            if (typeof incomingCall.reject === 'function') {
-                incomingCall.reject();
-            } else {
-                incomingCall.hangup();
+    const rejectIncoming = (callId?: string) => {
+        setIncomingCalls(prev => {
+            const call = callId 
+                ? prev.find(c => (c.id || c.options?.callSessionId) === callId) 
+                : prev[0];
+            if (call) {
+                if (typeof call.reject === 'function') {
+                    call.reject();
+                } else {
+                    call.hangup();
+                }
             }
-            setIncomingCall(null);
-            incomingCallRef.current = null;
-            setIncomingCallerInfo(null);
-        }
+            // Let the destroy event handle removing it from the array
+            return prev;
+        });
     };
 
     const markForCallback = () => {
@@ -681,8 +694,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     return (
         <TelnyxContext.Provider
             value={{
-                isReady, callState, activeCall, incomingCall, incomingCallerInfo, lastHangupReason,
-                makeCall, hangup, answerIncoming, rejectIncoming, toggleMute, isMuted,
+                isReady, callState, activeCall, incomingCalls, callerInfos, lastHangupReason,
+                makeCall, hangup, answerIncoming, rejectIncoming, markForCallback, toggleMute, isMuted,
                 audioRef, ringtoneVolume, setRingtoneVolume
             }}
         >
