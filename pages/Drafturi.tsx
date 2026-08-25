@@ -239,6 +239,18 @@ const Drafturi = () => {
         }
     };
 
+    const deleteCallLog = async (logId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (window.confirm('Sigur vrei să ștergi acest apel din istoric?')) {
+            const { error } = await supabaseAdmin.from('call_logs').delete().eq('id', logId);
+            if (!error) {
+                setCallHistoryLogs(prev => prev.filter(log => log.id !== logId));
+            } else {
+                alert('Eroare la ștergerea apelului.');
+            }
+        }
+    };
+
     const fetchCallHistory = async () => {
         if (!profile?.id) return;
         setLoadingCallHistory(true);
@@ -1219,7 +1231,7 @@ const Drafturi = () => {
                                                 const storeName = log.enriched_store_name;
                                                 
                                                 return (
-                                                    <div key={log.id} className="flex flex-col p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                                                    <div key={log.id} className="flex flex-col p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors group relative">
                                                         <div className="flex justify-between items-center mb-1">
                                                             <div className="flex items-center gap-2 truncate">
                                                                 <span className={`material-icons-round text-[16px] ${iconColor} shrink-0`}>{icon}</span>
@@ -1231,9 +1243,16 @@ const Drafturi = () => {
                                                                     </>
                                                                 )}
                                                             </div>
-                                                            <span className="text-[11px] text-gray-500 shrink-0">
+                                                            <span className="text-[11px] text-gray-500 shrink-0 group-hover:hidden">
                                                                 {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             </span>
+                                                            <button 
+                                                                onClick={(e) => deleteCallLog(log.id, e)}
+                                                                className="hidden group-hover:flex items-center justify-center bg-red-500/10 text-red-500 hover:bg-red-500/20 p-0.5 px-1.5 rounded-md transition-all shrink-0"
+                                                                title="Șterge apelul"
+                                                            >
+                                                                <span className="material-icons-round text-[13px]">delete</span>
+                                                            </button>
                                                         </div>
                                                         <div className="flex justify-between items-center pl-6">
                                                             <div className="flex items-center gap-2 truncate">
