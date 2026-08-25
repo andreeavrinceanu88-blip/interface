@@ -485,21 +485,17 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             
                             supabaseAdmin.from('call_logs').insert(logPayload).then(({error}) => {
                                 if (error) {
-                                    // If new columns don't exist yet, retry with just the basic fields
-                                    if (error.code === '42703') { // column does not exist
-                                        console.warn('[Telnyx] New columns not yet in DB, saving basic log. Please run the SQL migration.');
-                                        supabaseAdmin.from('call_logs').insert({
-                                            operator_id: opId,
-                                            order_id: effectiveOrderId,
-                                            duration_secs: duration,
-                                            status: finalStatus,
-                                        }).then(({error: e2}) => {
-                                            if (e2) console.error('[Telnyx] Error saving basic call log:', e2);
-                                            else console.log(`[Telnyx] Basic call log saved (migration pending)`);
-                                        });
-                                    } else {
-                                        console.error('[Telnyx] Error saving call log:', error);
-                                    }
+                                    // Columns don't exist yet — retry with just the basic fields
+                                    console.warn('[Telnyx] Full log failed (', error.code, error.message, '), retrying with basic fields...');
+                                    supabaseAdmin.from('call_logs').insert({
+                                        operator_id: opId,
+                                        order_id: effectiveOrderId,
+                                        duration_secs: duration,
+                                        status: finalStatus,
+                                    }).then(({error: e2}) => {
+                                        if (e2) console.error('[Telnyx] Error saving basic call log:', e2);
+                                        else console.log(`[Telnyx] ✅ Basic call log saved (migration pending)`);
+                                    });
                                 } else {
                                     console.log(`[Telnyx] ✅ Call log saved: status=${finalStatus}, duration=${duration}s, error=${rawReason || 'none'}`);
                                 }
@@ -647,10 +643,15 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const rejectIncoming = () => {
         if (incomingCall) {
             stopIncomingRingtone();
-            incomingCall.hangup();
+            // Try reject() first (sends 486 Busy to caller), fall back to hangup()
+            if (typeof incomingCall.reject === 'function') {
+                incomingCall.reject();
+            } else {
+                incomingCall.hangup();
+            }
             setIncomingCall(null);
-                            incomingCallRef.current = null;
-                            setIncomingCallerInfo(null);
+            incomingCallRef.current = null;
+            setIncomingCallerInfo(null);
         }
     };
 
