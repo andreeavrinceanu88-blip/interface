@@ -180,19 +180,31 @@ export default function IncomingCallBanner() {
                                 
                                 // Parse JSON products
                                 let parsedProducts = o.produse || 'Fără produse';
-                                try {
-                                    if (typeof parsedProducts === 'string' && (parsedProducts.startsWith('[') || parsedProducts.startsWith('{'))) {
-                                        const parsed = JSON.parse(parsedProducts);
-                                        if (Array.isArray(parsed)) {
-                                            parsedProducts = parsed.map((item: any) => item.name || item.title || 'Produs').join(', ');
-                                        } else if (parsed?.edges) {
-                                            parsedProducts = parsed.edges.map((edge: any) => edge.node?.name || edge.node?.title || 'Produs').join(', ');
-                                        } else if (parsed?.line_items) {
-                                            parsedProducts = parsed.line_items.map((item: any) => item.name || item.title || 'Produs').join(', ');
+                                if (typeof parsedProducts === 'string') {
+                                    let tempProducts = '';
+                                    if (parsedProducts.startsWith('[') || parsedProducts.startsWith('{')) {
+                                        try {
+                                            const parsed = JSON.parse(parsedProducts);
+                                            if (Array.isArray(parsed)) {
+                                                tempProducts = parsed.map((item: any) => item.name || item.title || 'Produs').join(', ');
+                                            } else if (parsed?.edges) {
+                                                tempProducts = parsed.edges.map((edge: any) => edge.node?.name || edge.node?.title || 'Produs').join(', ');
+                                            } else if (parsed?.line_items) {
+                                                tempProducts = parsed.line_items.map((item: any) => item.name || item.title || 'Produs').join(', ');
+                                            }
+                                        } catch(e) {
+                                            // Fallback to regex
                                         }
                                     }
-                                } catch(e) {
-                                    console.error('Failed to parse products', e);
+                                    if (!tempProducts) {
+                                        const matches = Array.from(parsedProducts.matchAll(/(?:\\|)"(?:title|name)(?:\\|)"\s*:\s*(?:\\|)"([^"\\]+)(?:\\|)"/g));
+                                        if (matches.length > 0) {
+                                            tempProducts = matches.map(m => m[1]).join(', ');
+                                        }
+                                    }
+                                    if (tempProducts) {
+                                        parsedProducts = tempProducts;
+                                    }
                                 }
                                 
                                 return (

@@ -101,10 +101,24 @@ const parseProduse = (produse: string): ProduseItem[] => {
     try {
         const parsed = JSON.parse(produse);
         if (Array.isArray(parsed)) return parsed;
-        return [];
+        if (parsed?.edges) return parsed.edges.map((e: any) => e.node);
+        if (parsed?.line_items) return parsed.line_items;
     } catch {
-        return [];
+        if (typeof produse === 'string' && produse.startsWith('{') && produse.endsWith('}')) {
+            const inner = produse.slice(1, -1);
+            const items: ProduseItem[] = [];
+            let match;
+            const regex = /"({.*?})"(?:,|$)/g;
+            while ((match = regex.exec(inner)) !== null) {
+                try {
+                    let unescaped = match[1].replace(/\\"/g, '"');
+                    items.push(JSON.parse(unescaped));
+                } catch (e) {}
+            }
+            if (items.length > 0) return items;
+        }
     }
+    return [];
 };
 
 const produseDisplayText = (produse: string): string => {
