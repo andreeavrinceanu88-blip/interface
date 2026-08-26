@@ -2294,7 +2294,7 @@ const Drafturi = () => {
                             {/* Call button & controls - iOS Style */}
                             <div className="flex items-center justify-center gap-4 mb-2">
                                 <button
-                                    onClick={handleCallAction}
+                                    onClick={() => handleCallAction()}
                                     disabled={!phoneNumber && (callState === 'idle' || callState === 'rejected')}
                                     className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-md ${
                                         (callState === 'idle' || callState === 'rejected') 
