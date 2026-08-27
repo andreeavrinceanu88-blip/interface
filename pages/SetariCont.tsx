@@ -75,6 +75,7 @@ export default function SetariCont() {
                 .insert({
                     id: newUserId,
                     full_name: fullName,
+                    email: email,
                     role: 'user',
                     parent_id: profile!.id,
                     stores: profile!.stores ? profile!.stores.join(',') : ''
