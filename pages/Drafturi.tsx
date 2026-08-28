@@ -2277,14 +2277,16 @@ const Drafturi = () => {
                                 {/* Caller ID Selector */}
                                 <div className={`flex w-full mb-4 bg-[#1a1b23] rounded-lg p-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                                     <button
+                                        type="button"
                                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'landline' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
-                                        onClick={() => setCallerIdMode('landline')}
+                                        onClick={(e) => { e.preventDefault(); setCallerIdMode('landline'); }}
                                     >
                                         Fix (0363)
                                     </button>
                                     <button
+                                        type="button"
                                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'brand' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
-                                        onClick={() => setCallerIdMode('brand')}
+                                        onClick={(e) => { e.preventDefault(); setCallerIdMode('brand'); }}
                                     >
                                         Mobil Brand
                                     </button>
