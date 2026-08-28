@@ -947,6 +947,7 @@ const Drafturi = () => {
                 cleanDestination = '+' + cleanDestination;
             }
             const orderIdStr = selectedId ? selectedId.toString() : undefined;
+            console.log('[CallerID]', { callerIdMode, selectedBrand, overrideBrand, brandToUse, callerId });
             makeCall(cleanDestination, callerId, orderIdStr);
         } else {
             hangup();
