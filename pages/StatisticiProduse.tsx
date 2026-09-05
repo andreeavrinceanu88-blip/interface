@@ -72,6 +72,123 @@ export default function StatisticiProduse() {
         });
     });
 
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const [isImporting, setIsImporting] = useState(false);
+
+    const handleExportCSV = () => {
+        if (products.length === 0) {
+            alert('Nu există produse pentru export.');
+            return;
+        }
+        const exportCols = Object.keys(products[0]).filter(col => col !== 'user_id');
+        const header = exportCols.join(',');
+        const rows = products.map(p => {
+            return exportCols.map(col => {
+                let val = p[col];
+                if (val === null || val === undefined) val = '';
+                val = String(val).replace(/"/g, '""');
+                if (val.search(/("|,|\n)/g) >= 0) {
+                    val = `"${val}"`;
+                }
+                return val;
+            }).join(',');
+        });
+        const csvContent = [header, ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `produse_${selectedBrand || 'all'}_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsImporting(true);
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const text = evt.target?.result as string;
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+                if (lines.length < 2) {
+                    alert('Fișierul CSV este gol sau nu are date.');
+                    return;
+                }
+                
+                const parseLine = (line: string) => {
+                    const row: string[] = [];
+                    let inQuotes = false;
+                    let currentVal = '';
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"' && line[i+1] === '"') {
+                            currentVal += '"';
+                            i++;
+                        } else if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            row.push(currentVal);
+                            currentVal = '';
+                        } else {
+                            currentVal += char;
+                        }
+                    }
+                    row.push(currentVal);
+                    return row;
+                };
+
+                const headers = parseLine(lines[0]).map(h => h.trim());
+                const records: any[] = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const values = parseLine(lines[i]);
+                    const record: any = {};
+                    headers.forEach((h, index) => {
+                        let val = values[index];
+                        if (val === undefined) val = '';
+                        record[h] = val;
+                    });
+                    
+                    if (record.id === '') delete record.id;
+                    if (record.created_at === '') delete record.created_at;
+                    
+                    if (!record.user_id) record.user_id = profile?.effectiveUserId;
+                    if (!record.store) record.store = selectedBrand;
+
+                    records.push(record);
+                }
+
+                const { error } = await supabaseAdmin
+                    .from('products')
+                    .upsert(records, { onConflict: 'id' });
+
+                if (error) throw error;
+
+                alert(`Import realizat cu succes! Au fost procesate ${records.length} rânduri.`);
+                
+                // Refresh data manually
+                setLoading(true);
+                const { data: refetched, error: fetchErr } = await supabaseAdmin
+                    .from('products')
+                    .select('*')
+                    .eq('user_id', profile?.effectiveUserId)
+                    .ilike('store', selectedBrand);
+                
+                if (refetched) setProducts(refetched);
+            } catch (err: any) {
+                console.error('Import error:', err);
+                alert('Eroare la import: ' + err.message);
+            } finally {
+                setIsImporting(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+        };
+        reader.readAsText(file);
+    };
+
     return (
         <div className="space-y-6 relative">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
@@ -80,6 +197,17 @@ export default function StatisticiProduse() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center justify-end">
+                    <button onClick={handleExportCSV} className="btn-3d-secondary px-4 py-2 rounded-xl text-sm flex items-center gap-2 hover:text-white transition-all">
+                        <span className="material-icons-round text-sm">download</span>
+                        Export CSV
+                    </button>
+                    
+                    <button onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="btn-3d-primary px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-all disabled:opacity-50">
+                        <span className="material-icons-round text-sm">{isImporting ? 'autorenew' : 'upload'}</span>
+                        {isImporting ? 'Se importă...' : 'Import CSV'}
+                    </button>
+                    <input type="file" accept=".csv" ref={fileInputRef} onChange={handleImportCSV} className="hidden" />
+
                     <div className="relative">
                         <button onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                             className="btn-3d-secondary px-5 py-2.5 rounded-xl text-sm min-w-[160px] flex justify-between items-center h-[42px] hover:text-white transition-all">
