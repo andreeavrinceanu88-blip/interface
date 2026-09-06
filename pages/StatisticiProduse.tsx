@@ -147,33 +147,79 @@ export default function StatisticiProduse() {
         reader.onload = async (evt) => {
             try {
                 const text = evt.target?.result as string;
-                const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-                if (lines.length < 2) {
+                // RFC 4180 compliant CSV parser supporting multiline cells within quotes
+                const parseCSV = (str: string): string[][] => {
+                    const rows: string[][] = [];
+                    let currentRow: string[] = [];
+                    let currentCell = '';
+                    let inQuotes = false;
+                    let i = 0;
+                    const len = str.length;
+
+                    while (i < len) {
+                        const char = str[i];
+                        if (inQuotes) {
+                            if (char === '"') {
+                                if (i + 1 < len && str[i + 1] === '"') {
+                                    currentCell += '"';
+                                    i += 2;
+                                    continue;
+                                } else {
+                                    inQuotes = false;
+                                    i++;
+                                    continue;
+                                }
+                            } else {
+                                currentCell += char;
+                                i++;
+                                continue;
+                            }
+                        } else {
+                            if (char === '"') {
+                                inQuotes = true;
+                                i++;
+                                continue;
+                            } else if (char === ',') {
+                                currentRow.push(currentCell);
+                                currentCell = '';
+                                i++;
+                                continue;
+                            } else if (char === '\r') {
+                                if (i + 1 < len && str[i + 1] === '\n') {
+                                    i++;
+                                }
+                                currentRow.push(currentCell);
+                                rows.push(currentRow);
+                                currentRow = [];
+                                currentCell = '';
+                                i++;
+                                continue;
+                            } else if (char === '\n') {
+                                currentRow.push(currentCell);
+                                rows.push(currentRow);
+                                currentRow = [];
+                                currentCell = '';
+                                i++;
+                                continue;
+                            } else {
+                                currentCell += char;
+                                i++;
+                                continue;
+                            }
+                        }
+                    }
+                    if (currentCell !== '' || currentRow.length > 0) {
+                        currentRow.push(currentCell);
+                        rows.push(currentRow);
+                    }
+                    return rows;
+                };
+
+                const allRows = parseCSV(text);
+                if (allRows.length < 2) {
                     alert('Fișierul CSV este gol sau nu are date.');
                     return;
                 }
-                
-                const parseLine = (line: string) => {
-                    const row: string[] = [];
-                    let inQuotes = false;
-                    let currentVal = '';
-                    for (let i = 0; i < line.length; i++) {
-                        const char = line[i];
-                        if (char === '"' && line[i+1] === '"') {
-                            currentVal += '"';
-                            i++;
-                        } else if (char === '"') {
-                            inQuotes = !inQuotes;
-                        } else if (char === ',' && !inQuotes) {
-                            row.push(currentVal);
-                            currentVal = '';
-                        } else {
-                            currentVal += char;
-                        }
-                    }
-                    row.push(currentVal);
-                    return row;
-                };
 
                 const ALLOWED_COLUMNS = new Set([
                     'denumire', 'idProdus', 'vendor', 'variantId', 'pret', 'sku', 'descriere',
@@ -195,28 +241,36 @@ export default function StatisticiProduse() {
 
                 const cleanValue = (col: string, val: any) => {
                     if (val === null || val === undefined) return null;
-                    let str = String(val).trim();
-                    if (!str || str === '-' || str.toLowerCase() === 'n/a' || str.toLowerCase() === 'null') return null;
+                    let strVal = String(val).trim();
+                    if (!strVal || strVal === '-' || strVal.toLowerCase() === 'n/a' || strVal.toLowerCase() === 'null') return null;
                     if (NUMERIC_COLS.has(col)) {
-                        const normalized = str.replace(',', '.').replace(/[^0-9.-]/g, '');
+                        const normalized = strVal.replace(',', '.').replace(/[^0-9.-]/g, '');
                         const num = parseFloat(normalized);
                         return isNaN(num) ? null : num;
                     }
-                    return str;
+                    return strVal;
                 };
 
-                const rawHeaders = parseLine(lines[0]).map(h => h.trim());
+                const rawHeaders = allRows[0].map(h => h.trim());
                 const mappedHeaders = rawHeaders.map(h => columnMap.get(h.toLowerCase()) || null);
 
                 const records: any[] = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const values = parseLine(lines[i]);
+                for (let i = 1; i < allRows.length; i++) {
+                    const values = allRows[i];
+                    // Skip completely empty lines/cells (e.g. thousands of empty trailing rows from Excel)
+                    const hasAnyRawValue = values.some(v => v && v.trim() !== '');
+                    if (!hasAnyRawValue) continue;
+
                     const record: any = {};
                     mappedHeaders.forEach((colName, index) => {
                         if (!colName) return; // Skip columns that don't belong to the products table (e.g. id, created_at, extra columns)
                         record[colName] = cleanValue(colName, values[index]);
                     });
                     
+                    // Skip if after cleaning there's no meaningful product data
+                    const hasMeaningfulData = Object.entries(record).some(([k, v]) => v !== null && String(v).trim() !== '');
+                    if (!hasMeaningfulData) continue;
+
                     // Force insert to avoid overwriting (as requested: append, don't overwrite)
                     delete record.id; 
                     delete record.created_at;
