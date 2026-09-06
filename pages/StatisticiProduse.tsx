@@ -35,6 +35,40 @@ export default function StatisticiProduse() {
         setIsSaving(false);
     };
 
+    const handleDeleteRow = async (id: any, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!window.confirm('Sigur doriți să ștergeți acest produs?')) return;
+        const { error } = await supabaseAdmin.from('products').delete().eq('id', id);
+        if (!error) {
+            setProducts(prev => prev.filter(p => p.id !== id));
+        } else {
+            console.error('Error deleting row:', error);
+            alert('A apărut o eroare la ștergerea rândului.');
+        }
+    };
+
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
+    const handleDeleteAll = async () => {
+        if (!selectedBrand) return;
+        if (!window.confirm(`ATENȚIE: Ești sigur că vrei să ștergi TOATE produsele pentru brandul "${selectedBrand}"? Acțiunea este ireversibilă.`)) return;
+        
+        setIsDeletingAll(true);
+        const { error } = await supabaseAdmin
+            .from('products')
+            .delete()
+            .eq('user_id', profile?.effectiveUserId)
+            .ilike('store', selectedBrand);
+            
+        if (!error) {
+            setProducts([]);
+            alert('Toate produsele au fost șterse.');
+        } else {
+            console.error('Error deleting all products:', error);
+            alert('Eroare la ștergerea produselor.');
+        }
+        setIsDeletingAll(false);
+    };
+
     useEffect(() => {
         if (userStores.length > 0 && !selectedBrand) {
             setSelectedBrand(userStores[0]);
@@ -152,8 +186,9 @@ export default function StatisticiProduse() {
                         record[h] = val;
                     });
                     
-                    if (record.id === '') delete record.id;
-                    if (record.created_at === '') delete record.created_at;
+                    // Force insert to avoid overwriting (as requested: append, don't overwrite)
+                    delete record.id; 
+                    delete record.created_at;
                     
                     if (!record.user_id) record.user_id = profile?.effectiveUserId;
                     if (!record.store) record.store = selectedBrand;
@@ -163,7 +198,7 @@ export default function StatisticiProduse() {
 
                 const { error } = await supabaseAdmin
                     .from('products')
-                    .upsert(records, { onConflict: 'id' });
+                    .insert(records);
 
                 if (error) throw error;
 
@@ -197,6 +232,11 @@ export default function StatisticiProduse() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center justify-end">
+                    <button onClick={handleDeleteAll} disabled={isDeletingAll} className="btn-3d-secondary px-4 py-2 rounded-xl text-sm flex items-center gap-2 text-red-400 hover:text-red-300 transition-all disabled:opacity-50">
+                        <span className="material-icons-round text-sm">{isDeletingAll ? 'autorenew' : 'delete_sweep'}</span>
+                        Șterge Tot
+                    </button>
+                    
                     <button onClick={handleExportCSV} className="btn-3d-secondary px-4 py-2 rounded-xl text-sm flex items-center gap-2 hover:text-white transition-all">
                         <span className="material-icons-round text-sm">download</span>
                         Export CSV
@@ -399,11 +439,12 @@ export default function StatisticiProduse() {
                                     {columns.map(col => (
                                         <th key={col} className="py-4 px-6 font-medium whitespace-nowrap">{col}</th>
                                     ))}
+                                    <th className="py-4 px-6 font-medium whitespace-nowrap text-right">Acțiuni</th>
                                 </tr>
                             </thead>
                             <tbody className="text-sm divide-y divide-gray-800/50">
                                 {filteredProducts.length === 0 && (
-                                    <tr><td colSpan={columns.length || 1} className="py-12 text-center text-gray-600 text-sm">Niciun rezultat găsit.</td></tr>
+                                    <tr><td colSpan={(columns.length || 1) + 1} className="py-12 text-center text-gray-600 text-sm">Niciun rezultat găsit.</td></tr>
                                 )}
                                 {filteredProducts.map((row, i) => (
                                     <tr key={i} className="group hover:bg-white/5 transition-colors">
@@ -425,6 +466,15 @@ export default function StatisticiProduse() {
                                                 </td>
                                             );
                                         })}
+                                        <td className="py-4 px-6 whitespace-nowrap text-right">
+                                            <button 
+                                                onClick={(e) => handleDeleteRow(row.id, e)}
+                                                className="text-gray-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-400/10 transition-all opacity-0 group-hover:opacity-100"
+                                                title="Șterge rând"
+                                            >
+                                                <span className="material-icons-round text-[18px]">delete</span>
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
