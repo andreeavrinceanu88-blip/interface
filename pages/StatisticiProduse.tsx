@@ -181,9 +181,13 @@ export default function StatisticiProduse() {
                     const values = parseLine(lines[i]);
                     const record: any = {};
                     headers.forEach((h, index) => {
+                        if (!h) return;
                         let val = values[index];
-                        if (val === undefined) val = '';
-                        record[h] = val;
+                        if (val === undefined || val === '') {
+                            record[h] = null;
+                        } else {
+                            record[h] = val;
+                        }
                     });
                     
                     // Force insert to avoid overwriting (as requested: append, don't overwrite)
