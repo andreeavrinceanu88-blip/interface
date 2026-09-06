@@ -175,19 +175,46 @@ export default function StatisticiProduse() {
                     return row;
                 };
 
-                const headers = parseLine(lines[0]).map(h => h.trim());
+                const ALLOWED_COLUMNS = new Set([
+                    'denumire', 'idProdus', 'vendor', 'variantId', 'pret', 'sku', 'descriere',
+                    'pret_1_bucata', 'pret_2_bucati', 'pret_3_bucati', 'pret_4_bucati', 'pret_5_bucati',
+                    'transport_1_bucata', 'transport_2_bucati', 'transport_3_bucati', 'transport_4_bucati', 'transport_5_bucati',
+                    'discountCode', 'status', 'pitchStep', 'pitchSpeak', 'prompt1', 'prompt2', 'prompt3', 'prompt4', 'prompt5',
+                    'draft_prompt1', 'draft_prompt2', 'draft_prompt3', 'draft_prompt4', 'draft_prompt5',
+                    'upsell_activat', 'conversieUpsell', 'mentiuni', 'page_url', 'store', 'user_id'
+                ]);
+
+                const NUMERIC_COLS = new Set([
+                    'pret', 'pret_1_bucata', 'pret_2_bucati', 'pret_3_bucati', 'pret_4_bucati', 'pret_5_bucati', 'conversieUpsell'
+                ]);
+
+                const columnMap = new Map<string, string>();
+                ALLOWED_COLUMNS.forEach(col => {
+                    columnMap.set(col.toLowerCase(), col);
+                });
+
+                const cleanValue = (col: string, val: any) => {
+                    if (val === null || val === undefined) return null;
+                    let str = String(val).trim();
+                    if (!str || str === '-' || str.toLowerCase() === 'n/a' || str.toLowerCase() === 'null') return null;
+                    if (NUMERIC_COLS.has(col)) {
+                        const normalized = str.replace(',', '.').replace(/[^0-9.-]/g, '');
+                        const num = parseFloat(normalized);
+                        return isNaN(num) ? null : num;
+                    }
+                    return str;
+                };
+
+                const rawHeaders = parseLine(lines[0]).map(h => h.trim());
+                const mappedHeaders = rawHeaders.map(h => columnMap.get(h.toLowerCase()) || null);
+
                 const records: any[] = [];
                 for (let i = 1; i < lines.length; i++) {
                     const values = parseLine(lines[i]);
                     const record: any = {};
-                    headers.forEach((h, index) => {
-                        if (!h) return;
-                        let val = values[index];
-                        if (val === undefined || val === '') {
-                            record[h] = null;
-                        } else {
-                            record[h] = val;
-                        }
+                    mappedHeaders.forEach((colName, index) => {
+                        if (!colName) return; // Skip columns that don't belong to the products table (e.g. id, created_at, extra columns)
+                        record[colName] = cleanValue(colName, values[index]);
                     });
                     
                     // Force insert to avoid overwriting (as requested: append, don't overwrite)
@@ -206,7 +233,7 @@ export default function StatisticiProduse() {
 
                 if (error) throw error;
 
-                alert(`Import realizat cu succes! Au fost procesate ${records.length} rânduri.`);
+                alert(`Import realizat cu succes! Au fost adăugate ${records.length} produse.`);
                 
                 // Refresh data manually
                 setLoading(true);
@@ -219,7 +246,8 @@ export default function StatisticiProduse() {
                 if (refetched) setProducts(refetched);
             } catch (err: any) {
                 console.error('Import error:', err);
-                alert('Eroare la import: ' + err.message);
+                const errMsg = err.message || err.details || err.hint || JSON.stringify(err);
+                alert('Eroare la import: ' + errMsg);
             } finally {
                 setIsImporting(false);
                 if (fileInputRef.current) fileInputRef.current.value = '';
