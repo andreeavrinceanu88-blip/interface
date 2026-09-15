@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabaseAdmin } from '../lib/supabaseClient';
-import { useAuth } from '../contexts/AuthContext';
 
 export type ChartPeriod = 'day' | 'week' | 'month';
 
@@ -16,7 +15,7 @@ interface ChartDataPoint {
 async function fetchChartData(userId: string, storeName: string, period: ChartPeriod): Promise<ChartDataPoint[]> {
   if (!userId || !storeName) return [];
   
-  console.log('📉 [ChartData] Aggregating chart for:', { user_id: userId, store: storeName, period });
+  console.log('📉 [ChartData] Aggregating chart (real-time) for:', { user_id: userId, store: storeName, period });
 
   const now = new Date();
   let startDate = new Date();
@@ -35,25 +34,34 @@ async function fetchChartData(userId: string, storeName: string, period: ChartPe
 
   const startIso = startDate.toISOString();
 
-  const { data: recordings, error: recError } = await supabaseAdmin
-    .from('call_recordings')
-    .select('created_at')
-    .eq('user_id', userId)
-    .eq('store_name', storeName)
+  // Fetch call_logs for this period
+  const { data: callLogs, error: clErr } = await supabaseAdmin
+    .from('call_logs')
+    .select('order_id, status, created_at')
     .gte('created_at', startIso);
 
-  const { data: metrics, error: metError } = await supabaseAdmin
-    .from('call_metrics')
-    .select('created_at, comenzi_confirmate, cosuri_abandonate, vanzari_generate')
-    .eq('user_id', userId)
-    .eq('store_name', storeName)
+  // Fetch orders for this store in period
+  const { data: orders, error: ordErr } = await supabaseAdmin
+    .from('orders')
+    .select('id, order_id, store_name, status, value, type, created_at')
+    .ilike('store_name', storeName)
     .gte('created_at', startIso);
 
-  if (recError || metError) {
-    console.error('❌ [ChartData] Error pulling raw data:', { recError, metError });
+  if (clErr || ordErr) {
+    console.error('❌ [ChartData] Error pulling data:', { clErr, ordErr });
   }
 
-  console.log(`📊 [ChartData] Pulled ${recordings?.length || 0} recordings and ${metrics?.length || 0} metric records for analysis.`);
+  // Build order_id set for this store
+  const orderIdSet = new Set<string>();
+  orders?.forEach(o => {
+    orderIdSet.add(String(o.order_id));
+    orderIdSet.add(String(o.id));
+  });
+
+  // Filter call_logs to this store
+  const storeCalls = (callLogs || []).filter(cl => cl.order_id && orderIdSet.has(cl.order_id));
+
+  console.log(`📊 [ChartData] Pulled ${storeCalls.length} store calls and ${orders?.length || 0} orders for analysis.`);
 
   const groupedData: Record<string, ChartDataPoint> = {};
 
@@ -81,17 +89,21 @@ async function fetchChartData(userId: string, storeName: string, period: ChartPe
     return dateStr.split('T')[0];
   };
 
-  (recordings || []).forEach(rec => {
-    const key = getBucketKey(rec.created_at);
+  storeCalls.forEach(cl => {
+    const key = getBucketKey(cl.created_at);
     if (groupedData[key]) groupedData[key].calls += 1;
   });
 
-  (metrics || []).forEach(met => {
-    const key = getBucketKey(met.created_at);
+  (orders || []).forEach(ord => {
+    const key = getBucketKey(ord.created_at);
     if (groupedData[key]) {
-      groupedData[key].orders += met.comenzi_confirmate || 0;
-      groupedData[key].drafts += met.cosuri_abandonate || 0;
-      groupedData[key].sales += met.vanzari_generate || 0;
+      if (ord.status === 'confirmat') {
+        groupedData[key].orders += 1;
+        groupedData[key].sales += (ord.value || 0);
+      }
+      if (ord.type === 'draft' || ord.type === 'Noi') {
+        groupedData[key].drafts += 1;
+      }
     }
   });
 
@@ -113,3 +125,4 @@ export const useChartData = (userId: string, storeName: string, period: ChartPer
     staleTime: 60 * 1000,
   });
 };
+
