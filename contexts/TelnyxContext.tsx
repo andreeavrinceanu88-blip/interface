@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { useAuth } from './AuthContext';
-import { getSipClient, getSipProvider, setSipProvider, SipProviderType } from '../lib/sipClient';
+import { getSipClient, getSipProvider, setSipProvider, normalizePhoneForProvider, SipProviderType } from '../lib/sipClient';
 
 export type CallState = 'idle' | 'calling' | 'active' | 'ringing' | 'rejected';
 
@@ -654,9 +654,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             return;
         }
 
-        let finalDest = destination;
-        if (finalDest.startsWith('07')) finalDest = '+40' + finalDest.slice(1);
-        else if (finalDest.startsWith('40') && finalDest.length === 11) finalDest = '+' + finalDest;
+        const finalDest = normalizePhoneForProvider(destination, provider);
 
         // Start synthetic ringback immediately on click to satisfy AudioContext user gesture requirements
         playRingback();

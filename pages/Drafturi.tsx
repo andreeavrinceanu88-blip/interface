@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTelnyx } from '../contexts/TelnyxContext';
+import { normalizePhoneForProvider } from '../lib/sipClient';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages, getAllProducts, updateShopifyLineItemsBulk, checkDraftStatus } from '../services/shopify';
 
@@ -950,14 +951,9 @@ const Drafturi = () => {
             } else {
                 callerId = defaultTrunk;
             }
-            let cleanDestination = targetNumber.replace(/\s/g, '');
-            if (cleanDestination.startsWith('07')) {
-                cleanDestination = '+40' + cleanDestination.slice(1);
-            } else if (cleanDestination.startsWith('40') && cleanDestination.length === 11) {
-                cleanDestination = '+' + cleanDestination;
-            }
+            const cleanDestination = normalizePhoneForProvider(targetNumber, activeProvider);
             const orderIdStr = selectedId ? selectedId.toString() : undefined;
-            console.log('[CallerID]', { callerIdMode, selectedBrand, overrideBrand, brandToUse, callerId });
+            console.log(`[CallerID] Provider=${activeProvider}, Destination=${cleanDestination}, CallerId=${callerId}`, { callerIdMode, selectedBrand, overrideBrand, brandToUse });
             makeCall(cleanDestination, callerId, orderIdStr);
         } else {
             hangup();

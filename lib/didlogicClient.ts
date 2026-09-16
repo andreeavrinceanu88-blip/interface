@@ -1,6 +1,8 @@
 // DIDLogic WebRTC Client Singleton
 // Implements the same event and call API expected by TelnyxContext for seamless failover
 
+import { normalizePhoneForProvider } from './sipClient';
+
 class DidlogicCallWrapper {
     id: string;
     state: string;
@@ -153,12 +155,9 @@ class DidlogicClientWrapper {
         const wrappedCall = new DidlogicCallWrapper(callId, 'outbound', options);
 
         // Normalize destination for DIDLogic: international E.164 digits without '+' (e.g. 40735548486)
-        let dest = options.destinationNumber.replace(/\s/g, '').replace(/^\+/, '');
-        if (dest.startsWith('07')) dest = '40' + dest.slice(1);
-        else if (dest.startsWith('0')) dest = '40' + dest.slice(1);
-        else if (!dest.startsWith('40') && dest.length === 9) dest = '40' + dest;
+        const dest = normalizePhoneForProvider(options.destinationNumber, 'didlogic');
 
-        console.log('[DIDLogic] Dialing destination:', dest, '(digits only)', 'callerId:', options.callerNumber);
+        console.log('[DIDLogic] Dialing destination:', dest, '(digits only, no plus)', 'callerId:', options.callerNumber);
 
         // Initiate call asynchronously
         this.device.call(dest).then((voiceCall: any) => {
