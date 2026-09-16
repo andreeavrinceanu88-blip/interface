@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdmin } from '../lib/supabaseClient';
+import { useTelnyx } from '../contexts/TelnyxContext';
 
 interface TeamMember {
     id: string;
@@ -12,6 +13,7 @@ interface TeamMember {
 
 export default function SetariCont() {
     const { profile, session } = useAuth();
+    const { activeProvider, switchProvider, isReady } = useTelnyx();
     const [members, setMembers] = useState<TeamMember[]>([]);
     const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
@@ -162,6 +164,90 @@ export default function SetariCont() {
                 </div>
                 <div className="mt-6">
                     <button className="btn-3d-secondary px-4 py-2 rounded-xl text-sm font-medium opacity-50 cursor-not-allowed">Salvează Modificările</button>
+                </div>
+            </div>
+
+            {/* SIP Provider & Calling Settings */}
+            <div className="bg-[#13141a] rounded-2xl p-6 border border-white/5 shadow-xl mt-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h3 className="text-xl text-white font-light flex items-center gap-2">
+                            <span className="material-icons-round text-primary">phone_in_talk</span>
+                            Furnizor SIP & Telefonie WebRTC
+                        </h3>
+                        <p className="text-gray-400 font-light mt-1 text-sm">
+                            Alege furnizorul de telefonie pentru apelurile din dashboard. DIDLogic este furnizorul principal recomandat.
+                        </p>
+                    </div>
+                    <span className="self-start sm:self-auto flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-300">
+                        <span className={`w-2 h-2 rounded-full ${isReady ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                        {isReady ? 'Conectat' : 'Se conectează...'} ({activeProvider.toUpperCase()})
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {/* DIDLogic Card */}
+                    <div
+                        onClick={() => switchProvider('didlogic')}
+                        className={`cursor-pointer rounded-xl p-5 border transition-all relative ${
+                            activeProvider === 'didlogic'
+                                ? 'bg-primary/10 border-primary shadow-[0_0_20px_rgba(59,130,246,0.15)] ring-1 ring-primary'
+                                : 'bg-[#0a0b14] border-white/10 hover:border-white/20'
+                        }`}
+                    >
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2.5">
+                                <span className="material-icons-round text-2xl text-emerald-400">cloud_done</span>
+                                <div>
+                                    <h4 className="text-base font-medium text-white">DIDLogic</h4>
+                                    <span className="text-[11px] text-emerald-400 font-medium">Implicit & Recomandat</span>
+                                </div>
+                            </div>
+                            {activeProvider === 'didlogic' && (
+                                <span className="material-icons-round text-primary text-xl">check_circle</span>
+                            )}
+                        </div>
+                        <div className="space-y-1 text-xs text-gray-400 mt-2">
+                            <p><strong className="text-gray-300">Cont SIP:</strong> 39257 (Tamtrend)</p>
+                            <p><strong className="text-gray-300">Trunk Default Caller ID:</strong> +40373785200</p>
+                            <p><strong className="text-gray-300">Protocol:</strong> WebRTC Voice SDK (WSS securizat)</p>
+                        </div>
+                    </div>
+
+                    {/* Telnyx Card */}
+                    <div
+                        onClick={() => switchProvider('telnyx')}
+                        className={`cursor-pointer rounded-xl p-5 border transition-all relative ${
+                            activeProvider === 'telnyx'
+                                ? 'bg-primary/10 border-primary shadow-[0_0_20px_rgba(59,130,246,0.15)] ring-1 ring-primary'
+                                : 'bg-[#0a0b14] border-white/10 hover:border-white/20'
+                        }`}
+                    >
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2.5">
+                                <span className="material-icons-round text-2xl text-blue-400">backup</span>
+                                <div>
+                                    <h4 className="text-base font-medium text-white">Telnyx</h4>
+                                    <span className="text-[11px] text-gray-400 font-medium">Furnizor Backup</span>
+                                </div>
+                            </div>
+                            {activeProvider === 'telnyx' && (
+                                <span className="material-icons-round text-primary text-xl">check_circle</span>
+                            )}
+                        </div>
+                        <div className="space-y-1 text-xs text-gray-400 mt-2">
+                            <p><strong className="text-gray-300">Cont SIP:</strong> whimlets</p>
+                            <p><strong className="text-gray-300">Trunk Default Caller ID:</strong> +40363060018</p>
+                            <p><strong className="text-gray-300">Protocol:</strong> TelnyxRTC SIP over WebRTC</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-4 p-3.5 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-gray-300">
+                        <span className="material-icons-round text-gray-400 text-sm">info</span>
+                        <span>Comutarea provider-ului reconectează automat softphone-ul fără reîncărcarea paginii.</span>
+                    </div>
                 </div>
             </div>
 

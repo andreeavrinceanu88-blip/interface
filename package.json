@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@didlogic/voice-sdk": "^1.2.0",
     "@supabase/supabase-js": "2.39.8",
     "@tanstack/react-query": "5.28.4",
     "@telnyx/webrtc": "^2.27.3",

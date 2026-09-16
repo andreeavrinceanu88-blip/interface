@@ -117,6 +117,54 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
+        {
+          name: 'didlogic-proxy',
+          configureServer(server) {
+            server.middlewares.use('/api/didlogic-proxy', (req: IncomingMessage, res: ServerResponse) => {
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+              res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+              if (req.method === 'OPTIONS') {
+                res.writeHead(200);
+                res.end();
+                return;
+              }
+
+              const sdkToken = env.DIDLOGIC_SDK_TOKEN || '2608a52220fb45d952bae34b235779eaf64ae6ac4519a28651bb09924436337f';
+              const postData = JSON.stringify({ command: 'call', api_token: sdkToken });
+
+              const options: https.RequestOptions = {
+                hostname: 'app.didlogic.com',
+                path: '/mobile/api/sdk/command',
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(postData),
+                  'User-Agent': 'Whimlets-Dashboard/1.0',
+                },
+              };
+
+              const proxyReq = https.request(options, (proxyRes) => {
+                res.writeHead(proxyRes.statusCode || 502, {
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*',
+                });
+                proxyRes.pipe(res, { end: true });
+              });
+
+              proxyReq.on('error', (err: Error) => {
+                console.error('[didlogic-proxy] Error:', err.message);
+                if (!res.headersSent) {
+                  res.writeHead(502, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: err.message }));
+                }
+              });
+
+              proxyReq.write(postData);
+              proxyReq.end();
+            });
+          },
+        },
       ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

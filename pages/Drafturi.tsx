@@ -150,7 +150,7 @@ const formatPhoneNumber = (phone: string | null | undefined): string => {
 const Drafturi = () => {
     const { profile } = useAuth();
     const userStores: string[] = profile?.stores || [];
-    const { isReady, callState: telnyxCallState, makeCall, hangup, toggleMute, isMuted: telnyxMuted, lastHangupReason, ringtoneVolume, setRingtoneVolume, callLogs } = useTelnyx();
+    const { isReady, callState: telnyxCallState, makeCall, hangup, toggleMute, isMuted: telnyxMuted, lastHangupReason, ringtoneVolume, setRingtoneVolume, callLogs, activeProvider } = useTelnyx();
 
     // ── Filters
     const [viewMode, setViewMode] = useState<'drafturi' | 'comenzi'>('drafturi');
@@ -215,8 +215,14 @@ const Drafturi = () => {
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
-    const [callerIdMode, setCallerIdMode] = useState<'brand' | 'landline'>('landline');
-    const clientRef = useRef<any>(null);
+    const [callerIdMode, setCallerIdMode] = useState<'brand' | 'landline'>(() => {
+        return (localStorage.getItem('caller_id_mode') as 'brand' | 'landline') || 'landline';
+    });
+
+    const handleSetCallerIdMode = (mode: 'brand' | 'landline') => {
+        setCallerIdMode(mode);
+        localStorage.setItem('caller_id_mode', mode);
+    };
     const callRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const ringbackOscRef = useRef<any>(null);
@@ -931,14 +937,18 @@ const Drafturi = () => {
         if (callState === 'idle' || callState === 'rejected') {
             if (!isReady) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
             try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { alert('Este nevoie de acces la microfon pentru a suna!'); return; }
-            let callerId = '+40363060018'; // Default to landline
+            const defaultTrunk = activeProvider === 'didlogic'
+                ? (import.meta.env?.VITE_DIDLOGIC_CALLER_ID || '+40373785200')
+                : (import.meta.env?.VITE_TELNYX_CALLER_ID || '+40363060018');
+
+            let callerId = defaultTrunk;
             
             const brandToUse = overrideBrand || selectedBrand;
             if (overrideBrand || callerIdMode === 'brand') {
                 if (brandToUse?.toLowerCase() === 'vitadomus') callerId = '+40751064714';
-                if (brandToUse?.toLowerCase() === 'tamtrend') callerId = '+40775393060';
-            } else if (callerIdMode === 'landline') {
-                callerId = '+40363060018';
+                else callerId = '+40775393060';
+            } else {
+                callerId = defaultTrunk;
             }
             let cleanDestination = targetNumber.replace(/\s/g, '');
             if (cleanDestination.startsWith('07')) {
@@ -2274,21 +2284,30 @@ const Drafturi = () => {
                                     )}
                                 </div>
 
-                                {/* Caller ID Selector */}
+                                {/* Caller ID Selector & Provider Status */}
+                                <div className="flex items-center justify-between w-full mb-2 px-1 text-[11px] text-gray-400">
+                                    <span>Caller ID Outbound</span>
+                                    <span className="flex items-center gap-1.5 font-mono text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-300">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                                        {activeProvider === 'didlogic' ? 'DIDLogic' : 'Telnyx'}
+                                    </span>
+                                </div>
                                 <div className={`flex w-full mb-4 bg-[#1a1b23] rounded-lg p-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                                     <button
                                         type="button"
                                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'landline' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
-                                        onClick={(e) => { e.preventDefault(); setCallerIdMode('landline'); }}
+                                        onClick={(e) => { e.preventDefault(); handleSetCallerIdMode('landline'); }}
+                                        title={activeProvider === 'didlogic' ? 'Trunk Default (+40373785200)' : 'Fix Default (+40363060018)'}
                                     >
-                                        Fix (0363)
+                                        Default ({activeProvider === 'didlogic' ? '0373' : '0363'})
                                     </button>
                                     <button
                                         type="button"
                                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'brand' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
-                                        onClick={(e) => { e.preventDefault(); setCallerIdMode('brand'); }}
+                                        onClick={(e) => { e.preventDefault(); handleSetCallerIdMode('brand'); }}
+                                        title="Mobil (+40775393060)"
                                     >
-                                        Mobil Brand
+                                        Mobil (+40775)
                                     </button>
                                 </div>
 

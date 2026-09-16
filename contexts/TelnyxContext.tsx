@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { useAuth } from './AuthContext';
+import { getSipClient, getSipProvider, setSipProvider, SipProviderType } from '../lib/sipClient';
 
 export type CallState = 'idle' | 'calling' | 'active' | 'ringing' | 'rejected';
 
@@ -29,6 +30,8 @@ interface TelnyxContextType {
     ringtoneVolume: number;
     callLogs: string[];
     setRingtoneVolume: (vol: number) => void;
+    activeProvider: SipProviderType;
+    switchProvider: (provider: SipProviderType) => void;
 }
 
 const TelnyxContext = createContext<TelnyxContextType | null>(null);
@@ -51,6 +54,24 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         const saved = localStorage.getItem('telnyx_ringtone_vol');
         return saved ? parseFloat(saved) : 0.15; // default lower volume
     });
+
+    const [provider, setProvider] = useState<SipProviderType>(() => getSipProvider());
+
+    const switchProvider = (newProvider: SipProviderType) => {
+        console.log(`[SIP] Switching provider to: ${newProvider}`);
+        setSipProvider(newProvider);
+        setProvider(newProvider);
+    };
+
+    useEffect(() => {
+        const handleProviderChange = (e: any) => {
+            if (e.detail && (e.detail === 'didlogic' || e.detail === 'telnyx')) {
+                setProvider(e.detail);
+            }
+        };
+        window.addEventListener('sip_provider_changed', handleProviderChange);
+        return () => window.removeEventListener('sip_provider_changed', handleProviderChange);
+    }, []);
 
     const clientRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -282,13 +303,17 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         let cancelled = false;
+        setIsReady(false);
 
-        import('../lib/telnyxClient').then(({ getTelnyxClient }) => {
-            getTelnyxClient().then(client => {
-                if (cancelled) return;
-                clientRef.current = client;
+        if (clientRef.current && (clientRef.current as any)._cleanupListeners) {
+            (clientRef.current as any)._cleanupListeners();
+        }
 
-                if (client.connected) setIsReady(true);
+        getSipClient(provider).then(client => {
+            if (cancelled) return;
+            clientRef.current = client;
+
+            if (client.connected) setIsReady(true);
 
                 const onReady = () => setIsReady(true);
                 const onError = () => setIsReady(false);
@@ -504,6 +529,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                                         hangupCause: call.hangupCause,
                                         callState: call.state,
                                         callSessionId,
+                                        provider: provider,
                                         timestamp: new Date().toISOString()
                                     }
                                 };
@@ -601,10 +627,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     client.off('telnyx.notification', onNotification);
                 };
             }).catch(err => {
-                console.error('[Telnyx] Init error:', err);
+                console.error(`[SIP] (${provider}) Init error:`, err);
                 if (!cancelled) setIsReady(false);
             });
-        });
 
         return () => {
             cancelled = true;
@@ -612,7 +637,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 (clientRef.current as any)._cleanupListeners();
             }
         };
-    }, []);
+    }, [provider]);
 
     const makeCall = (destination: string, callerId?: string, orderId?: string) => {
         if (!clientRef.current) return;
@@ -642,16 +667,19 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         setCallLogs([]); // Clear previous logs
         needsCallbackRef.current = false; // Reset callback flag
         addLog(`Inițiat apel către ${finalDest}`);
-        if (!callerId || !callerId.startsWith('+')) {
-            console.error('[Telnyx] makeCall aborted: Missing or invalid callerId (must start with +)', callerId);
-            // Don't leave the UI stuck in "calling" state if we abort here (though playRingback was already called)
-            stopRingback();
-            return;
+        let finalCallerId = callerId;
+        if (finalCallerId && !finalCallerId.startsWith('+')) {
+            finalCallerId = '+' + finalCallerId;
+        }
+        if (!finalCallerId) {
+            finalCallerId = provider === 'didlogic'
+                ? (import.meta.env?.VITE_DIDLOGIC_CALLER_ID || '+40373785200')
+                : (import.meta.env?.VITE_TELNYX_CALLER_ID || '+40363060018');
         }
 
         const call = clientRef.current.newCall({
             destinationNumber: finalDest,
-            callerNumber: callerId,
+            callerNumber: finalCallerId,
             audio: true,
             video: false,
         });
@@ -718,7 +746,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             value={{
                 isReady, callState, activeCall, incomingCalls, callerInfos, lastHangupReason,
                 makeCall, hangup, answerIncoming, rejectIncoming, markForCallback, toggleMute, isMuted,
-                audioRef, ringtoneVolume, setRingtoneVolume
+                audioRef, ringtoneVolume, setRingtoneVolume,
+                activeProvider: provider, switchProvider
             }}
         >
             {children}
