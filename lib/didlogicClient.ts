@@ -38,6 +38,18 @@ class DidlogicCallWrapper {
         }
     }
 
+    reject() {
+        if (this.voiceCall) {
+            try {
+                if (typeof this.voiceCall.reject === 'function') {
+                    this.voiceCall.reject();
+                } else {
+                    this.voiceCall.hangup();
+                }
+            } catch (e) { console.warn('[DIDLogic] Reject error:', e); }
+        }
+    }
+
     muteAudio() {
         if (this.voiceCall) {
             try { this.voiceCall.mute(true); } catch (e) {}
