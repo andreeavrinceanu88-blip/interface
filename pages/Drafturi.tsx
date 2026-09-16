@@ -938,22 +938,26 @@ const Drafturi = () => {
         if (callState === 'idle' || callState === 'rejected') {
             if (!isReady) { alert('Conexiunea la serverul de telefonie nu a reușit. Contactați administratorul.'); return; }
             try { await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { alert('Este nevoie de acces la microfon pentru a suna!'); return; }
-            const defaultTrunk = activeProvider === 'didlogic'
-                ? (import.meta.env?.VITE_DIDLOGIC_CALLER_ID || '+40373785200')
-                : (import.meta.env?.VITE_TELNYX_CALLER_ID || '+40363060018');
+            const brandToUse = overrideBrand || selectedBrand;
+            const isVita = (brandToUse || '').toLowerCase().includes('vita');
+
+            let defaultTrunk = '';
+            if (activeProvider === 'didlogic') {
+                defaultTrunk = isVita ? '+40312296311' : (import.meta.env?.VITE_DIDLOGIC_CALLER_ID || '+40373785200');
+            } else {
+                defaultTrunk = isVita ? '+40312296311' : (import.meta.env?.VITE_TELNYX_CALLER_ID || '+40363060018');
+            }
 
             let callerId = defaultTrunk;
-            
-            const brandToUse = overrideBrand || selectedBrand;
             if (overrideBrand || callerIdMode === 'brand') {
-                if (brandToUse?.toLowerCase() === 'vitadomus') callerId = '+40751064714';
+                if (isVita) callerId = '+40751064714';
                 else callerId = '+40775393060';
             } else {
                 callerId = defaultTrunk;
             }
             const cleanDestination = normalizePhoneForProvider(targetNumber, activeProvider);
             const orderIdStr = selectedId ? selectedId.toString() : undefined;
-            console.log(`[CallerID] Provider=${activeProvider}, Destination=${cleanDestination}, CallerId=${callerId}`, { callerIdMode, selectedBrand, overrideBrand, brandToUse });
+            console.log(`[CallerID] Provider=${activeProvider}, Destination=${cleanDestination}, CallerId=${callerId}`, { callerIdMode, selectedBrand, overrideBrand, brandToUse, isVita });
             makeCall(cleanDestination, callerId, orderIdStr);
         } else {
             hangup();
@@ -2281,31 +2285,43 @@ const Drafturi = () => {
                                 </div>
 
                                 {/* Caller ID Selector & Provider Status */}
-                                <div className="flex items-center justify-between w-full mb-2 px-1 text-[11px] text-gray-400">
-                                    <span>Caller ID Outbound</span>
-                                    <span className="flex items-center gap-1.5 font-mono text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-300">
-                                        <span className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                                        {activeProvider === 'didlogic' ? 'DIDLogic' : 'Telnyx'}
-                                    </span>
-                                </div>
-                                <div className={`flex w-full mb-4 bg-[#1a1b23] rounded-lg p-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-                                    <button
-                                        type="button"
-                                        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'landline' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
-                                        onClick={(e) => { e.preventDefault(); handleSetCallerIdMode('landline'); }}
-                                        title={activeProvider === 'didlogic' ? 'Trunk Default (+40373785200)' : 'Fix Default (+40363060018)'}
-                                    >
-                                        Default ({activeProvider === 'didlogic' ? '0373' : '0363'})
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'brand' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
-                                        onClick={(e) => { e.preventDefault(); handleSetCallerIdMode('brand'); }}
-                                        title="Mobil (+40775393060)"
-                                    >
-                                        Mobil (+40775)
-                                    </button>
-                                </div>
+                                {(() => {
+                                    const isVita = (selectedBrand || '').toLowerCase().includes('vita');
+                                    const defaultLabel = isVita ? '0312' : (activeProvider === 'didlogic' ? '0373' : '0363');
+                                    const defaultTitle = isVita ? 'Fix VitaDomus (+40312296311)' : (activeProvider === 'didlogic' ? 'Trunk Tamtrend (+40373785200)' : 'Fix Default (+40363060018)');
+                                    const mobileLabel = isVita ? '+40751' : '+40775';
+                                    const mobileTitle = isVita ? 'Mobil VitaDomus (+40751064714)' : 'Mobil Tamtrend (+40775393060)';
+
+                                    return (
+                                        <>
+                                            <div className="flex items-center justify-between w-full mb-2 px-1 text-[11px] text-gray-400">
+                                                <span>Caller ID Outbound ({isVita ? 'VitaDomus' : (selectedBrand || 'Tamtrend')})</span>
+                                                <span className="flex items-center gap-1.5 font-mono text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-300">
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                                                    {activeProvider === 'didlogic' ? 'DIDLogic' : 'Telnyx'}
+                                                </span>
+                                            </div>
+                                            <div className={`flex w-full mb-4 bg-[#1a1b23] rounded-lg p-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                                                <button
+                                                    type="button"
+                                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'landline' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                                                    onClick={(e) => { e.preventDefault(); handleSetCallerIdMode('landline'); }}
+                                                    title={defaultTitle}
+                                                >
+                                                    Default ({defaultLabel})
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'brand' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                                                    onClick={(e) => { e.preventDefault(); handleSetCallerIdMode('brand'); }}
+                                                    title={mobileTitle}
+                                                >
+                                                    Mobil ({mobileLabel})
+                                                </button>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
 
                                 {/* Keypad */}
                                 <div className={`grid grid-cols-3 gap-4 w-full mt-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>

@@ -171,11 +171,31 @@ class DidlogicClientWrapper {
 
         console.log('[DIDLogic] Dialing destination:', dest, '(digits only, no plus)', 'callerId:', options.callerNumber);
 
+        // Inject Caller ID headers into JsSIP session if callerNumber is provided
+        const callerNum = options.callerNumber ? (options.callerNumber.startsWith('+') ? options.callerNumber : '+' + options.callerNumber) : null;
+        let restoreUaCall: (() => void) | null = null;
+        if (this.device?.ua && callerNum) {
+            const origUaCall = this.device.ua.call.bind(this.device.ua);
+            this.device.ua.call = (targetUri: any, opts: any) => {
+                opts = opts || {};
+                opts.extraHeaders = opts.extraHeaders ? [...opts.extraHeaders] : [];
+                const host = (typeof targetUri === 'string' && targetUri.includes('@')) ? targetUri.split('@')[1] : 'sip.didlogic.com';
+                opts.extraHeaders.push(`P-Asserted-Identity: <sip:${callerNum}@${host}>`);
+                opts.extraHeaders.push(`Remote-Party-ID: <sip:${callerNum}@${host}>;party=calling;screen=yes;privacy=off`);
+                return origUaCall(targetUri, opts);
+            };
+            restoreUaCall = () => {
+                if (this.device?.ua) this.device.ua.call = origUaCall;
+            };
+        }
+
         // Initiate call asynchronously
         this.device.call(dest).then((voiceCall: any) => {
+            if (restoreUaCall) restoreUaCall();
             wrappedCall.voiceCall = voiceCall;
             this.bindCallEvents(voiceCall, wrappedCall);
         }).catch((err: any) => {
+            if (restoreUaCall) restoreUaCall();
             console.error('[DIDLogic] Call failed to initiate:', err);
             wrappedCall.state = 'destroy';
             wrappedCall.cause = err.message || 'Call failed';
