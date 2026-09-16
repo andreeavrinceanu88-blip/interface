@@ -152,12 +152,13 @@ class DidlogicClientWrapper {
         const callId = 'dl_out_' + Date.now();
         const wrappedCall = new DidlogicCallWrapper(callId, 'outbound', options);
 
-        // Normalize destination
-        let dest = options.destinationNumber.replace(/\s/g, '');
-        if (dest.startsWith('07')) dest = '+40' + dest.slice(1);
-        else if (dest.startsWith('40') && dest.length === 11) dest = '+' + dest;
+        // Normalize destination for DIDLogic: international E.164 digits without '+' (e.g. 40735548486)
+        let dest = options.destinationNumber.replace(/\s/g, '').replace(/^\+/, '');
+        if (dest.startsWith('07')) dest = '40' + dest.slice(1);
+        else if (dest.startsWith('0')) dest = '40' + dest.slice(1);
+        else if (!dest.startsWith('40') && dest.length === 9) dest = '40' + dest;
 
-        console.log('[DIDLogic] Dialing destination:', dest, 'callerId:', options.callerNumber);
+        console.log('[DIDLogic] Dialing destination:', dest, '(digits only)', 'callerId:', options.callerNumber);
 
         // Initiate call asynchronously
         this.device.call(dest).then((voiceCall: any) => {
@@ -175,6 +176,19 @@ class DidlogicClientWrapper {
     }
 
     private bindCallEvents(voiceCall: any, wrappedCall: DidlogicCallWrapper) {
+        if (voiceCall.session) {
+            voiceCall.session.on('failed', (e: any) => {
+                const status = e?.message?.status_code;
+                const reason = e?.message?.reason_phrase;
+                console.error(`[DIDLogic] ❌ Raw SIP Failure: Status=${status}, Reason="${reason}", Cause=${e?.cause}`);
+                if (status) {
+                    wrappedCall.cause = `${status} ${reason || e?.cause || ''}`.trim();
+                    wrappedCall.causeMessage = reason;
+                    wrappedCall.hangupCause = `${status} ${reason || ''}`.trim();
+                }
+            });
+        }
+
         voiceCall.on('accepted', () => {
             console.log('[DIDLogic] Call answered / active');
             wrappedCall.state = 'active';
@@ -185,16 +199,16 @@ class DidlogicClientWrapper {
         voiceCall.on('ended', ({ cause }: any) => {
             console.log('[DIDLogic] Call ended. Cause:', cause);
             wrappedCall.state = 'destroy';
-            wrappedCall.cause = cause || 'NORMAL_CLEARING';
-            wrappedCall.hangupCause = cause;
+            wrappedCall.cause = wrappedCall.cause || cause || 'NORMAL_CLEARING';
+            wrappedCall.hangupCause = wrappedCall.hangupCause || cause;
             this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
         });
 
         voiceCall.on('failed', ({ cause }: any) => {
             console.log('[DIDLogic] Call failed. Cause:', cause);
             wrappedCall.state = 'destroy';
-            wrappedCall.cause = cause || 'Call Failed';
-            wrappedCall.hangupCause = cause;
+            wrappedCall.cause = wrappedCall.cause || cause || 'Call Failed';
+            wrappedCall.hangupCause = wrappedCall.hangupCause || cause;
             this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
         });
     }
