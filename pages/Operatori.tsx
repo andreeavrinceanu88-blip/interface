@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabaseAdmin } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Profile {
     id: string;
@@ -14,23 +15,34 @@ interface CallLog {
     order_id: string | null;
     duration_secs: number;
     status: string | null;
+    caller_id?: string | null;
     created_at: string;
 }
 
 interface OrderStat {
     processed_by: string;
+    store_name?: string | null;
 }
 
 export default function Operatori() {
+    const { profile } = useAuth();
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [callLogs, setCallLogs] = useState<CallLog[]>([]);
     const [orderStats, setOrderStats] = useState<OrderStat[]>([]);
     const [loading, setLoading] = useState(true);
-    const [dateRange, setDateRange] = useState<'today' | '7days' | '30days' | 'all'>('today');
+    const [dateRange, setDateRange] = useState<'today' | '7days' | '30days' | 'all'>('7days');
+    const [selectedStore, setSelectedStore] = useState<string>('all');
+    const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false);
+
+    const userStores = useMemo(() => {
+        if (!profile?.stores) return ['Vitadomus', 'Tamtrend'];
+        if (Array.isArray(profile.stores)) return profile.stores;
+        return profile.stores.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }, [profile?.stores]);
 
     useEffect(() => {
         fetchData();
-    }, [dateRange]);
+    }, [dateRange, selectedStore]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -40,7 +52,7 @@ export default function Operatori() {
             if (profErr) throw profErr;
 
             // 2. Fetch call logs based on date
-            let callsQuery = supabaseAdmin.from('call_logs').select('*');
+            let callsQuery = supabaseAdmin.from('call_logs').select('*').limit(10000);
             if (dateRange !== 'all') {
                 const now = new Date();
                 const past = new Date();
@@ -50,16 +62,50 @@ export default function Operatori() {
                 callsQuery = callsQuery.gte('created_at', past.toISOString());
             }
             const { data: callsData, error: callsErr } = await callsQuery;
-            if (callsErr && callsErr.code !== 'PGRST204') { // Ignore missing column gracefully
+            if (callsErr && callsErr.code !== 'PGRST204') {
                 console.error("Calls fetch error:", callsErr);
             }
 
-            // 3. Fetch processed orders (we don't have processed_at, so we just fetch all-time, or if we do, we can't filter easily. We'll fetch all)
-            const { data: ordData, error: ordErr } = await supabaseAdmin.from('orders').select('processed_by').not('processed_by', 'is', null);
+            // 3. Filter call_logs by store if selectedStore !== 'all'
+            let filteredCalls = callsData || [];
+            if (selectedStore !== 'all' && callsData && callsData.length > 0) {
+                const targetStore = selectedStore.toLowerCase();
+                const uniqueOrderIds = [...new Set(callsData.map(l => l.order_id).filter(id => id && !id.startsWith('INBOUND:') && !id.startsWith('OUTBOUND:') && !id.startsWith('ERR:')))];
+                
+                const storeMap = new Map<string, string>();
+                for (let i = 0; i < uniqueOrderIds.length; i += 200) {
+                    const chunk = uniqueOrderIds.slice(i, i + 200);
+                    const { data: ords } = await supabaseAdmin.from('orders').select('id, order_id, store_name').in('order_id', chunk);
+                    ords?.forEach(o => {
+                        if (o.store_name) {
+                            storeMap.set(String(o.order_id), o.store_name.toLowerCase());
+                            storeMap.set(String(o.id), o.store_name.toLowerCase());
+                        }
+                    });
+                }
+
+                filteredCalls = callsData.filter(l => {
+                    let logStore: string | null = null;
+                    if (l.order_id && storeMap.has(String(l.order_id))) {
+                        logStore = storeMap.get(String(l.order_id))!;
+                    } else if (l.caller_id) {
+                        if (l.caller_id.includes('751') || l.caller_id.includes('312')) logStore = 'vitadomus';
+                        else if (l.caller_id.includes('775') || l.caller_id.includes('373') || l.caller_id.includes('363')) logStore = 'tamtrend';
+                    }
+                    return logStore === targetStore;
+                });
+            }
+
+            // 4. Fetch processed orders (filtered by store if selected)
+            let ordersQuery = supabaseAdmin.from('orders').select('processed_by, store_name').not('processed_by', 'is', null).limit(20000);
+            if (selectedStore !== 'all') {
+                ordersQuery = ordersQuery.ilike('store_name', selectedStore);
+            }
+            const { data: ordData, error: ordErr } = await ordersQuery;
             if (ordErr) console.error("Orders fetch error:", ordErr);
 
             setProfiles(profData || []);
-            setCallLogs(callsData || []);
+            setCallLogs(filteredCalls);
             setOrderStats(ordData || []);
         } catch (err) {
             console.error('Error fetching operator stats:', err);
@@ -71,18 +117,23 @@ export default function Operatori() {
     const statsByOperator = useMemo(() => {
         const stats: Record<string, {
             callsMade: number;
+            callsAnswered: number;
             totalDuration: number;
             draftsProcessed: number;
         }> = {};
 
         profiles.forEach(p => {
-            stats[p.id] = { callsMade: 0, totalDuration: 0, draftsProcessed: 0 };
+            stats[p.id] = { callsMade: 0, callsAnswered: 0, totalDuration: 0, draftsProcessed: 0 };
         });
 
         callLogs.forEach(log => {
             if (stats[log.operator_id]) {
                 stats[log.operator_id].callsMade += 1;
-                stats[log.operator_id].totalDuration += (log.duration_secs || 0);
+                const dur = log.duration_secs || 0;
+                if (dur > 0) {
+                    stats[log.operator_id].callsAnswered += 1;
+                    stats[log.operator_id].totalDuration += dur;
+                }
             }
         });
 
@@ -107,17 +158,62 @@ export default function Operatori() {
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
                     <h2 className="text-2xl md:text-3xl font-light dark:text-white tracking-tight">Performanță Operatori</h2>
                     <p className="text-gray-400 font-light mt-1 text-sm md:text-base">Monitorizează eficiența echipei tale în preluarea drafturilor și apeluri.</p>
                 </div>
 
-                <div className="flex bg-[#1a1b23] border border-white/10 rounded-xl overflow-hidden p-1">
-                    <button onClick={() => setDateRange('today')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === 'today' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'}`}>Azi</button>
-                    <button onClick={() => setDateRange('7days')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === '7days' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'}`}>7 Zile</button>
-                    <button onClick={() => setDateRange('30days')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === '30days' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'}`}>30 Zile</button>
-                    <button onClick={() => setDateRange('all')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === 'all' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white'}`}>All-time</button>
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Store Selector Dropdown */}
+                    <div className="relative z-30">
+                        <button
+                            onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
+                            className="bg-[#1a1b23] border border-white/10 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2.5 text-white hover:border-white/20 transition-all min-w-[170px] justify-between h-[38px] shadow-sm"
+                        >
+                            <div className="flex items-center gap-2 truncate">
+                                <span className="material-icons-round text-base text-cyan-400">storefront</span>
+                                <span className="truncate">
+                                    {selectedStore === 'all' ? 'Toate magazinele' : selectedStore}
+                                </span>
+                            </div>
+                            <span className={`material-icons-round text-lg text-gray-400 transition-transform ${isStoreDropdownOpen ? 'rotate-180' : ''}`}>
+                                expand_more
+                            </span>
+                        </button>
+                        {isStoreDropdownOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsStoreDropdownOpen(false)} />
+                                <div className="absolute right-0 top-full mt-2 w-full min-w-[190px] rounded-xl bg-[#13141a] border border-white/10 shadow-2xl z-50 overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100">
+                                    <button
+                                        onClick={() => { setSelectedStore('all'); setIsStoreDropdownOpen(false); }}
+                                        className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2.5 hover:bg-white/5 ${selectedStore === 'all' ? 'text-white bg-white/5 font-semibold' : 'text-gray-400'}`}
+                                    >
+                                        <span className={`w-2 h-2 rounded-full ${selectedStore === 'all' ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.5)]' : 'bg-transparent border border-gray-600'}`} />
+                                        Toate magazinele
+                                    </button>
+                                    {userStores.map(store => (
+                                        <button
+                                            key={store}
+                                            onClick={() => { setSelectedStore(store); setIsStoreDropdownOpen(false); }}
+                                            className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2.5 hover:bg-white/5 ${selectedStore.toLowerCase() === store.toLowerCase() ? 'text-white bg-white/5 font-semibold' : 'text-gray-400'}`}
+                                        >
+                                            <span className={`w-2 h-2 rounded-full ${selectedStore.toLowerCase() === store.toLowerCase() ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.5)]' : 'bg-transparent border border-gray-600'}`} />
+                                            {store}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Date Range Buttons */}
+                    <div className="flex bg-[#1a1b23] border border-white/10 rounded-xl overflow-hidden p-1">
+                        <button onClick={() => setDateRange('today')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === 'today' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>Azi</button>
+                        <button onClick={() => setDateRange('7days')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === '7days' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>7 Zile</button>
+                        <button onClick={() => setDateRange('30days')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === '30days' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>30 Zile</button>
+                        <button onClick={() => setDateRange('all')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === 'all' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>All-time</button>
+                    </div>
                 </div>
             </div>
 
@@ -129,8 +225,8 @@ export default function Operatori() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {profiles.map(profile => {
-                        const s = statsByOperator[profile.id] || { callsMade: 0, totalDuration: 0, draftsProcessed: 0 };
-                        const avgDuration = s.callsMade > 0 ? Math.round(s.totalDuration / s.callsMade) : 0;
+                        const s = statsByOperator[profile.id] || { callsMade: 0, callsAnswered: 0, totalDuration: 0, draftsProcessed: 0 };
+                        const avgDuration = s.callsAnswered > 0 ? Math.round(s.totalDuration / s.callsAnswered) : 0;
 
                         return (
                             <div key={profile.id} className="bg-[#13141a] rounded-2xl border border-white/5 shadow-xl overflow-hidden flex flex-col group hover:border-white/10 transition-colors">
@@ -160,7 +256,9 @@ export default function Operatori() {
                                             <span className="text-xs font-medium uppercase tracking-wider">Drafturi Procesate</span>
                                         </div>
                                         <span className="text-2xl font-bold text-white">{s.draftsProcessed}</span>
-                                        <span className="text-[10px] text-gray-500">Total all-time</span>
+                                        <span className="text-[10px] text-gray-500">
+                                            {selectedStore === 'all' ? 'Total all-time' : `${selectedStore} (all-time)`}
+                                        </span>
                                     </div>
 
                                     <div className="flex flex-col gap-1 p-3 rounded-xl bg-black/20 border border-white/5">
@@ -169,7 +267,9 @@ export default function Operatori() {
                                             <span className="text-xs font-medium uppercase tracking-wider">Apeluri Inițiate</span>
                                         </div>
                                         <span className="text-2xl font-bold text-white">{s.callsMade}</span>
-                                        <span className="text-[10px] text-gray-500">Filtrat ({dateRange})</span>
+                                        <span className="text-[10px] text-gray-500">
+                                            {s.callsAnswered} răspunse ({s.callsMade > 0 ? Math.round((s.callsAnswered / s.callsMade) * 100) : 0}%)
+                                        </span>
                                     </div>
 
                                     <div className="flex flex-col gap-1 p-3 rounded-xl bg-black/20 border border-white/5">
@@ -184,10 +284,12 @@ export default function Operatori() {
                                     <div className="flex flex-col gap-1 p-3 rounded-xl bg-black/20 border border-white/5">
                                         <div className="flex items-center gap-1.5 text-gray-400 mb-1">
                                             <span className="material-icons-round text-[16px] text-amber-400">functions</span>
-                                            <span className="text-xs font-medium uppercase tracking-wider">Medie/Apel</span>
+                                            <span className="text-xs font-medium uppercase tracking-wider">Medie / Apel Răspuns</span>
                                         </div>
                                         <span className="text-xl font-bold text-white">{formatDuration(avgDuration)}</span>
-                                        <span className="text-[10px] text-gray-500">Durată per apel</span>
+                                        <span className="text-[10px] text-gray-500">
+                                            {s.callsAnswered > 0 ? `${s.callsAnswered} apeluri conectate` : 'Niciun apel răspuns'}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
