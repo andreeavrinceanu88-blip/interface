@@ -44,6 +44,26 @@ export default function Operatori() {
         fetchData();
     }, [dateRange, selectedStore]);
 
+    const fetchAllRows = async <T,>(
+        fetchPage: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>,
+        pageSize = 1000
+    ): Promise<T[]> => {
+        const allRows: T[] = [];
+        let from = 0;
+        while (true) {
+            const { data, error } = await fetchPage(from, from + pageSize - 1);
+            if (error) {
+                console.error('Error fetching page:', error);
+                break;
+            }
+            if (!data || data.length === 0) break;
+            allRows.push(...data);
+            if (data.length < pageSize) break;
+            from += pageSize;
+        }
+        return allRows;
+    };
+
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -51,20 +71,21 @@ export default function Operatori() {
             const { data: profData, error: profErr } = await supabaseAdmin.from('profiles').select('id, full_name, avatar_url, role');
             if (profErr) throw profErr;
 
-            // 2. Fetch call logs based on date
-            let callsQuery = supabaseAdmin.from('call_logs').select('*').limit(10000);
-            if (dateRange !== 'all') {
-                const now = new Date();
-                const past = new Date();
-                if (dateRange === 'today') past.setHours(0, 0, 0, 0);
-                else if (dateRange === '7days') past.setDate(now.getDate() - 7);
-                else if (dateRange === '30days') past.setDate(now.getDate() - 30);
-                callsQuery = callsQuery.gte('created_at', past.toISOString());
-            }
-            const { data: callsData, error: callsErr } = await callsQuery;
-            if (callsErr && callsErr.code !== 'PGRST204') {
-                console.error("Calls fetch error:", callsErr);
-            }
+            // 2. Fetch call logs based on date with pagination (bypasses Supabase 1000 row limit)
+            const callsData = await fetchAllRows<CallLog>((from, to) => {
+                let callsQuery = supabaseAdmin
+                    .from('call_logs')
+                    .select('id, operator_id, order_id, duration_secs, status, caller_id, created_at');
+                if (dateRange !== 'all') {
+                    const now = new Date();
+                    const past = new Date();
+                    if (dateRange === 'today') past.setHours(0, 0, 0, 0);
+                    else if (dateRange === '7days') past.setDate(now.getDate() - 7);
+                    else if (dateRange === '30days') past.setDate(now.getDate() - 30);
+                    callsQuery = callsQuery.gte('created_at', past.toISOString());
+                }
+                return callsQuery.order('id', { ascending: false }).range(from, to);
+            });
 
             // 3. Filter call_logs by store if selectedStore !== 'all'
             let filteredCalls = callsData || [];
@@ -73,8 +94,11 @@ export default function Operatori() {
                 const uniqueOrderIds = [...new Set(callsData.map(l => l.order_id).filter(id => id && !id.startsWith('INBOUND:') && !id.startsWith('OUTBOUND:') && !id.startsWith('ERR:')))];
                 
                 const storeMap = new Map<string, string>();
-                for (let i = 0; i < uniqueOrderIds.length; i += 200) {
-                    const chunk = uniqueOrderIds.slice(i, i + 200);
+                const chunks: (string | null)[][] = [];
+                for (let i = 0; i < uniqueOrderIds.length; i += 500) {
+                    chunks.push(uniqueOrderIds.slice(i, i + 500));
+                }
+                await Promise.all(chunks.map(async chunk => {
                     const { data: ords } = await supabaseAdmin.from('orders').select('id, order_id, store_name').in('order_id', chunk);
                     ords?.forEach(o => {
                         if (o.store_name) {
@@ -82,7 +106,7 @@ export default function Operatori() {
                             storeMap.set(String(o.id), o.store_name.toLowerCase());
                         }
                     });
-                }
+                }));
 
                 filteredCalls = callsData.filter(l => {
                     let logStore: string | null = null;
@@ -96,13 +120,14 @@ export default function Operatori() {
                 });
             }
 
-            // 4. Fetch processed orders (filtered by store if selected)
-            let ordersQuery = supabaseAdmin.from('orders').select('processed_by, store_name').not('processed_by', 'is', null).limit(20000);
-            if (selectedStore !== 'all') {
-                ordersQuery = ordersQuery.ilike('store_name', selectedStore);
-            }
-            const { data: ordData, error: ordErr } = await ordersQuery;
-            if (ordErr) console.error("Orders fetch error:", ordErr);
+            // 4. Fetch processed orders with pagination (bypasses Supabase 1000 row limit)
+            const ordData = await fetchAllRows<OrderStat>((from, to) => {
+                let ordersQuery = supabaseAdmin.from('orders').select('processed_by, store_name').not('processed_by', 'is', null);
+                if (selectedStore !== 'all') {
+                    ordersQuery = ordersQuery.ilike('store_name', selectedStore);
+                }
+                return ordersQuery.range(from, to);
+            });
 
             setProfiles(profData || []);
             setCallLogs(filteredCalls);
