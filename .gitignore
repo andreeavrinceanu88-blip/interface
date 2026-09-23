@@ -29,4 +29,5 @@ dist-ssr
 !.env.example
 
 # Test files with secrets
-test.cjs
+test.cjstest-*.mjs
+test-*.cjs

@@ -635,8 +635,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             outboundCleanupRef.current = null;
         }
 
-        // 1. Ensure Inbound Telnyx Client is always active & listening for SIP URI calls
+        // 1. Inbound Telnyx Client only runs if Telnyx is the explicitly selected provider
         const initInbound = async () => {
+            if (provider !== 'telnyx') return;
             try {
                 const telnyx = await getInboundClient();
                 if (cancelled) return;
@@ -645,9 +646,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 if (!inboundCleanupRef.current) {
                     const onInboundReady = () => console.log('[SIP] Inbound Telnyx WebRTC ready');
                     const onInboundError = (e: any) => console.warn('[SIP] Inbound Telnyx WebRTC error:', e);
-                    // Use ref to avoid stale closures — always dispatches to the latest handleNotification
                     const onInboundNotification = (n: any) => {
-                        console.log('[SIP][INBOUND RAW]', JSON.stringify(n).slice(0, 400));
+                        console.log('[SIP][TELNYX RAW]', JSON.stringify(n).slice(0, 400));
                         handleNotificationRef.current?.(n, 'telnyx');
                     };
 
@@ -666,9 +666,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             }
         };
 
-        initInbound();
+        if (provider === 'telnyx') {
+            initInbound();
+        }
 
-        // 2. Initialize Outbound client according to active provider
+        // 2. Initialize active provider client (DIDLogic handles both inbound and outbound)
         const initOutbound = async () => {
             try {
                 const client = await getSipClient(provider);
@@ -680,12 +682,12 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 const onReady = () => setIsReady(true);
                 const onError = () => setIsReady(false);
 
-                let onNotification: any = null;
-                if (provider !== 'telnyx') {
-                    const _provider = provider; // capture for closure
-                    onNotification = (n: any) => handleNotificationRef.current?.(n, _provider);
-                    client.on('telnyx.notification', onNotification);
-                }
+                const _provider = provider;
+                const onNotification = (n: any) => {
+                    console.log(`[SIP][${_provider} RAW NOTIFICATION]`, JSON.stringify(n).slice(0, 400));
+                    handleNotificationRef.current?.(n, _provider);
+                };
+                client.on('telnyx.notification', onNotification);
 
                 client.on('telnyx.ready', onReady);
                 client.on('telnyx.error', onError);
