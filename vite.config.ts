@@ -175,8 +175,7 @@ export default defineConfig(({ mode }) => {
       },
       build: {
         rollupOptions: {
-          // Externalize @telnyx/webrtc — it will load from the ESM import map at runtime
-          external: ['@telnyx/webrtc'],
+          // Bundle @telnyx/webrtc (v2.27.3) directly — do NOT use old v2.21.2 from esm.sh
         },
       },
       optimizeDeps: {
