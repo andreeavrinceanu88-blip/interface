@@ -32,10 +32,20 @@ export const getSipClient = async (providerOverride?: SipProviderType): Promise<
     }
 };
 
+export const getInboundClient = async (): Promise<any> => {
+    // Telnyx WebRTC always receives inbound calls routed from DIDLogic DIDs to sip:whimlets@sip.telnyx.com
+    const { getTelnyxClient } = await import('./telnyxClient');
+    return getTelnyxClient();
+};
+
 export const resetSipClients = async () => {
     try {
         const { resetDidlogicClient } = await import('./didlogicClient');
         resetDidlogicClient();
+    } catch (e) {}
+    try {
+        const { resetTelnyxClient } = await import('./telnyxClient');
+        resetTelnyxClient();
     } catch (e) {}
 };
 

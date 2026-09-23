@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { useAuth } from './AuthContext';
-import { getSipClient, getSipProvider, setSipProvider, normalizePhoneForProvider, SipProviderType } from '../lib/sipClient';
+import { getSipClient, getInboundClient, getSipProvider, setSipProvider, normalizePhoneForProvider, SipProviderType } from '../lib/sipClient';
 
 export type CallState = 'idle' | 'calling' | 'active' | 'ringing' | 'rejected';
 
@@ -74,6 +74,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const clientRef = useRef<any>(null);
+    const inboundClientRef = useRef<any>(null);
+    const outboundCleanupRef = useRef<(() => void) | null>(null);
+    const inboundCleanupRef = useRef<(() => void) | null>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
     const incomingRingtoneRef = useRef<HTMLAudioElement | null>(null);
     const ringbackOscRef = useRef<any>(null);
@@ -264,7 +267,12 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
     const lookupCaller = async (phoneNumber: string, callId: string) => {
         if (!phoneNumber) return;
-        const last7 = phoneNumber.slice(-7);
+        const cleanDigits = phoneNumber.replace(/\D/g, '');
+        const last7 = cleanDigits.slice(-7);
+        if (!last7) {
+            setCallerInfos(prev => ({ ...prev, [callId]: { number: phoneNumber } }));
+            return;
+        }
         try {
             const { data, error } = await supabaseAdmin
                 .from('orders')
@@ -301,340 +309,396 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    const tryAttachAudio = (targetCall?: any) => {
+        const c = targetCall || activeCallRef.current;
+        if (!c || !audioRef.current) return;
+
+        const stream = c.remoteStream 
+            || c.options?.remoteStream 
+            || (c.voiceCall?.session?.connection?.getRemoteStreams?.()?.[0]);
+
+        if (stream) {
+            const tracks = stream.getAudioTracks ? stream.getAudioTracks() : [];
+            if (tracks.length > 0 && audioRef.current.srcObject !== stream) {
+                console.log('[SIP] ▶ Attaching remote audio — tracks:', tracks.length, tracks.map((t: any) => `${t.label} (${t.readyState})`));
+                audioRef.current.srcObject = stream;
+                audioRef.current.volume = 1.0;
+                audioRef.current.play().catch(e => console.error('[SIP] Audio play error:', e));
+            }
+        }
+    };
+
+    const handleNotification = (notification: any, source: string) => {
+        if (notification.type === 'callUpdate' && notification.call) {
+            const call = notification.call;
+            const eventMsg = `[${source}] Stare: ${call.state} | Dir: ${call.direction || 'N/A'}`;
+            addLog(eventMsg);
+            console.log(`[SIP][${source}] callUpdate state:`, call.state, '| direction:', call.direction, '| remoteStream:', !!call.remoteStream, '| callerNumber:', call.options?.callerNumber, '| remoteCallerNumber:', call.options?.remoteCallerNumber, '| destinationNumber:', call.options?.destinationNumber);
+
+            const getCallId = (c: any) => c?.id || c?.options?.callSessionId || c?.callSessionId || 'unknown_call';
+            const callId = getCallId(call);
+
+            const getCallerNumber = (c: any) => {
+                const raw = c?.options?.remoteCallerNumber || 
+                            c?.options?.callerNumber || 
+                            c?.remoteCallerNumber || 
+                            c?.callerNumber || 
+                            c?.options?.callerName || 
+                            '';
+                return String(raw).replace(/^sip:/i, '').split('@')[0];
+            };
+
+            const getDestinationNumber = (c: any) => {
+                const raw = c?.options?.destinationNumber || 
+                            c?.options?.calleeNumber || 
+                            c?.destinationNumber || 
+                            '';
+                return String(raw).replace(/^sip:/i, '').split('@')[0];
+            };
+
+            const callerNumber = getCallerNumber(call);
+            const destinationNumber = getDestinationNumber(call);
+
+            if (!call.options) call.options = {};
+            if (!call.options.remoteCallerNumber && callerNumber) {
+                call.options.remoteCallerNumber = callerNumber;
+            }
+
+            if (call.state === 'ringing') {
+                if (call.direction !== 'outbound') {
+                    // Inbound call
+                    console.log(`[SIP][${source}] 📞 Inbound call detected from:`, callerNumber, '| Call ID:', callId);
+                    call._sourceProvider = source;
+
+                    setIncomingCalls(prev => {
+                        if (prev.find(c => getCallId(c) === callId)) return prev;
+                        const next = [...prev, call];
+                        incomingCallsRef.current = next;
+                        return next;
+                    });
+
+                    needsCallbackRef.current = false;
+                    lookupCaller(callerNumber, callId);
+
+                    setCallState(prev => {
+                        if (prev !== 'active') {
+                            playIncomingRingtone();
+                        } else {
+                            console.log(`[SIP][${source}] Suppressing ringtone — already in active call`);
+                        }
+                        return prev;
+                    });
+                } else {
+                    setCallState('calling');
+                    setActiveCall(call);
+                    activeCallRef.current = call;
+                    playRingback();
+                }
+                tryAttachAudio(call);
+            }
+            else if (call.state === 'active') {
+                stopRingback();
+                stopIncomingRingtone();
+                setCallState('active');
+                setActiveCall(call);
+                activeCallRef.current = call;
+
+                setIncomingCalls(prev => {
+                    const next = prev.filter(c => getCallId(c) !== callId);
+                    incomingCallsRef.current = next;
+                    return next;
+                });
+
+                if (callStartTimeRef.current === null) {
+                    callStartTimeRef.current = Date.now();
+                }
+
+                tryAttachAudio(call);
+
+                try {
+                    const pc = call.peer?.instance || call.peer || call.options?.peer || call.peerConnection;
+                    if (pc && typeof pc.addEventListener === 'function') {
+                        const onTrack = (event: RTCTrackEvent) => {
+                            console.log(`[SIP][${source}] ontrack fired — streams:`, event.streams.length);
+                            if (event.streams[0] && audioRef.current) {
+                                audioRef.current.srcObject = event.streams[0];
+                                audioRef.current.volume = 1.0;
+                                audioRef.current.play().catch(e => console.error('[SIP] Audio play error:', e));
+                            }
+                        };
+                        pc.addEventListener('track', onTrack);
+                    }
+                } catch (e) {}
+            }
+            else if (call.state === 'answering' || call.state === 'early' || call.state === 'trying') {
+                console.log(`[SIP][${source}] Intermediate state:`, call.state);
+                if (call.state === 'early' && call.remoteStream) {
+                    stopRingback();
+                }
+                tryAttachAudio(call);
+            }
+            else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
+                const isEndingIncoming = incomingCallsRef.current.some(c => getCallId(c) === callId);
+
+                setIncomingCalls(prev => {
+                    const remaining = prev.filter(c => getCallId(c) !== callId);
+                    incomingCallsRef.current = remaining;
+                    if (remaining.length === 0) {
+                        stopIncomingRingtone();
+                    }
+                    return remaining;
+                });
+
+                const isEndingActive = activeCallRef.current && (
+                    (callId && callId === getCallId(activeCallRef.current)) || call === activeCallRef.current
+                );
+
+                stopRingback();
+
+                const sipCode = call.cause || call.sipCode || call.options?.sipCode;
+                const sipReason = call.causeMessage || call.sipReason || call.options?.sipReason;
+                const rawReason = sipReason || sipCode || call.hangupCause || '';
+
+                console.log(`[SIP][${source}] Call ended — raw:`, rawReason, '| sipCode:', sipCode, '| isEndingIncoming:', isEndingIncoming, '| isEndingActive:', isEndingActive);
+
+                const reasonMap: Record<string, string> = {
+                    'NORMAL_CLEARING': 'Apel încheiat normal',
+                    'USER_BUSY': 'Ocupat',
+                    'NO_ANSWER': 'Nu răspunde',
+                    'NO_USER_RESPONSE': 'Nu răspunde',
+                    'CALL_REJECTED': 'Apel respins',
+                    'ORIGINATOR_CANCEL': 'Apel anulat',
+                    'NORMAL_UNSPECIFIED': 'Apel încheiat',
+                    'RECOVERY_ON_TIMER_EXPIRE': 'Timeout - Nu răspunde',
+                    'SUBSCRIBER_ABSENT': 'Telefon închis / indisponibil',
+                    'UNALLOCATED_NUMBER': '⚠️ Număr inexistent',
+                    'INVALID_NUMBER_FORMAT': '⚠️ Număr invalid',
+                    'NUMBER_CHANGED': '⚠️ Număr schimbat',
+                    'INVALID_GATEWAY': '⚠️ Număr invalid',
+                    'DESTINATION_OUT_OF_ORDER': '⚠️ Număr indisponibil / invalid',
+                    'EXCHANGE_ROUTING_ERROR': '⚠️ Număr invalid - eroare rutare',
+                    'NO_ROUTE_DESTINATION': '⚠️ Număr inexistent - fără rută',
+                    'MANDATORY_IE_MISSING': '⚠️ Număr invalid',
+                    'NETWORK_OUT_OF_ORDER': 'Rețea indisponibilă',
+                    '486': 'Ocupat',
+                    '480': 'Nu răspunde / Indisponibil',
+                    '487': 'Apel anulat',
+                    '603': 'Apel respins',
+                    '404': '⚠️ Număr inexistent',
+                    '484': '⚠️ Număr invalid - format incorect',
+                    '485': '⚠️ Număr invalid - ambiguu',
+                    '502': '⚠️ Număr invalid - gateway',
+                    '604': '⚠️ Număr inexistent',
+                    '408': 'Timeout - Nu răspunde',
+                    '503': 'Serviciu indisponibil',
+                    '410': '⚠️ Număr dezactivat',
+                };
+                const friendlyReason = reasonMap[String(rawReason).toUpperCase()] || reasonMap[String(sipCode)] || (rawReason ? String(rawReason) : null);
+
+                const wasActive = callStartTimeRef.current !== null;
+                const duration = wasActive ? Math.round((Date.now() - callStartTimeRef.current!) / 1000) : 0;
+                const callStatus = wasActive ? 'completed' : 'rejected';
+                const finalStatus = call.direction === 'inbound' && !wasActive ? 'missed' : callStatus;
+
+                const logOrderId = call.direction === 'inbound'
+                    ? `INBOUND:${callerNumber || 'necunoscut'}`
+                    : activeOrderIdRef.current;
+                const opId = profileRef.current?.id || null;
+
+                const isErrorCall = callStatus === 'rejected' && rawReason && rawReason !== 'ORIGINATOR_CANCEL' && rawReason !== 'NORMAL_CLEARING';
+                const fallbackOrderId = isErrorCall 
+                    ? `ERR:${destinationNumber || callerNumber || 'unknown'}`
+                    : null;
+                const manualDialOrderId = !logOrderId && call.direction !== 'inbound'
+                    ? `OUTBOUND:${destinationNumber || 'unknown'}`
+                    : null;
+                const effectiveOrderId = logOrderId || fallbackOrderId || manualDialOrderId;
+
+                if (opId && callId && effectiveOrderId && !loggedCallsRef.current.has(callId)) {
+                    loggedCallsRef.current.add(callId);
+
+                    const logPayload: any = {
+                        operator_id: opId,
+                        order_id: effectiveOrderId,
+                        duration_secs: duration,
+                        status: finalStatus,
+                        error_code: rawReason || null,
+                        error_message: friendlyReason || null,
+                        destination_number: destinationNumber || callerNumber || null,
+                        caller_id: call.options?.callerNumber || null,
+                        call_direction: call.direction || (isEndingIncoming ? 'inbound' : 'outbound'),
+                        needs_callback: needsCallbackRef.current,
+                        raw_sip_data: {
+                            sipCode,
+                            sipReason,
+                            cause: call.cause,
+                            causeMessage: call.causeMessage,
+                            hangupCause: call.hangupCause,
+                            callState: call.state,
+                            callSessionId: callId,
+                            provider: source,
+                            timestamp: new Date().toISOString()
+                        }
+                    };
+
+                    supabaseAdmin.from('call_logs').insert(logPayload).then(({error}) => {
+                        if (error) {
+                            console.warn('[SIP] Full log failed, retrying basic fields...', error);
+                            supabaseAdmin.from('call_logs').insert({
+                                operator_id: opId,
+                                order_id: effectiveOrderId,
+                                duration_secs: duration,
+                                status: finalStatus,
+                                needs_callback: needsCallbackRef.current
+                            }).then(({error: e2}) => {
+                                if (e2) console.error('[SIP] Error saving basic call log:', e2);
+                                else console.log('[SIP] ✅ Basic call log saved');
+                            });
+                        } else {
+                            console.log(`[SIP] ✅ Call log saved: status=${finalStatus}, duration=${duration}s, source=${source}`);
+                        }
+                    });
+
+                    if (!wasActive && activeOrderIdRef.current) {
+                        supabaseAdmin.from('orders').update({ processed_by: opId })
+                            .or(`id.eq.${activeOrderIdRef.current},order_id.eq.${activeOrderIdRef.current}`)
+                            .then(({error}) => {
+                                if (error) console.error('[SIP] Error updating processed_by:', error);
+                            });
+                    }
+                }
+
+                if (isEndingIncoming && !isEndingActive && activeCallRef.current) {
+                    console.log(`[SIP][${source}] Secondary incoming call ended — keeping active call alive`);
+                } else {
+                    if (audioRef.current) audioRef.current.srcObject = null;
+
+                    let finalReason = friendlyReason;
+                    if (finalReason !== 'Apel încheiat normal' && finalReason !== 'Apel încheiat' && finalReason !== 'Apel anulat') {
+                        if (sipCode) finalReason = `${finalReason || 'Eroare'} (SIP ${sipCode})`;
+                        else if (rawReason) finalReason = `${finalReason || 'Eroare'} (${rawReason})`;
+                        setLastHangupReason(finalReason || 'Apel respins / Nu a răspuns');
+                        addLog(`Eroare: ${finalReason}`);
+                    } else {
+                        setLastHangupReason(null);
+                        addLog('Apel încheiat.');
+                    }
+
+                    callStartTimeRef.current = null;
+                    activeOrderIdRef.current = null;
+
+                    setCallState(prev => {
+                        if (prev === 'calling' || prev === 'ringing') {
+                            playRejectedBeeps();
+                            setTimeout(() => { setCallState('idle'); setLastHangupReason(null); }, 8000);
+                            return 'rejected';
+                        }
+                        if (prev === 'rejected') return 'rejected';
+                        return 'idle';
+                    });
+
+                    callCooldownUntilRef.current = Date.now() + 3000;
+                    setActiveCall(null);
+                    if (call.state === 'destroy' || call.state === 'purge') {
+                        activeCallRef.current = null;
+                    }
+                    setIsMuted(false);
+                }
+            }
+        }
+    };
+
+    // Clean up inbound listeners on unmount
+    useEffect(() => {
+        return () => {
+            if (inboundCleanupRef.current) {
+                inboundCleanupRef.current();
+                inboundCleanupRef.current = null;
+            }
+        };
+    }, []);
+
+    // Main SIP Provider Lifecycle Effect
     useEffect(() => {
         let cancelled = false;
         setIsReady(false);
 
-        if (clientRef.current && (clientRef.current as any)._cleanupListeners) {
-            (clientRef.current as any)._cleanupListeners();
+        // Clean up previous outbound client listeners
+        if (outboundCleanupRef.current) {
+            outboundCleanupRef.current();
+            outboundCleanupRef.current = null;
         }
 
-        getSipClient(provider).then(client => {
-            if (cancelled) return;
-            clientRef.current = client;
+        // 1. Ensure Inbound Telnyx Client is always active & listening for SIP URI calls
+        const initInbound = async () => {
+            try {
+                const telnyx = await getInboundClient();
+                if (cancelled) return;
+                inboundClientRef.current = telnyx;
 
-            if (client.connected) setIsReady(true);
+                if (!inboundCleanupRef.current) {
+                    const onInboundReady = () => console.log('[SIP] Inbound Telnyx WebRTC ready');
+                    const onInboundError = (e: any) => console.warn('[SIP] Inbound Telnyx WebRTC error:', e);
+                    const onInboundNotification = (n: any) => handleNotification(n, 'telnyx');
+
+                    telnyx.on('telnyx.ready', onInboundReady);
+                    telnyx.on('telnyx.error', onInboundError);
+                    telnyx.on('telnyx.notification', onInboundNotification);
+
+                    inboundCleanupRef.current = () => {
+                        telnyx.off('telnyx.ready', onInboundReady);
+                        telnyx.off('telnyx.error', onInboundError);
+                        telnyx.off('telnyx.notification', onInboundNotification);
+                    };
+                }
+            } catch (err) {
+                console.error('[SIP] Failed to initialize inbound Telnyx client:', err);
+            }
+        };
+
+        initInbound();
+
+        // 2. Initialize Outbound client according to active provider
+        const initOutbound = async () => {
+            try {
+                const client = await getSipClient(provider);
+                if (cancelled) return;
+                clientRef.current = client;
+
+                if (client.connected) setIsReady(true);
 
                 const onReady = () => setIsReady(true);
                 const onError = () => setIsReady(false);
-                const onNotification = (notification: any) => {
-                    if (notification.type === 'callUpdate' && notification.call) {
-                        const call = notification.call;
-                        const eventMsg = `Stare: ${call.state} | Dir: ${call.direction || 'N/A'}`;
-                        addLog(eventMsg);
-                        console.log('[Telnyx] callUpdate state:', call.state, '| direction:', call.direction, '| remoteStream:', !!call.remoteStream, '| remoteCallerNumber:', call.options?.remoteCallerNumber, '| callerNumber:', call.options?.callerNumber, '| destinationNumber:', call.options?.destinationNumber);
 
-                        // Helper: try to attach remote audio whenever a stream is available
-                        const tryAttachAudio = () => {
-                            if (audioRef.current && call.remoteStream) {
-                                const tracks = call.remoteStream.getAudioTracks();
-                                if (tracks.length > 0 && audioRef.current.srcObject !== call.remoteStream) {
-                                    console.log('[Telnyx] ▶ Attaching remote audio — tracks:', tracks.length, tracks.map((t: any) => `${t.label} (${t.readyState})`));
-                                    audioRef.current.srcObject = call.remoteStream;
-                                    audioRef.current.volume = 1.0;
-                                    audioRef.current.play().catch(e => console.error('[Telnyx] Audio play error:', e));
-                                }
-                            }
-                        };
-
-                        if (call.state === 'ringing') {
-                            if (call.direction !== 'outbound') {
-                                // Inbound call (direction is 'inbound' or undefined)
-                                const callId = call.id || call.options?.callSessionId;
-                                console.log('[Telnyx] 📞 Inbound call detected from:', call.options?.remoteCallerNumber);
-                                setIncomingCalls(prev => {
-                                    if (prev.find(c => (c.id || c.options?.callSessionId) === callId)) return prev;
-                                    const next = [...prev, call];
-                                    incomingCallsRef.current = next;
-                                    return next;
-                                });
-                                needsCallbackRef.current = false; // Reset on new inbound call
-                                lookupCaller(call.options.remoteCallerNumber, callId);
-                                // Only play ringtone if NOT already in an active call
-                                setCallState(prev => {
-                                    if (prev !== 'active') {
-                                        playIncomingRingtone();
-                                    } else {
-                                        console.log('[Telnyx] Suppressing ringtone — already in active call');
-                                    }
-                                    return prev;
-                                });
-                            } else {
-                                setCallState('calling');
-                                setActiveCall(call);
-                                activeCallRef.current = call;
-                                playRingback();
-                            }
-                            // Try attaching audio early (some calls skip 'active')
-                            tryAttachAudio();
-                        }
-                        else if (call.state === 'active') {
-                            stopRingback();
-                            stopIncomingRingtone();
-                            setCallState('active');
-                            setActiveCall(call);
-                            activeCallRef.current = call;
-                            const callId = call.id || call.options?.callSessionId;
-                            setIncomingCalls(prev => {
-                                const next = prev.filter(c => (c.id || c.options?.callSessionId) !== callId);
-                                incomingCallsRef.current = next;
-                                return next;
-                            });
-                            
-                            // Set start time for duration tracking
-                            if (callStartTimeRef.current === null) {
-                                callStartTimeRef.current = Date.now();
-                            }
-                            
-                            // Attach remote audio stream
-                            tryAttachAudio();
-
-                            // Fallback: listen for tracks on the peer connection
-                            try {
-                                const pc = call.peer || call.options?.peer || call.peerConnection;
-                                if (pc && pc.ontrack === null) {
-                                    pc.ontrack = (event: RTCTrackEvent) => {
-                                        console.log('[Telnyx] ontrack fired — streams:', event.streams.length);
-                                        if (event.streams[0] && audioRef.current) {
-                                            audioRef.current.srcObject = event.streams[0];
-                                            audioRef.current.volume = 1.0;
-                                            audioRef.current.play().catch(e => console.error('[Telnyx] Audio play error:', e));
-                                        }
-                                    };
-                                }
-                            } catch (e) { /* peer not accessible */ }
-                        }
-                        else if (call.state === 'answering' || call.state === 'early' || call.state === 'trying') {
-                            console.log('[Telnyx] Intermediate state:', call.state);
-                            // When 'early' media arrives (carrier ringback/announcement), stop our synthetic
-                            // ringback so the user can hear the real carrier audio (busy tone, announcement, etc.)
-                            // BUT do NOT mark as 'active' — early ≠ answered. Timer must not start.
-                            if (call.state === 'early' && call.remoteStream) {
-                                stopRingback();
-                                // Relay carrier audio (real ringback / announcements) — do NOT set 'active'
-                                // callState stays 'calling' until Telnyx fires actual 'active' state
-                            }
-                            tryAttachAudio();
-                        } 
-                        else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
-                            const getCallId = (c: any) => c?.options?.callSessionId || c?.callSessionId || c?.id;
-                            const callId = getCallId(call);
-                            
-                            const isEndingIncoming = incomingCallsRef.current.some(c => getCallId(c) === callId);
-                            
-                            setIncomingCalls(prev => {
-                                const remaining = prev.filter(c => getCallId(c) !== callId);
-                                incomingCallsRef.current = remaining;
-                                if (remaining.length === 0) {
-                                    stopIncomingRingtone();
-                                }
-                                return remaining;
-                            });
-                            
-                            const isEndingActive = activeCallRef.current && (
-                                (callId && callId === getCallId(activeCallRef.current)) || call === activeCallRef.current
-                            );
-                            
-                            stopRingback();
-                            
-                            // Extract SIP hangup reason
-                            const sipCode = call.cause || call.sipCode || call.options?.sipCode;
-                            const sipReason = call.causeMessage || call.sipReason || call.options?.sipReason;
-                            const rawReason = sipReason || sipCode || call.hangupCause || '';
-                            
-                            console.log('[Telnyx] Call ended — raw:', rawReason, '| sipCode:', sipCode, '| sipReason:', sipReason, '| cause:', call.cause, '| causeMessage:', call.causeMessage, '| hangupCause:', call.hangupCause, '| isEndingIncoming:', isEndingIncoming, '| isEndingActive:', isEndingActive);
-                            
-                            // Map common SIP codes/reasons to user-friendly Romanian text
-                            const reasonMap: Record<string, string> = {
-                                'NORMAL_CLEARING': 'Apel încheiat normal',
-                                'USER_BUSY': 'Ocupat',
-                                'NO_ANSWER': 'Nu răspunde',
-                                'NO_USER_RESPONSE': 'Nu răspunde',
-                                'CALL_REJECTED': 'Apel respins',
-                                'ORIGINATOR_CANCEL': 'Apel anulat',
-                                'NORMAL_UNSPECIFIED': 'Apel încheiat',
-                                'RECOVERY_ON_TIMER_EXPIRE': 'Timeout - Nu răspunde',
-                                'SUBSCRIBER_ABSENT': 'Telefon închis / indisponibil',
-                                'UNALLOCATED_NUMBER': '⚠️ Număr inexistent',
-                                'INVALID_NUMBER_FORMAT': '⚠️ Număr invalid',
-                                'NUMBER_CHANGED': '⚠️ Număr schimbat',
-                                'INVALID_GATEWAY': '⚠️ Număr invalid',
-                                'DESTINATION_OUT_OF_ORDER': '⚠️ Număr indisponibil / invalid',
-                                'EXCHANGE_ROUTING_ERROR': '⚠️ Număr invalid - eroare rutare',
-                                'NO_ROUTE_DESTINATION': '⚠️ Număr inexistent - fără rută',
-                                'MANDATORY_IE_MISSING': '⚠️ Număr invalid',
-                                'NETWORK_OUT_OF_ORDER': 'Rețea indisponibilă',
-                                '486': 'Ocupat',
-                                '480': 'Nu răspunde / Indisponibil',
-                                '487': 'Apel anulat',
-                                '603': 'Apel respins',
-                                '404': '⚠️ Număr inexistent',
-                                '484': '⚠️ Număr invalid - format incorect',
-                                '485': '⚠️ Număr invalid - ambiguu',
-                                '502': '⚠️ Număr invalid - gateway',
-                                '604': '⚠️ Număr inexistent',
-                                '408': 'Timeout - Nu răspunde',
-                                '503': 'Serviciu indisponibil',
-                                '410': '⚠️ Număr dezactivat',
-                            };
-                            const friendlyReason = reasonMap[String(rawReason).toUpperCase()] || reasonMap[String(sipCode)] || (rawReason ? String(rawReason) : null);
-                            
-                            const wasActive = callStartTimeRef.current !== null;
-                            const wasAttempted = activeOrderIdRef.current !== null;
-                            const duration = wasActive ? Math.round((Date.now() - callStartTimeRef.current!) / 1000) : 0;
-                            const callStatus = wasActive ? 'completed' : 'rejected';
-                            
-                            // Determine order ID to log: use existing active order, or prefix for inbound calls
-                            const logOrderId = call.direction === 'inbound' 
-                                ? `INBOUND:${call.options?.remoteCallerNumber || 'necunoscut'}`
-                                : activeOrderIdRef.current;
-                            const opId = profileRef.current?.id || null;
-                            
-                            // Calculate specific status for inbound
-                            const finalStatus = call.direction === 'inbound' && !wasActive ? 'missed' : callStatus;
-
-                            // Save call log for ALL calls (inbound & outbound)
-                            const callSessionId = call.options?.callSessionId || call.callSessionId || call.id;
-                            const isErrorCall = callStatus === 'rejected' && rawReason && rawReason !== 'ORIGINATOR_CANCEL' && rawReason !== 'NORMAL_CLEARING';
-                            
-                            // For error calls, always log even without an order_id (use phone number)
-                            const fallbackOrderId = isErrorCall 
-                                ? `ERR:${call.options?.destinationNumber || call.options?.remoteCallerNumber || 'unknown'}`
-                                : null;
-                            const manualDialOrderId = !logOrderId && call.direction !== 'inbound' 
-                                ? `OUTBOUND:${call.options?.destinationNumber || 'unknown'}` 
-                                : null;
-                            const effectiveOrderId = logOrderId || fallbackOrderId || manualDialOrderId;
-                            
-                            if (opId && callSessionId && effectiveOrderId && !loggedCallsRef.current.has(callSessionId)) {
-                                loggedCallsRef.current.add(callSessionId);
-                                
-                                const logPayload: any = {
-                                    operator_id: opId,
-                                    order_id: effectiveOrderId,
-                                    duration_secs: duration,
-                                    status: finalStatus,
-                                    // New columns (safe to include — if columns don't exist yet they'll be ignored)
-                                    error_code: rawReason || null,
-                                    error_message: friendlyReason || null,
-                                    destination_number: call.options?.destinationNumber || call.options?.remoteCallerNumber || null,
-                                    caller_id: call.options?.callerNumber || null,
-                                    call_direction: call.direction || 'outbound',
-                                    needs_callback: needsCallbackRef.current,
-                                    raw_sip_data: {
-                                        sipCode,
-                                        sipReason,
-                                        cause: call.cause,
-                                        causeMessage: call.causeMessage,
-                                        hangupCause: call.hangupCause,
-                                        callState: call.state,
-                                        callSessionId,
-                                        provider: provider,
-                                        timestamp: new Date().toISOString()
-                                    }
-                                };
-                                
-                                supabaseAdmin.from('call_logs').insert(logPayload).then(({error}) => {
-                                    if (error) {
-                                        // Columns don't exist yet — retry with just the basic fields
-                                        console.warn('[Telnyx] Full log failed (', error.code, error.message, '), retrying with basic fields...');
-                                        supabaseAdmin.from('call_logs').insert({
-                                            operator_id: opId,
-                                            order_id: effectiveOrderId,
-                                            duration_secs: duration,
-                                            status: finalStatus,
-                                            needs_callback: needsCallbackRef.current
-                                        }).then(({error: e2}) => {
-                                            if (e2) console.error('[Telnyx] Error saving basic call log:', e2);
-                                            else console.log(`[Telnyx] ✅ Basic call log saved (migration pending)`);
-                                        });
-                                    } else {
-                                        console.log(`[Telnyx] ✅ Call log saved: status=${finalStatus}, duration=${duration}s, error=${rawReason || 'none'}`);
-                                    }
-                                });
-                                
-                                // Also mark processed_by on the order (only for outbound calls where we have a real order ID)
-                                if (!wasActive && activeOrderIdRef.current) {
-                                    supabaseAdmin.from('orders').update({ processed_by: opId })
-                                        .or(`id.eq.${activeOrderIdRef.current},order_id.eq.${activeOrderIdRef.current}`)
-                                        .then(({error}) => {
-                                            if (error) console.error('[Telnyx] Error updating processed_by:', error);
-                                            else console.log('[Telnyx] processed_by set for unanswered call');
-                                        });
-                                }
-                            }
-
-                            // If the ending call is just the incoming (secondary) call while we have an active call, 
-                            // only clean up the incoming call — DON'T touch the active call
-                            if (isEndingIncoming && !isEndingActive && activeCallRef.current) {
-                                console.log('[Telnyx] Secondary incoming call ended — keeping active call alive');
-                                // Handled by setIncomingCalls above
-                            } else {
-                                // This is the active call ending (or the only call ending)
-                                if (audioRef.current) audioRef.current.srcObject = null;
-                                
-                                // Set hangup reason for UI display — show all reasons except normal endings
-                                let finalReason = friendlyReason;
-                                if (finalReason !== 'Apel încheiat normal' && finalReason !== 'Apel încheiat' && finalReason !== 'Apel anulat') {
-                                    if (sipCode) finalReason = `${finalReason || 'Eroare'} (SIP ${sipCode})`;
-                                    else if (rawReason) finalReason = `${finalReason || 'Eroare'} (${rawReason})`;
-                                    setLastHangupReason(finalReason || 'Apel respins / Nu a răspuns');
-                                    addLog(`Eroare: ${finalReason}`);
-                                } else {
-                                    setLastHangupReason(null);
-                                    addLog('Apel încheiat.');
-                                }
-                                
-                                // Reset refs
-                                callStartTimeRef.current = null;
-                                activeOrderIdRef.current = null;
-
-                                setCallState(prev => {
-                                    if (prev === 'calling' || prev === 'ringing') {
-                                        playRejectedBeeps();
-                                        setTimeout(() => { setCallState('idle'); setLastHangupReason(null); }, 8000);
-                                        return 'rejected';
-                                    }
-                                    if (prev === 'rejected') return 'rejected';
-                                    return 'idle';
-                                });
-                                
-                                // Set a 3-second cooldown after call ends to prevent accidental re-dials
-                                callCooldownUntilRef.current = Date.now() + 3000;
-                                
-                                setActiveCall(null);
-                                // Only clear the ref on 'destroy', not on 'hangup',
-                                // so the guard in makeCall keeps blocking until fully torn down
-                                if (call.state === 'destroy' || call.state === 'purge') {
-                                    activeCallRef.current = null;
-                                }
-                                setIsMuted(false);
-                                
-                                // Incoming calls are now managed separately via setIncomingCalls filter
-                            }
-                        }
-                    }
-                };
+                let onNotification: any = null;
+                if (provider !== 'telnyx') {
+                    onNotification = (n: any) => handleNotification(n, provider);
+                    client.on('telnyx.notification', onNotification);
+                }
 
                 client.on('telnyx.ready', onReady);
                 client.on('telnyx.error', onError);
-                client.on('telnyx.notification', onNotification);
 
-                // We attach a dynamic cleanup function to clientRef so we can clean up these specific listeners on unmount
-                (clientRef.current as any)._cleanupListeners = () => {
+                outboundCleanupRef.current = () => {
                     client.off('telnyx.ready', onReady);
                     client.off('telnyx.error', onError);
-                    client.off('telnyx.notification', onNotification);
+                    if (onNotification) {
+                        client.off('telnyx.notification', onNotification);
+                    }
                 };
-            }).catch(err => {
-                console.error(`[SIP] (${provider}) Init error:`, err);
+            } catch (err) {
+                console.error(`[SIP] (${provider}) Outbound init error:`, err);
                 if (!cancelled) setIsReady(false);
-            });
+            }
+        };
+
+        initOutbound();
 
         return () => {
             cancelled = true;
-            if (clientRef.current && (clientRef.current as any)._cleanupListeners) {
-                (clientRef.current as any)._cleanupListeners();
+            if (outboundCleanupRef.current) {
+                outboundCleanupRef.current();
+                outboundCleanupRef.current = null;
             }
         };
     }, [provider]);
@@ -687,7 +751,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const hangup = () => {
-        if (activeCall) activeCall.hangup();
+        if (activeCallRef.current) {
+            try { activeCallRef.current.hangup(); } catch (e) {}
+        } else if (activeCall) {
+            try { activeCall.hangup(); } catch (e) {}
+        }
         // Do not hangup ringing calls automatically to avoid dropping queued calls!
         setCallState('idle');
     };
@@ -699,7 +767,12 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 : prev[0];
             if (call) {
                 stopIncomingRingtone();
-                call.answer();
+                try {
+                    console.log('[SIP] Answering call:', call.id || call.options?.callSessionId);
+                    call.answer();
+                } catch (e) {
+                    console.error('[SIP] Answer error:', e);
+                }
             }
             return prev;
         });
@@ -711,15 +784,19 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 ? prev.find(c => (c.id || c.options?.callSessionId) === callId) 
                 : prev[0];
             if (call) {
-                if (typeof call.reject === 'function') {
-                    call.reject();
-                } else {
-                    call.hangup();
+                try {
+                    if (typeof call.reject === 'function') {
+                        call.reject();
+                    } else {
+                        call.hangup();
+                    }
+                } catch (e) {
+                    console.error('[SIP] Reject error:', e);
                 }
             }
-            // Let the destroy event handle removing it from the array
-            return prev;
+            return prev.filter(c => (c.id || c.options?.callSessionId) !== callId);
         });
+        stopIncomingRingtone();
     };
 
     const markForCallback = () => {

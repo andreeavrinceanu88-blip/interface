@@ -32,7 +32,7 @@ export default function IncomingCallBanner() {
                         <div className="flex-1">
                             <p className="text-sm text-emerald-400 font-medium uppercase tracking-wider mb-1">Apel Activ (Inbound)</p>
                             <p className="text-xl text-white font-light truncate">
-                                {activeCallerInfo?.name || activeCall.options.remoteCallerNumber}
+                                {activeCallerInfo?.name || activeCall?.options?.remoteCallerNumber || activeCall?.options?.callerNumber || 'Client'}
                             </p>
                         </div>
 
@@ -132,7 +132,7 @@ export default function IncomingCallBanner() {
                         <div className="flex-1 min-w-0">
                             <p className="text-xs text-cyan-400 font-bold uppercase tracking-wider mb-0.5">Apel Primit</p>
                             <p className="text-xl text-white font-medium truncate">
-                                {info?.number || call.options?.remoteCallerNumber || 'Număr Necunoscut'}
+                                {info?.number || call?.options?.remoteCallerNumber || call?.options?.callerNumber || call?.remoteCallerNumber || 'Număr Necunoscut'}
                             </p>
                             {info?.name && (
                                 <p className="text-sm text-gray-400 mt-0.5 truncate">

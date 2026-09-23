@@ -1,6 +1,8 @@
 let clientPromise: Promise<any> | null = null;
+let clientInstance: any = null;
 
 export const getTelnyxClient = (): Promise<any> => {
+    if (clientInstance) return Promise.resolve(clientInstance);
     if (clientPromise) return clientPromise;
 
     clientPromise = (async () => {
@@ -15,9 +17,20 @@ export const getTelnyxClient = (): Promise<any> => {
 
         const { TelnyxRTC } = await import('@telnyx/webrtc');
         const client = new TelnyxRTC({ login: username, password: password });
+        clientInstance = client;
         client.connect();
         return client;
     })();
 
     return clientPromise;
+};
+
+export const resetTelnyxClient = () => {
+    if (clientInstance) {
+        try {
+            clientInstance.disconnect();
+        } catch (e) {}
+        clientInstance = null;
+    }
+    clientPromise = null;
 };
