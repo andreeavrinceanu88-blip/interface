@@ -90,6 +90,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const ringtoneVolumeRef = useRef(ringtoneVolume);
     const callCooldownUntilRef = useRef<number>(0); // Timestamp after which new calls are allowed
     const needsCallbackRef = useRef<boolean>(false);
+    // Stable ref so inbound listener always calls the latest handleNotification
+    const handleNotificationRef = useRef<((n: any, source: string) => void) | null>(null);
 
     useEffect(() => {
         profileRef.current = profile;
@@ -327,6 +329,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }
     };
+
 
     const handleNotification = (notification: any, source: string) => {
         if (notification.type === 'callUpdate' && notification.call) {
@@ -608,6 +611,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    // Always keep the ref pointing to the latest handleNotification
+    handleNotificationRef.current = handleNotification;
+
     // Clean up inbound listeners on unmount
     useEffect(() => {
         return () => {
@@ -639,7 +645,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 if (!inboundCleanupRef.current) {
                     const onInboundReady = () => console.log('[SIP] Inbound Telnyx WebRTC ready');
                     const onInboundError = (e: any) => console.warn('[SIP] Inbound Telnyx WebRTC error:', e);
-                    const onInboundNotification = (n: any) => handleNotification(n, 'telnyx');
+                    // Use ref to avoid stale closures — always dispatches to the latest handleNotification
+                    const onInboundNotification = (n: any) => {
+                        console.log('[SIP][INBOUND RAW]', JSON.stringify(n).slice(0, 400));
+                        handleNotificationRef.current?.(n, 'telnyx');
+                    };
 
                     telnyx.on('telnyx.ready', onInboundReady);
                     telnyx.on('telnyx.error', onInboundError);
@@ -672,7 +682,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
                 let onNotification: any = null;
                 if (provider !== 'telnyx') {
-                    onNotification = (n: any) => handleNotification(n, provider);
+                    const _provider = provider; // capture for closure
+                    onNotification = (n: any) => handleNotificationRef.current?.(n, _provider);
                     client.on('telnyx.notification', onNotification);
                 }
 
