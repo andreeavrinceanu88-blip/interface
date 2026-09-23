@@ -105,6 +105,10 @@ class DidlogicClientWrapper {
 
         this.device.on('registered', () => {
             console.log('[DIDLogic] ✅ SIP Registered & Ready');
+            const creds = this.credsManager?.getCredentials?.();
+            if (creds?.sipUser) {
+                this.patchUa(creds.sipUser);
+            }
             this.connected = true;
             this.emit('telnyx.ready');
         });
@@ -139,6 +143,7 @@ class DidlogicClientWrapper {
         this.credsManager.onCredentials = (creds: any) => {
             console.log('[DIDLogic] Applying refreshed credentials (user:', creds.sipUser, ')');
             this.device.applyCredentials(creds);
+            this.patchUa(creds.sipUser);
         };
 
         this.credsManager.onError = (err: any) => {
@@ -149,6 +154,10 @@ class DidlogicClientWrapper {
         // Fetch initial credentials to kick off registration
         try {
             await this.credsManager.fetch();
+            const currentCreds = this.credsManager.getCredentials?.();
+            if (currentCreds?.sipUser) {
+                this.patchUa(currentCreds.sipUser);
+            }
         } catch (err) {
             console.error('[DIDLogic] Initial credentials fetch error:', err);
             this.emit('telnyx.error', err);
@@ -241,6 +250,48 @@ class DidlogicClientWrapper {
             wrappedCall.cause = wrappedCall.cause || cause || 'Call Failed';
             wrappedCall.hangupCause = wrappedCall.hangupCause || cause;
             this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
+        });
+    }
+
+    private patchUa(sipUser: string) {
+        if (!this.device?.ua) return;
+        const ua = this.device.ua;
+
+        if ((ua as any)._didlogicPatched) return;
+        (ua as any)._didlogicPatched = true;
+
+        const origReceiveRequest = ua.receiveRequest.bind(ua);
+        ua.receiveRequest = (request: any) => {
+            const method = request?.method;
+            const ruriUser = request?.ruri?.user;
+            const configUser = ua._configuration?.uri?.user || sipUser;
+            const contactUser = ua._contact?.uri?.user;
+
+            console.log(`[DIDLogic] 📨 Incoming SIP message: ${method} | RURI: "${ruriUser}" | Config: "${configUser}" | Contact: "${contactUser}"`);
+
+            if (method === 'INVITE') {
+                console.log('[DIDLogic] 📞 Inbound INVITE intercepted:', {
+                    from: request.from?.toString(),
+                    to: request.to?.toString(),
+                    callId: request.call_id,
+                    xDid: typeof request.getHeader === 'function' ? request.getHeader('X-DID') : undefined,
+                    ruri: request.ruri?.toString()
+                });
+            }
+
+            // DIDLogic sends incoming SIP requests (INVITE, CANCEL, ACK, etc.) to the DID or destination extension.
+            // JsSIP strictly drops requests where ruri.user !== _configuration.uri.user with a 404 Not Found.
+            // Normalizing request.ruri.user to match configUser guarantees that JsSIP accepts the call and emits newRTCSession.
+            if (request?.ruri && request.ruri.user && request.ruri.user !== configUser && request.ruri.user !== contactUser) {
+                console.log(`[DIDLogic] 🔄 Normalizing ${method} RURI user "${ruriUser}" -> "${configUser}" for JsSIP acceptance`);
+                request.ruri.user = configUser;
+            }
+
+            return origReceiveRequest(request);
+        };
+
+        ua.on('newRTCSession', (e: any) => {
+            console.log('[DIDLogic] 🔔 JsSIP newRTCSession fired:', e.originator, e.session?.direction);
         });
     }
 
