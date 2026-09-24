@@ -264,9 +264,11 @@ export default async function handler(req, res) {
             }
 
             const currentTags = draftOrder.tags || [];
-            const operatorName = req.body.operatorName || '';
-            const statusTag = operatorName 
-                ? `${status.toUpperCase()} - ${operatorName}` 
+            const rawOperator = req.body.operatorName || '';
+            // Use only the first word of the account name (e.g. "Vasile Popescu" -> "Vasile")
+            const operatorFirstName = rawOperator.trim().split(/\s+/)[0] || '';
+            const statusTag = operatorFirstName 
+                ? `${status.toUpperCase()} - ${operatorFirstName}` 
                 : status.toUpperCase();
             const updatedTags = [...currentTags];
             if (!updatedTags.includes(statusTag)) updatedTags.push(statusTag);
