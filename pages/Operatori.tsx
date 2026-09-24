@@ -7,6 +7,7 @@ interface Profile {
     full_name: string | null;
     avatar_url: string | null;
     role: string;
+    email?: string | null;
 }
 
 interface CallLog {
@@ -67,9 +68,29 @@ export default function Operatori() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // 1. Fetch profiles
-            const { data: profData, error: profErr } = await supabaseAdmin.from('profiles').select('id, full_name, avatar_url, role');
+            // 1. Fetch profiles with email
+            const { data: profData, error: profErr } = await supabaseAdmin
+                .from('profiles')
+                .select('id, full_name, avatar_url, role, email');
             if (profErr) throw profErr;
+
+            // Also fetch auth users to guarantee emails are present even if not yet saved in profiles
+            const emailMap: Record<string, string> = {};
+            try {
+                const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+                if (usersData?.users) {
+                    usersData.users.forEach((u: any) => {
+                        if (u.id && u.email) emailMap[u.id] = u.email;
+                    });
+                }
+            } catch (e) {
+                console.warn('[Operatori] Could not fetch auth users for email map:', e);
+            }
+
+            const mergedProfiles: Profile[] = (profData || []).map((p: any) => ({
+                ...p,
+                email: p.email || emailMap[p.id] || null
+            }));
 
             // 2. Fetch call logs based on date with pagination (bypasses Supabase 1000 row limit)
             const callsData = await fetchAllRows<CallLog>((from, to) => {
@@ -129,7 +150,7 @@ export default function Operatori() {
                 return ordersQuery.range(from, to);
             });
 
-            setProfiles(profData || []);
+            setProfiles(mergedProfiles);
             setCallLogs(filteredCalls);
             setOrderStats(ordData || []);
         } catch (err) {
@@ -266,10 +287,18 @@ export default function Operatori() {
                                     )}
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-lg font-medium text-white truncate">{profile.full_name || 'Utilizator Necunoscut'}</h3>
-                                        <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${s.callsMade > 0 ? 'bg-green-500' : 'bg-gray-500'}`}></span>
-                                            {profile.role === 'admin' ? 'Admin / Owner' : 'Operator'}
-                                        </span>
+                                        {profile.email && (
+                                            <p className="text-xs text-gray-400 truncate flex items-center gap-1.5 mt-0.5" title={profile.email}>
+                                                <span className="material-icons-round text-[13px] text-cyan-400/80">mail</span>
+                                                <span className="truncate">{profile.email}</span>
+                                            </p>
+                                        )}
+                                        <div className="flex items-center gap-2 mt-1.5">
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400">
+                                                <span className={`w-1.5 h-1.5 rounded-full ${s.callsMade > 0 ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+                                                {profile.role === 'admin' ? 'Admin / Owner' : 'Operator'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 
