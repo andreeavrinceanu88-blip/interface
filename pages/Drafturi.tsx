@@ -2481,29 +2481,29 @@ const Drafturi = () => {
 
                     {/* ── Dialer Panel ───────────────────────────────────────── */}
                     {dialerOpen && (
-                        <div className="w-[340px] shrink-0 bg-[#13141a] rounded-3xl shadow-2xl border border-white/5 p-6 flex flex-col items-center h-[590px] justify-between">
-                            <div className="w-full flex flex-col items-center pt-2">
+                        <div className="w-[340px] shrink-0 bg-[#13141a] rounded-3xl shadow-2xl border border-white/10 p-5 flex flex-col items-center self-start overflow-hidden">
+                            <div className="w-full flex flex-col items-center">
                                 {/* Reserved fixed height status & timer slot (prevents layout shifts) */}
-                                <div className="h-7 flex items-center justify-center mb-2">
+                                <div className="h-7 flex items-center justify-center mb-1">
                                     {callState === 'active' ? (
-                                        <div className="text-xs font-bold text-emerald-600 font-mono tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-500/30/60 animate-pulse">
+                                        <div className="text-xs font-bold text-emerald-400 font-mono tracking-widest bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30 animate-pulse">
                                             {formatCallTimer(callDurationSeconds)}
                                         </div>
                                     ) : callState === 'rejected' ? (
                                         <div className="flex flex-col items-center gap-1">
-                                            <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-red-100 text-red-400">
+                                            <div className="text-xs font-bold tracking-wider uppercase px-3 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
                                                 {lastHangupReason || 'Apel respins'}
                                             </div>
                                         </div>
                                     ) : callState === 'calling' ? (
-                                        <div className="text-xs font-bold tracking-wider uppercase px-4 py-1 rounded-full bg-amber-100 text-amber-400 animate-pulse">
+                                        <div className="text-xs font-bold tracking-wider uppercase px-3 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
                                             Apelează...
                                         </div>
                                     ) : null}
                                 </div>
                                 
                                 {/* Phone display */}
-                                <div className="w-full mb-6 min-h-[54px] flex items-center justify-center relative bg-[#1a1b23] rounded-2xl px-3 py-1">
+                                <div className="w-full mb-3 min-h-[48px] flex items-center justify-center relative bg-[#1a1b23] border border-white/5 rounded-2xl px-3 py-1">
                                     <input
                                         type="text"
                                         value={phoneNumber}
@@ -2516,13 +2516,13 @@ const Drafturi = () => {
                                                 }
                                             }
                                         }}
-                                        className="w-full bg-transparent border-none outline-none text-center text-3xl font-semibold text-white tracking-normal"
-                                        placeholder=" "
+                                        className="w-full bg-transparent border-none outline-none text-center text-2xl font-semibold text-white tracking-normal"
+                                        placeholder="Număr telefon"
                                         autoFocus
                                     />
                                     {phoneNumber && (
-                                        <button onClick={handleDelete} className="absolute right-3 text-gray-400 hover:text-gray-300 transition-colors">
-                                            <span className="material-icons-round">backspace</span>
+                                        <button onClick={handleDelete} className="absolute right-3 text-gray-400 hover:text-gray-200 transition-colors p-1">
+                                            <span className="material-icons-round text-lg">backspace</span>
                                         </button>
                                     )}
                                 </div>
@@ -2537,14 +2537,14 @@ const Drafturi = () => {
 
                                     return (
                                         <>
-                                            <div className="flex items-center justify-between w-full mb-2 px-1 text-[11px] text-gray-400">
+                                            <div className="flex items-center justify-between w-full mb-1.5 px-1 text-[11px] text-gray-400">
                                                 <span>Caller ID Outbound ({isVita ? 'VitaDomus' : (selectedBrand || 'Tamtrend')})</span>
                                                 <span className="flex items-center gap-1.5 font-mono text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-300">
                                                     <span className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
                                                     {activeProvider === 'didlogic' ? 'DIDLogic' : 'Telnyx'}
                                                 </span>
                                             </div>
-                                            <div className={`flex w-full mb-4 bg-[#1a1b23] rounded-lg p-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                                            <div className={`flex w-full mb-3 bg-[#1a1b23] border border-white/5 rounded-lg p-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                                                 <button
                                                     type="button"
                                                     className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${callerIdMode === 'landline' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
@@ -2567,58 +2567,85 @@ const Drafturi = () => {
                                 })()}
 
                                 {/* Keypad */}
-                                <div className={`grid grid-cols-3 gap-4 w-full mt-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                                <div className={`grid grid-cols-3 gap-3 w-full my-1 transition-opacity ${callState !== 'idle' ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                                     {[
                                         { key: '1', sub: '' }, { key: '2', sub: 'ABC' }, { key: '3', sub: 'DEF' },
                                         { key: '4', sub: 'GHI' }, { key: '5', sub: 'JKL' }, { key: '6', sub: 'MNO' },
                                         { key: '7', sub: 'PQRS' }, { key: '8', sub: 'TUV' }, { key: '9', sub: 'WXYZ' },
                                         { key: '*', sub: '' }, { key: '0', sub: '+' }, { key: '#', sub: '' }
                                     ].map(item => (
-                                        <button key={item.key} onClick={() => handleKeypadPress(item.key)} className="flex flex-col items-center justify-center h-16 w-16 rounded-full bg-[#13141a]/5 hover:bg-[#13141a]/10 shadow-none transition-all active:scale-90 mx-auto">
-                                            <span className="text-2xl font-semibold text-gray-200 leading-none">{item.key}</span>
-                                            {item.sub && <span className="text-[9px] text-gray-400 font-bold tracking-widest mt-0.5">{item.sub}</span>}
+                                        <button 
+                                            key={item.key} 
+                                            onClick={() => handleKeypadPress(item.key)} 
+                                            className="flex flex-col items-center justify-center h-14 w-14 rounded-full bg-white/[0.04] hover:bg-white/[0.09] active:bg-white/[0.18] border border-white/5 transition-all active:scale-90 mx-auto"
+                                        >
+                                            <span className="text-xl font-semibold text-gray-100 leading-none">{item.key}</span>
+                                            {item.sub && <span className="text-[8px] text-gray-400 font-bold tracking-wider mt-0.5">{item.sub}</span>}
                                         </button>
                                     ))}
                                 </div>
                             </div>
 
                             {/* Call button & controls - iOS Style */}
-                            <div className="flex items-center justify-center gap-4 mb-2">
-                                <button
-                                    onClick={() => handleCallAction()}
-                                    disabled={!phoneNumber && (callState === 'idle' || callState === 'rejected')}
-                                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-md ${
-                                        (callState === 'idle' || callState === 'rejected') 
-                                            ? 'bg-[#34C759] hover:bg-[#2FB34F] text-white' 
-                                            : 'bg-[#FF3B30] hover:bg-[#E0332B] text-white'
-                                    }`}
-                                >
-                                    <span className="material-icons-round text-white text-3xl">
-                                        {(callState === 'idle' || callState === 'rejected') ? 'call' : 'call_end'}
-                                    </span>
-                                </button>
+                            <div className="w-full flex items-center justify-center pt-3 pb-1">
+                                {callState === 'active' ? (
+                                    <div className="flex items-center justify-center gap-6 w-full">
+                                        {/* Mute button */}
+                                        <button
+                                            onClick={toggleMute}
+                                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md border ${
+                                                isMuted 
+                                                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 hover:bg-amber-500/30' 
+                                                    : 'bg-white/10 border-white/10 hover:bg-white/15 text-gray-200'
+                                            }`}
+                                            title={isMuted ? 'Activare microfon' : 'Dezactivare microfon (Mute)'}
+                                        >
+                                            <span className="material-icons-round text-2xl">{isMuted ? 'mic_off' : 'mic'}</span>
+                                        </button>
 
-                                {/* Mute button (shown when call is active) */}
-                                {callState === 'active' && (
+                                        {/* Hangup button */}
+                                        <button
+                                            onClick={() => handleCallAction()}
+                                            className="w-14 h-14 rounded-full flex items-center justify-center bg-[#FF3B30] hover:bg-[#E0332B] active:scale-95 transition-all shadow-[0_0_20px_rgba(255,59,48,0.4)] text-white"
+                                            title="Închide apelul"
+                                        >
+                                            <span className="material-icons-round text-white text-3xl">call_end</span>
+                                        </button>
+
+                                        {/* Invisible placeholder for symmetrical centering */}
+                                        <div className="w-12 h-12" aria-hidden="true" />
+                                    </div>
+                                ) : (
                                     <button
-                                        onClick={toggleMute}
-                                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
-                                            isMuted ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-[#13141a]/5 hover:bg-[#13141a]/10 text-gray-300'
+                                        onClick={() => handleCallAction()}
+                                        disabled={!phoneNumber && (callState === 'idle' || callState === 'rejected')}
+                                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(52,199,89,0.3)] ${
+                                            callState === 'calling'
+                                                ? 'bg-[#FF3B30] hover:bg-[#E0332B] text-white shadow-[0_0_20px_rgba(255,59,48,0.4)]'
+                                                : 'bg-[#34C759] hover:bg-[#2FB34F] text-white'
                                         }`}
-                                        title={isMuted ? 'Activare microfon' : 'Dezactivare microfon (Mute)'}
+                                        title={callState === 'calling' ? 'Anulează apelul' : 'Apelează'}
                                     >
-                                        <span className="material-icons-round text-2xl">{isMuted ? 'mic_off' : 'mic'}</span>
+                                        <span className="material-icons-round text-white text-3xl">
+                                            {callState === 'calling' ? 'call_end' : 'call'}
+                                        </span>
                                     </button>
                                 )}
                             </div>
 
-                            {/* Technical Logs (visual) */}
+                            {/* Technical Logs (collapsible) */}
                             {callLogs && callLogs.length > 0 && (
-                                <div className="w-full mt-4 h-24 bg-black/40 border border-white/5 rounded-xl p-2 overflow-y-auto flex flex-col gap-1 scroll-smooth" ref={(el) => { if(el) el.scrollTop = el.scrollHeight; }}>
-                                    {callLogs.map((log, i) => (
-                                        <div key={i} className="text-[10px] text-gray-400 font-mono leading-tight">{log}</div>
-                                    ))}
-                                </div>
+                                <details className="w-full mt-3 group">
+                                    <summary className="text-[10px] font-mono text-gray-500 hover:text-gray-400 cursor-pointer select-none flex items-center justify-between px-1">
+                                        <span>SIP Technical Logs ({callLogs.length})</span>
+                                        <span className="material-icons-round text-xs group-open:rotate-180 transition-transform">expand_more</span>
+                                    </summary>
+                                    <div className="w-full mt-1.5 h-24 bg-black/50 border border-white/5 rounded-xl p-2 overflow-y-auto flex flex-col gap-1 scroll-smooth" ref={(el) => { if(el) el.scrollTop = el.scrollHeight; }}>
+                                        {callLogs.map((log, i) => (
+                                            <div key={i} className="text-[10px] text-gray-400 font-mono leading-tight">{log}</div>
+                                        ))}
+                                    </div>
+                                </details>
                             )}
                         </div>
                     )}
