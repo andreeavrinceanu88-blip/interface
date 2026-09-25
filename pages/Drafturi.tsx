@@ -147,6 +147,21 @@ const formatPhoneNumber = (phone: string | null | undefined): string => {
     return phone;
 };
 
+const getShopifyStoreCode = (storeName?: string) => {
+    const name = (storeName || '').toLowerCase();
+    if (name === 'vitadomus') return 'z10zqc-mz';
+    if (name === 'tamtrend') return 'k7agxh-7y';
+    return name || 'vitadomus';
+};
+
+const getShopifyOrderLink = (storeName?: string, type?: string, orderId?: string | number) => {
+    if (!storeName || !orderId) return null;
+    const storeCode = getShopifyStoreCode(storeName);
+    const subPath = type === 'draft' ? 'draft_orders' : 'orders';
+    return `https://admin.shopify.com/store/${storeCode}/${subPath}/${orderId}`;
+};
+
+
 // ─── Component ───────────────────────────────────────────────────────────────
 const Drafturi = () => {
     const { profile } = useAuth();
@@ -241,7 +256,8 @@ const Drafturi = () => {
     const [showCallHistory, setShowCallHistory] = useState(false);
     const [callHistoryLogs, setCallHistoryLogs] = useState<any[]>([]);
     const [loadingCallHistory, setLoadingCallHistory] = useState(false);
-    const [callHistoryFilter, setCallHistoryFilter] = useState<'all' | 'answered' | 'missed' | 'voicemail' | 'callback'>('all');
+    const [callHistoryFilter, setCallHistoryFilter] = useState<'all' | 'called' | 'answered' | 'missed' | 'voicemail'>('all');
+    const [callHistorySearch, setCallHistorySearch] = useState('');
     const [callHistoryDate, setCallHistoryDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [callHistoryPage, setCallHistoryPage] = useState(0);
     const CALL_HISTORY_PAGE_SIZE = 10;
@@ -303,14 +319,19 @@ const Drafturi = () => {
             const endDate = new Date(callHistoryDate);
             endDate.setHours(23, 59, 59, 999);
             
-            const { data, error } = await supabaseAdmin
+            let query = supabaseAdmin
                 .from('call_logs')
                 .select('*')
-                .or(`operator_id.eq.${profile.id},operator_id.is.null`)
                 .gte('created_at', startDate.toISOString())
                 .lte('created_at', endDate.toISOString())
                 .order('created_at', { ascending: false })
                 .limit(100);
+
+            if (profile.role !== 'admin') {
+                query = query.or(`operator_id.eq.${profile.id},operator_id.is.null`);
+            }
+                
+            const { data, error } = await query;
                 
             if (!error && data) {
                 // Enrich data with order info
@@ -320,10 +341,11 @@ const Drafturi = () => {
                 
                 const phoneNumbersToLookup = Array.from(new Set(
                     data
-                        .filter(d => d.order_id && (d.order_id.toString().startsWith('INBOUND:') || d.order_id.toString().startsWith('OUTBOUND:')))
                         .map(d => {
-                            const p = d.order_id.toString().split(':')[1];
-                            return p ? p.slice(-7) : null;
+                            const raw = d.destination_number || (d.order_id?.toString().includes(':') ? d.order_id.toString().split(':')[1] : null);
+                            if (!raw) return null;
+                            const digits = raw.replace(/\D/g, '');
+                            return digits.length >= 7 ? digits.slice(-7) : null;
                         })
                         .filter(Boolean)
                 ));
@@ -332,14 +354,25 @@ const Drafturi = () => {
                 
                 const orderMap: any = {};
                 if (validOrderIds.length > 0) {
-                    const { data: ordersData } = await supabaseAdmin
+                    const numIds = validOrderIds.map(v => Number(v)).filter(n => !isNaN(n));
+                    const strIds = validOrderIds.map(v => String(v));
+                    
+                    let ordersQuery = supabaseAdmin
                         .from('orders')
-                        .select('id, order_id, client_personal_id, store_name, phone_number, name')
-                        .in('id', validOrderIds.map(v => Number(v)).filter(n => !isNaN(n)));
+                        .select('id, order_id, client_personal_id, store_name, phone_number, name, value, type, status, produse, oras, judet, created_at');
+
+                    if (numIds.length > 0) {
+                        ordersQuery = ordersQuery.or(`id.in.(${numIds.join(',')}),order_id.in.(${numIds.join(',')})`);
+                    } else {
+                        ordersQuery = ordersQuery.in('order_id', strIds);
+                    }
+
+                    const { data: ordersData } = await ordersQuery;
                         
                     if (ordersData && ordersData.length > 0) {
                         ordersData.forEach(o => {
-                            orderMap[String(o.id)] = o;
+                            if (o.id) orderMap[String(o.id)] = o;
+                            if (o.order_id) orderMap[String(o.order_id)] = o;
                         });
                     }
                 }
@@ -350,15 +383,16 @@ const Drafturi = () => {
                     if (orQuery) {
                         const { data: phoneOrdersData } = await supabaseAdmin
                             .from('orders')
-                            .select('id, order_id, client_personal_id, store_name, phone_number, name')
+                            .select('id, order_id, client_personal_id, store_name, phone_number, name, value, type, status, produse, oras, judet, created_at')
                             .or(orQuery)
                             .order('created_at', { ascending: false });
                             
                         if (phoneOrdersData) {
                             phoneOrdersData.forEach(o => {
                                 if (o.phone_number) {
-                                    const last7 = String(o.phone_number).slice(-7);
-                                    if (!phoneOrdersMap[last7]) {
+                                    const digits = String(o.phone_number).replace(/\D/g, '');
+                                    const last7 = digits.slice(-7);
+                                    if (last7 && !phoneOrdersMap[last7]) {
                                         phoneOrdersMap[last7] = o;
                                     }
                                 }
@@ -369,24 +403,38 @@ const Drafturi = () => {
                 
                 enrichedData.forEach(log => {
                     const orderStr = log.order_id?.toString() || '';
-                    if (orderStr.startsWith('INBOUND:') || orderStr.startsWith('OUTBOUND:')) {
-                        const phone = orderStr.split(':')[1];
-                        if (phone) {
-                            const last7 = phone.slice(-7);
-                            const o = phoneOrdersMap[last7];
-                            if (o) {
-                                log.enriched_store_name = o.store_name;
-                                log.enriched_phone = o.phone_number;
-                                log.enriched_client_name = o.name;
-                                log.enriched_order_number = o.client_personal_id || `#${o.id || o.order_id}`;
+                    let matchedOrder: any = null;
+
+                    if (orderStr && !orderStr.startsWith('INBOUND:') && !orderStr.startsWith('ERR:') && !orderStr.startsWith('OUTBOUND:')) {
+                        matchedOrder = orderMap[orderStr];
+                    }
+
+                    if (!matchedOrder) {
+                        const rawPhone = log.destination_number || (orderStr.includes(':') ? orderStr.split(':')[1] : null);
+                        if (rawPhone) {
+                            const last7 = rawPhone.replace(/\D/g, '').slice(-7);
+                            if (last7) {
+                                matchedOrder = phoneOrdersMap[last7];
                             }
                         }
-                    } else if (orderStr && orderMap[orderStr]) {
-                        const o = orderMap[orderStr];
-                        log.enriched_store_name = o.store_name;
-                        log.enriched_phone = o.phone_number;
-                        log.enriched_client_name = o.name;
-                        log.enriched_order_number = o.client_personal_id || `#${o.id || o.order_id}`;
+                    }
+
+                    if (matchedOrder) {
+                        log.enriched_store_name = matchedOrder.store_name;
+                        log.enriched_phone = matchedOrder.phone_number || log.destination_number;
+                        log.enriched_client_name = matchedOrder.name;
+                        log.enriched_order_number = matchedOrder.client_personal_id || `#${matchedOrder.id || matchedOrder.order_id}`;
+                        log.enriched_order_id = matchedOrder.order_id || matchedOrder.id;
+                        log.enriched_type = matchedOrder.type;
+                        log.enriched_status = matchedOrder.status;
+                        log.enriched_value = matchedOrder.value;
+                        log.enriched_produse = matchedOrder.produse;
+                        log.enriched_produse_text = produseDisplayText(matchedOrder.produse);
+                        log.enriched_oras = matchedOrder.oras;
+                        log.enriched_judet = matchedOrder.judet;
+                    } else {
+                        const rawPhone = log.destination_number || (orderStr.includes(':') ? orderStr.split(':')[1] : null);
+                        log.enriched_phone = rawPhone;
                     }
                 });
                 
@@ -1218,160 +1266,352 @@ const Drafturi = () => {
                         
                         {/* Call History Popup */}
                         {showCallHistory && (
-                            <div className="absolute right-0 top-full mt-2 w-[340px] bg-[#13141a] border border-white/5 rounded-2xl shadow-2xl z-50 flex flex-col max-h-[500px]">
-                                <div className="flex justify-between items-center p-4 border-b border-white/5">
+                            <div className="absolute right-0 top-full mt-2 w-[440px] sm:w-[500px] max-w-[calc(100vw-2rem)] bg-[#13141a] border border-white/10 rounded-2xl shadow-2xl z-50 flex flex-col max-h-[620px]">
+                                <div className="flex justify-between items-center p-3.5 border-b border-white/5">
                                     <div className="flex items-center gap-2">
-                                        <span className="material-icons-round text-indigo-400 text-lg">history</span>
-                                        <input 
-                                            type="date" 
-                                            value={callHistoryDate}
-                                            onChange={(e) => setCallHistoryDate(e.target.value)}
-                                            className="bg-[#1a1b23] border border-white/10 rounded-lg px-2.5 py-1 text-gray-200 font-medium text-[13px] focus:outline-none focus:border-indigo-500 cursor-pointer hover:bg-white/5 transition-all [color-scheme:dark]"
-                                        />
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                                            <span className="material-icons-round text-lg">history</span>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-semibold text-white">Istoric Apeluri</div>
+                                            <input 
+                                                type="date" 
+                                                value={callHistoryDate}
+                                                onChange={(e) => setCallHistoryDate(e.target.value)}
+                                                className="bg-transparent border-0 p-0 text-gray-400 font-medium text-[11px] focus:outline-none focus:text-indigo-400 cursor-pointer [color-scheme:dark]"
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={fetchCallHistory} className="text-gray-500 hover:text-indigo-400 transition-colors" title="Reîncarcă">
-                                            <span className={`material-icons-round text-sm ${loadingCallHistory ? 'animate-spin' : ''}`}>refresh</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <button onClick={fetchCallHistory} className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-400 hover:bg-white/5 transition-colors" title="Reîncarcă">
+                                            <span className={`material-icons-round text-[16px] ${loadingCallHistory ? 'animate-spin' : ''}`}>refresh</span>
                                         </button>
-                                        <button onClick={() => setShowCallHistory(false)} className="text-gray-500 hover:text-white transition-colors">
-                                            <span className="material-icons-round text-sm">close</span>
+                                        <button onClick={() => setShowCallHistory(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+                                            <span className="material-icons-round text-[16px]">close</span>
                                         </button>
                                     </div>
                                 </div>
                                 
-                                {/* Filter Chips */}
-                                <div className="px-3 py-2 border-b border-white/5 flex flex-wrap gap-1.5">
-                                    <button onClick={() => { setCallHistoryFilter('all'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'}`}>Toate</button>
-                                    <button onClick={() => { setCallHistoryFilter('answered'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'answered' ? 'bg-emerald-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-emerald-400'}`}>Răspunse</button>
-                                    <button onClick={() => { setCallHistoryFilter('missed'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'missed' ? 'bg-red-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-red-400'}`}>Pierdute</button>
-                                    <button onClick={() => { setCallHistoryFilter('voicemail'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'voicemail' ? 'bg-orange-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-orange-400'}`}>Voicemail</button>
-                                    <button onClick={() => { setCallHistoryFilter('callback'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${callHistoryFilter === 'callback' ? 'bg-amber-500 text-white' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-amber-400'}`}>De sunat</button>
-                                </div>
+                                {(() => {
+                                    const counts = {
+                                        all: callHistoryLogs.length,
+                                        called: callHistoryLogs.filter(log => {
+                                            const isInbound = log.call_direction === 'inbound' || (log.order_id && log.order_id.toString().startsWith('INBOUND:'));
+                                            return !isInbound || log.call_direction === 'outbound';
+                                        }).length,
+                                        answered: callHistoryLogs.filter(log => log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0).length,
+                                        missed: callHistoryLogs.filter(log => !(log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0) && log.status !== 'voicemail').length,
+                                        voicemail: callHistoryLogs.filter(log => log.status === 'voicemail').length,
+                                    };
 
-                                <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
-                                    {loadingCallHistory ? (
-                                        <div className="text-center p-4 text-gray-400 text-sm animate-pulse">Se încarcă...</div>
-                                    ) : callHistoryLogs.length === 0 ? (
-                                        <div className="text-center p-4 text-gray-500 text-sm">Nu există apeluri în sesiunea curentă.</div>
-                                    ) : (
-                                        <div className="flex flex-col gap-1.5">
-                                            {(() => {
-                                                const filtered = callHistoryLogs.filter(log => {
-                                                    if (callHistoryFilter === 'callback') return log.needs_callback === true;
-                                                    if (callHistoryFilter === 'all') return true;
-                                                    if (callHistoryFilter === 'voicemail') return log.status === 'voicemail';
-                                                    const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
-                                                    if (callHistoryFilter === 'answered') return isAnswered;
-                                                    if (callHistoryFilter === 'missed') return !isAnswered && log.status !== 'voicemail';
-                                                    return true;
-                                                });
-                                                const totalPages = Math.ceil(filtered.length / CALL_HISTORY_PAGE_SIZE);
-                                                const paginated = filtered.slice(callHistoryPage * CALL_HISTORY_PAGE_SIZE, (callHistoryPage + 1) * CALL_HISTORY_PAGE_SIZE);
-                                                return <>
-                                            {paginated.map((log) => {
-                                                const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
-                                                const iconColor = isAnswered ? 'text-emerald-500' : 'text-red-500';
-                                                
-                                                const isInbound = log.order_id && log.order_id.toString().startsWith('INBOUND:');
-                                                const icon = isInbound ? (isAnswered ? 'call_received' : 'phone_missed') : 'call_made';
-                                                
-                                                const isManualDial = log.order_id && log.order_id.toString().startsWith('OUTBOUND:');
-                                                const orderLabel = isInbound 
-                                                    ? 'Apel intrare' 
-                                                    : isManualDial ? 'Apel manual' : (log.enriched_order_number || `Comanda ${log.order_id?.toString().startsWith('#') ? log.order_id : '#' + log.order_id}`);
-                                                    
-                                                const phoneNum = log.enriched_phone || log.destination_number || ((isInbound || isManualDial) ? log.order_id.split(':')[1] : '');
-                                                const storeName = log.enriched_store_name;
-                                                
-                                                return (
-                                                    <div key={log.id} className="flex flex-col p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors group relative">
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <div className="flex items-center gap-2 truncate">
-                                                                <span 
-                                                                    className={`material-icons-round text-[16px] ${iconColor} shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
-                                                                    onClick={(e) => handleCallFromHistory(phoneNum, storeName, log.order_id, e)}
-                                                                >
-                                                                    {icon}
-                                                                </span>
-                                                                <span 
-                                                                    className="text-white text-sm font-medium truncate cursor-pointer hover:text-cyan-400 transition-colors" 
-                                                                    title={phoneNum}
-                                                                    onClick={(e) => handleCallFromHistory(phoneNum, storeName, log.order_id, e)}
-                                                                >
-                                                                    {phoneNum || orderLabel}
-                                                                </span>
-                                                                {log.enriched_client_name && (
-                                                                    <>
-                                                                        <span className="text-[10px] text-gray-500">•</span>
-                                                                        <span className="text-[13px] text-gray-300 truncate">{log.enriched_client_name}</span>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                            <span className="text-[11px] text-gray-500 shrink-0 group-hover:hidden">
-                                                                {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
-                                                            <button 
-                                                                onClick={(e) => deleteCallLog(log.id, e)}
-                                                                className="hidden group-hover:flex items-center justify-center bg-red-500/10 text-red-500 hover:bg-red-500/20 p-0.5 px-1.5 rounded-md transition-all shrink-0"
-                                                                title="Șterge apelul"
-                                                            >
-                                                                <span className="material-icons-round text-[13px]">delete</span>
-                                                            </button>
-                                                        </div>
-                                                        <div className="flex justify-between items-center pl-6">
-                                                            <div className="flex items-center gap-2 truncate">
-                                                                <span className="text-xs text-gray-400 capitalize">{log.status} {log.error_message || log.reason ? `(${log.error_message || log.reason})` : ''}</span>
-                                                                {(log.enriched_order_number || (!isInbound && !isManualDial)) && (
-                                                                    <>
-                                                                        <span className="text-[10px] text-gray-500">•</span>
-                                                                        <span className="text-xs text-indigo-400 font-medium truncate">{log.enriched_order_number || orderLabel}</span>
-                                                                    </>
-                                                                )}
-                                                                {storeName && (
-                                                                    <>
-                                                                        <span className="text-[10px] text-gray-500">•</span>
-                                                                        <span className="text-[10px] text-gray-400 capitalize border border-white/10 bg-white/5 px-1.5 py-0.5 rounded">{storeName}</span>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {log.needs_callback && (
-                                                                    <button 
-                                                                        onClick={(e) => resolveCallback(log.id, e)}
-                                                                        className="flex items-center justify-center bg-amber-500/10 text-amber-500 hover:bg-emerald-500/20 hover:text-emerald-400 p-1 rounded-md transition-colors"
-                                                                        title="Marchează ca rezolvat"
-                                                                    >
-                                                                        <span className="material-icons-round text-[14px]">done</span>
-                                                                    </button>
-                                                                )}
-                                                                {log.duration_secs > 0 && (
-                                                                    <span className="text-xs text-gray-400 font-mono bg-[#13141a] px-1.5 py-0.5 rounded-md border border-white/5 shrink-0">{formatCallTimer(log.duration_secs)}</span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        {totalPages > 1 && (
-                                            <div className="flex items-center justify-between pt-2 px-1">
-                                                <button 
-                                                    onClick={() => setCallHistoryPage(p => Math.max(0, p - 1))} 
-                                                    disabled={callHistoryPage === 0}
-                                                    className="flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                                                >
-                                                    <span className="material-icons-round text-[14px]">chevron_left</span>
+                                    return (
+                                        <>
+                                            {/* Filter Chips */}
+                                            <div className="px-3 py-2 border-b border-white/5 flex flex-wrap gap-1.5 items-center">
+                                                <button onClick={() => { setCallHistoryFilter('all'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1 ${callHistoryFilter === 'all' ? 'bg-indigo-500 text-white shadow-sm' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'}`}>
+                                                    <span>Toate</span>
+                                                    <span className={`text-[10px] px-1 rounded-full ${callHistoryFilter === 'all' ? 'bg-white/20' : 'bg-white/5 text-gray-400'}`}>{counts.all}</span>
                                                 </button>
-                                                <span className="text-[11px] text-gray-500">{callHistoryPage + 1} / {totalPages}</span>
-                                                <button 
-                                                    onClick={() => setCallHistoryPage(p => Math.min(totalPages - 1, p + 1))} 
-                                                    disabled={callHistoryPage >= totalPages - 1}
-                                                    className="flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                                                >
-                                                    <span className="material-icons-round text-[14px]">chevron_right</span>
+                                                <button onClick={() => { setCallHistoryFilter('called'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1 ${callHistoryFilter === 'called' ? 'bg-cyan-500 text-white shadow-sm' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-cyan-400'}`}>
+                                                    <span>Sunați</span>
+                                                    <span className={`text-[10px] px-1 rounded-full ${callHistoryFilter === 'called' ? 'bg-white/20' : 'bg-white/5 text-gray-400'}`}>{counts.called}</span>
+                                                </button>
+                                                <button onClick={() => { setCallHistoryFilter('answered'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1 ${callHistoryFilter === 'answered' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-emerald-400'}`}>
+                                                    <span>Răspunse</span>
+                                                    <span className={`text-[10px] px-1 rounded-full ${callHistoryFilter === 'answered' ? 'bg-white/20' : 'bg-white/5 text-gray-400'}`}>{counts.answered}</span>
+                                                </button>
+                                                <button onClick={() => { setCallHistoryFilter('missed'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1 ${callHistoryFilter === 'missed' ? 'bg-red-500 text-white shadow-sm' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-red-400'}`}>
+                                                    <span>Pierdute</span>
+                                                    <span className={`text-[10px] px-1 rounded-full ${callHistoryFilter === 'missed' ? 'bg-white/20' : 'bg-white/5 text-gray-400'}`}>{counts.missed}</span>
+                                                </button>
+                                                <button onClick={() => { setCallHistoryFilter('voicemail'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1 ${callHistoryFilter === 'voicemail' ? 'bg-orange-500 text-white shadow-sm' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-orange-400'}`}>
+                                                    <span>Voicemail</span>
+                                                    <span className={`text-[10px] px-1 rounded-full ${callHistoryFilter === 'voicemail' ? 'bg-white/20' : 'bg-white/5 text-gray-400'}`}>{counts.voicemail}</span>
                                                 </button>
                                             </div>
-                                        )}
-                                        </>;
+
+                                            {/* Search in History */}
+                                            <div className="px-3 py-2 border-b border-white/5">
+                                                <div className="relative">
+                                                    <span className="material-icons-round absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-sm">search</span>
+                                                    <input 
+                                                        type="text"
+                                                        placeholder="Caută client, telefon, produs sau comandă..."
+                                                        value={callHistorySearch}
+                                                        onChange={(e) => { setCallHistorySearch(e.target.value); setCallHistoryPage(0); }}
+                                                        className="w-full bg-[#1a1b23] border border-white/10 rounded-lg pl-8 pr-7 py-1 text-gray-200 text-xs focus:outline-none focus:border-cyan-500 placeholder-gray-500"
+                                                    />
+                                                    {callHistorySearch && (
+                                                        <button 
+                                                            onClick={() => { setCallHistorySearch(''); setCallHistoryPage(0); }}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                                                        >
+                                                            <span className="material-icons-round text-xs">close</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+
+                                <div className="flex-1 overflow-y-auto p-2.5 scrollbar-hide">
+                                    {loadingCallHistory ? (
+                                        <div className="text-center p-6 text-gray-400 text-sm animate-pulse flex flex-col items-center gap-2">
+                                            <span className="material-icons-round animate-spin text-2xl text-indigo-400">refresh</span>
+                                            <span>Se încarcă apelurile...</span>
+                                        </div>
+                                    ) : callHistoryLogs.length === 0 ? (
+                                        <div className="text-center p-6 text-gray-500 text-sm">Nu există apeluri în data selectată.</div>
+                                    ) : (
+                                        <div className="flex flex-col gap-2">
+                                            {(() => {
+                                                const filtered = callHistoryLogs.filter(log => {
+                                                    const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
+                                                    const isInbound = log.call_direction === 'inbound' || (log.order_id && log.order_id.toString().startsWith('INBOUND:'));
+                                                    const isOutbound = !isInbound || log.call_direction === 'outbound';
+
+                                                    if (callHistoryFilter === 'called') {
+                                                        if (!isOutbound) return false;
+                                                    } else if (callHistoryFilter === 'answered') {
+                                                        if (!isAnswered) return false;
+                                                    } else if (callHistoryFilter === 'missed') {
+                                                        if (isAnswered || log.status === 'voicemail') return false;
+                                                    } else if (callHistoryFilter === 'voicemail') {
+                                                        if (log.status !== 'voicemail') return false;
+                                                    }
+
+                                                    if (callHistorySearch.trim()) {
+                                                        const query = callHistorySearch.toLowerCase().trim();
+                                                        const clientName = (log.enriched_client_name || '').toLowerCase();
+                                                        const phone = (log.enriched_phone || log.destination_number || '').replace(/\D/g, '');
+                                                        const orderNum = (log.enriched_order_number || String(log.order_id || '')).toLowerCase();
+                                                        const products = (log.enriched_produse_text || '').toLowerCase();
+                                                        const match = clientName.includes(query) || phone.includes(query) || orderNum.includes(query) || products.includes(query);
+                                                        if (!match) return false;
+                                                    }
+
+                                                    return true;
+                                                });
+
+                                                if (filtered.length === 0) {
+                                                    return (
+                                                        <div className="text-center p-6 text-gray-500 text-sm">
+                                                            Niciun apel găsit pentru filtrele aplicate.
+                                                        </div>
+                                                    );
+                                                }
+
+                                                const totalPages = Math.ceil(filtered.length / CALL_HISTORY_PAGE_SIZE);
+                                                const paginated = filtered.slice(callHistoryPage * CALL_HISTORY_PAGE_SIZE, (callHistoryPage + 1) * CALL_HISTORY_PAGE_SIZE);
+
+                                                return (
+                                                    <>
+                                                        {paginated.map((log) => {
+                                                            const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
+                                                            const isInbound = log.call_direction === 'inbound' || (log.order_id && log.order_id.toString().startsWith('INBOUND:'));
+                                                            const isManualDial = log.order_id && log.order_id.toString().startsWith('OUTBOUND:');
+                                                            const isOutbound = !isInbound || log.call_direction === 'outbound';
+
+                                                            const phoneNum = log.enriched_phone || log.destination_number || ((isInbound || isManualDial) ? log.order_id.split(':')[1] : '');
+                                                            const storeName = log.enriched_store_name;
+                                                            const clientName = log.enriched_client_name;
+                                                            const orderLabel = isInbound 
+                                                                ? 'Apel intrare' 
+                                                                : isManualDial ? 'Apel manual' : (log.enriched_order_number || `Comanda ${log.order_id?.toString().startsWith('#') ? log.order_id : '#' + log.order_id}`);
+
+                                                            const shopifyLink = getShopifyOrderLink(storeName, log.enriched_type, log.enriched_order_id);
+
+                                                            let statusText = 'Necunoscut';
+                                                            let statusBadgeColor = 'text-gray-400 bg-white/5 border-white/10';
+                                                            let statusIcon = 'help_outline';
+
+                                                            if (isAnswered) {
+                                                                statusText = 'Răspuns';
+                                                                statusBadgeColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+                                                                statusIcon = 'check_circle';
+                                                            } else if (log.status === 'voicemail') {
+                                                                statusText = 'Voicemail';
+                                                                statusBadgeColor = 'text-orange-400 bg-orange-500/10 border-orange-500/20';
+                                                                statusIcon = 'voicemail';
+                                                            } else if (log.status === 'missed' || log.error_message === 'Canceled' || log.error_message === 'no-answer') {
+                                                                statusText = 'Pierdut / Fără răspuns';
+                                                                statusBadgeColor = 'text-red-400 bg-red-500/10 border-red-500/20';
+                                                                statusIcon = 'phone_missed';
+                                                            } else if (log.error_message?.toLowerCase().includes('busy') || log.status === 'rejected' || log.status === 'busy') {
+                                                                statusText = 'Ocupat / Respins';
+                                                                statusBadgeColor = 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+                                                                statusIcon = 'phone_disabled';
+                                                            } else if (log.status) {
+                                                                statusText = log.status;
+                                                                statusBadgeColor = 'text-gray-400 bg-white/5 border-white/10';
+                                                                statusIcon = 'info';
+                                                            }
+
+                                                            return (
+                                                                <div key={log.id} className="flex flex-col p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/5 hover:border-white/10 transition-all gap-2 group relative">
+                                                                    {/* Row 1: Direction badge, Store badge, Timestamp, and Delete button */}
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                                            {isOutbound ? (
+                                                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                                                                                    <span className="material-icons-round text-[12px]">call_made</span> Sunați
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                                                    <span className="material-icons-round text-[12px]">call_received</span> Primit
+                                                                                </span>
+                                                                            )}
+
+                                                                            {storeName && (
+                                                                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                                                                                    storeName.toLowerCase() === 'tamtrend'
+                                                                                        ? 'bg-pink-500/10 text-pink-400 border-pink-500/20'
+                                                                                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                                                                }`}>
+                                                                                    {storeName}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-[11px] text-gray-400 font-mono">
+                                                                                {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                            </span>
+                                                                            <button 
+                                                                                onClick={(e) => deleteCallLog(log.id, e)}
+                                                                                className="opacity-0 group-hover:opacity-100 flex items-center justify-center bg-red-500/10 text-red-400 hover:bg-red-500/20 p-1 rounded-md transition-all"
+                                                                                title="Șterge apelul"
+                                                                            >
+                                                                                <span className="material-icons-round text-[13px]">delete</span>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Row 2: Client Name and Quick Call Action */}
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <div className="min-w-0">
+                                                                            <div className="text-sm font-semibold text-white truncate">
+                                                                                {clientName || 'Client necunoscut'}
+                                                                            </div>
+                                                                            {(log.enriched_oras || log.enriched_judet) && (
+                                                                                <div className="text-[11px] text-gray-400 truncate flex items-center gap-1">
+                                                                                    <span>📍</span> {[log.enriched_oras, log.enriched_judet].filter(Boolean).join(', ')}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                                            <span className="text-xs text-gray-300 font-mono">{formatPhoneNumber(phoneNum)}</span>
+                                                                            <button 
+                                                                                onClick={(e) => handleCallFromHistory(phoneNum, storeName, log.order_id, e)}
+                                                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500 hover:text-white text-xs font-semibold transition-all border border-emerald-500/30 shadow-sm"
+                                                                                title="Sună acum"
+                                                                            >
+                                                                                <span className="material-icons-round text-[13px]">call</span>
+                                                                                <span>Sună</span>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Row 3: Order details, Shopify link, and Value */}
+                                                                    {(log.enriched_order_number || (!isInbound && !isManualDial) || log.enriched_value) && (
+                                                                        <div className="flex items-center justify-between text-xs bg-white/[0.03] border border-white/5 rounded-lg px-2.5 py-1.5">
+                                                                            <div className="flex items-center gap-2 truncate">
+                                                                                {shopifyLink ? (
+                                                                                    <a 
+                                                                                        href={shopifyLink}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="inline-flex items-center gap-1 text-xs font-bold text-indigo-400 hover:text-indigo-300 hover:underline"
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                        title="Deschide comanda în Shopify"
+                                                                                    >
+                                                                                        <span>{log.enriched_order_number || orderLabel}</span>
+                                                                                        <span className="material-icons-round text-[12px]">open_in_new</span>
+                                                                                    </a>
+                                                                                ) : (
+                                                                                    <span className="text-xs text-indigo-400 font-semibold">{log.enriched_order_number || orderLabel}</span>
+                                                                                )}
+                                                                                {log.enriched_type && (
+                                                                                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-white/5 text-gray-400">
+                                                                                        {log.enriched_type === 'draft' ? 'Draft' : 'Comandă'}
+                                                                                    </span>
+                                                                                )}
+                                                                                {log.enriched_status && (
+                                                                                    <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                                                        {log.enriched_status}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {log.enriched_value !== undefined && log.enriched_value !== null && Number(log.enriched_value) > 0 && (
+                                                                                <span className="text-xs font-bold text-emerald-400 shrink-0 font-mono">
+                                                                                    {log.enriched_value} RON
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Row 4: Products summary */}
+                                                                    {log.enriched_produse_text && (
+                                                                        <div className="text-[11px] text-gray-300 bg-white/[0.02] border border-white/5 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5" title={log.enriched_produse_text}>
+                                                                            <span className="text-xs shrink-0 mt-0.5">📦</span>
+                                                                            <span className="line-clamp-2">{log.enriched_produse_text}</span>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Row 5: Call Outcome & Duration */}
+                                                                    <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border ${statusBadgeColor}`}>
+                                                                                <span className="material-icons-round text-[11px]">{statusIcon}</span>
+                                                                                <span>{statusText}</span>
+                                                                            </span>
+                                                                            {log.duration_secs > 0 && (
+                                                                                <span className="text-[11px] text-gray-300 font-mono bg-white/5 px-2 py-0.5 rounded border border-white/10 flex items-center gap-1">
+                                                                                    <span className="material-icons-round text-[11px] text-gray-400">timer</span>
+                                                                                    {formatCallTimer(log.duration_secs)}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {log.needs_callback && (
+                                                                            <button 
+                                                                                onClick={(e) => resolveCallback(log.id, e)}
+                                                                                className="flex items-center gap-1 text-[11px] bg-amber-500/10 text-amber-400 hover:bg-emerald-500/20 hover:text-emerald-400 px-2 py-0.5 rounded border border-amber-500/20 transition-all font-medium"
+                                                                                title="Marchează ca rezolvat"
+                                                                            >
+                                                                                <span className="material-icons-round text-[13px]">done</span>
+                                                                                <span>Rezolvat</span>
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+
+                                                        {totalPages > 1 && (
+                                                            <div className="flex items-center justify-between pt-2 px-1">
+                                                                <button 
+                                                                    onClick={() => setCallHistoryPage(p => Math.max(0, p - 1))} 
+                                                                    disabled={callHistoryPage === 0}
+                                                                    className="flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                >
+                                                                    <span className="material-icons-round text-[14px]">chevron_left</span>
+                                                                </button>
+                                                                <span className="text-[11px] text-gray-500">{callHistoryPage + 1} / {totalPages}</span>
+                                                                <button 
+                                                                    onClick={() => setCallHistoryPage(p => Math.min(totalPages - 1, p + 1))} 
+                                                                    disabled={callHistoryPage >= totalPages - 1}
+                                                                    className="flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                >
+                                                                    <span className="material-icons-round text-[14px]">chevron_right</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                );
                                             })()}
                                         </div>
                                     )}
