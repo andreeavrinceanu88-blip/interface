@@ -9,8 +9,40 @@ export interface CallerInfo {
     number: string;
     name?: string;
     orderId?: string;
+    store?: string | null;
+    calledNumber?: string | null;
     recentOrders?: { order_number: string; order_id: string; store_name: string; produse: string; status: string; type: string; value: number; created_at: string }[];
 }
+
+export const detectStoreFromNumber = (num?: string | null): string | null => {
+    if (!num) return null;
+    const digits = num.replace(/\D/g, '');
+    if (!digits) return null;
+
+    // VitaDomus
+    if (
+        digits.endsWith('312296311') ||
+        digits.endsWith('751064714') ||
+        digits.endsWith('2296311') ||
+        digits.endsWith('064714')
+    ) {
+        return 'VitaDomus';
+    }
+
+    // Tamtrend
+    if (
+        digits.endsWith('373785200') ||
+        digits.endsWith('775393060') ||
+        digits.endsWith('363060018') ||
+        digits.endsWith('785200') ||
+        digits.endsWith('393060') ||
+        digits.endsWith('060018')
+    ) {
+        return 'Tamtrend';
+    }
+
+    return null;
+};
 
 interface TelnyxContextType {
     isReady: boolean;
@@ -284,12 +316,21 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const lookupCaller = async (phoneNumber: string, callId: string) => {
+    const lookupCaller = async (phoneNumber: string, callId: string, destinationNumber?: string) => {
         if (!phoneNumber) return;
         const cleanDigits = phoneNumber.replace(/\D/g, '');
         const last7 = cleanDigits.slice(-7);
+        const storeFromNumber = detectStoreFromNumber(destinationNumber);
+
         if (!last7) {
-            setCallerInfos(prev => ({ ...prev, [callId]: { number: phoneNumber } }));
+            setCallerInfos(prev => ({
+                ...prev,
+                [callId]: {
+                    number: phoneNumber,
+                    store: storeFromNumber || null,
+                    calledNumber: destinationNumber || null
+                }
+            }));
             return;
         }
         try {
@@ -300,14 +341,19 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 .order('created_at', { ascending: false })
                 .limit(2);
             
+            const storeFromOrder = (data && data.length > 0 && data[0].store_name) ? data[0].store_name : null;
+            const effectiveStore = storeFromNumber || storeFromOrder || null;
+
             if (data && data.length > 0 && !error) {
-                addLog(`🔍 Client identificat: ${data[0].name} (${data.length} comenzi în sistem)`);
+                addLog(`🔍 Client identificat: ${data[0].name} (${data.length} comenzi în sistem) | Magazin: ${effectiveStore || 'N/A'}`);
                 setCallerInfos(prev => ({
                     ...prev,
                     [callId]: {
                         number: phoneNumber,
                         name: data[0].name,
                         orderId: String(data[0].order_id || data[0].id),
+                        store: effectiveStore,
+                        calledNumber: destinationNumber || null,
                         recentOrders: data.map(o => ({
                             order_number: o.client_personal_id || `#${o.id || o.order_id}`,
                             order_id: o.order_id,
@@ -321,12 +367,26 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     }
                 }));
             } else {
-                addLog(`🔍 Număr necunoscut (fără comenzi în sistem)`);
-                setCallerInfos(prev => ({ ...prev, [callId]: { number: phoneNumber } }));
+                addLog(`🔍 Număr necunoscut | Magazin apelat: ${effectiveStore || 'N/A'}`);
+                setCallerInfos(prev => ({
+                    ...prev,
+                    [callId]: {
+                        number: phoneNumber,
+                        store: effectiveStore,
+                        calledNumber: destinationNumber || null
+                    }
+                }));
             }
         } catch (err) {
             console.error('Caller lookup error', err);
-            setCallerInfos(prev => ({ ...prev, [callId]: { number: phoneNumber } }));
+            setCallerInfos(prev => ({
+                ...prev,
+                [callId]: {
+                    number: phoneNumber,
+                    store: storeFromNumber || null,
+                    calledNumber: destinationNumber || null
+                }
+            }));
         }
     };
 
@@ -375,6 +435,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 const raw = c?.options?.destinationNumber || 
                             c?.options?.calleeNumber || 
                             c?.destinationNumber || 
+                            c?.calledNumber ||
+                            c?.options?.calledNumber ||
+                            c?.options?.to ||
+                            c?.to ||
                             '';
                 return String(raw).replace(/^sip:/i, '').split('@')[0];
             };
@@ -386,11 +450,16 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             if (!call.options.remoteCallerNumber && callerNumber) {
                 call.options.remoteCallerNumber = callerNumber;
             }
+            if (!call.options.destinationNumber && destinationNumber) {
+                call.options.destinationNumber = destinationNumber;
+            }
 
             if (call.state === 'ringing') {
                 if (call.direction !== 'outbound') {
                     // Inbound call
-                    console.log(`[SIP][${source}] 📞 Inbound call detected from:`, callerNumber, '| Call ID:', callId);
+                    const storeFromNumber = detectStoreFromNumber(destinationNumber);
+                    console.log(`[SIP][${source}] 📞 Inbound call detected from:`, callerNumber, '| DID apelat:', destinationNumber, '| Magazin:', storeFromNumber, '| Call ID:', callId);
+                    addLog(`📞 APEL INTRARE de la ${callerNumber} spre ${destinationNumber || 'DID'} (${storeFromNumber || 'Magazin necunoscut'})`);
                     call._sourceProvider = source;
 
                     setIncomingCalls(prev => {
@@ -400,8 +469,19 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         return next;
                     });
 
+                    // Set initial caller info synchronously so the store is visible immediately
+                    setCallerInfos(prev => ({
+                        ...prev,
+                        [callId]: {
+                            number: callerNumber,
+                            calledNumber: destinationNumber || null,
+                            store: storeFromNumber || null,
+                            recentOrders: []
+                        }
+                    }));
+
                     needsCallbackRef.current = false;
-                    lookupCaller(callerNumber, callId);
+                    lookupCaller(callerNumber, callId, destinationNumber);
 
                     setCallState(prev => {
                         if (prev !== 'active') {
