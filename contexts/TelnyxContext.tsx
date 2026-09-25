@@ -80,6 +80,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const incomingRingtoneRef = useRef<HTMLAudioElement | null>(null);
     const ringbackOscRef = useRef<any>(null);
+    const ringbackGainRef = useRef<any>(null);
     const audioCtxRef = useRef<any>(null);
     const profileRef = useRef(profile);
     const activeOrderIdRef = useRef<string | null>(null);
@@ -133,17 +134,20 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
     const playRingback = () => {
         try {
+            stopRingback();
             if (!audioCtxRef.current) {
                 audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
             }
             const ctx = audioCtxRef.current;
             if (ctx.state === 'suspended') ctx.resume();
-            stopRingback();
 
             const playBeep = () => {
                 try {
+                    // Do not beep if ringback was stopped
+                    if (!ringbackOscRef.current) return;
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
+                    ringbackGainRef.current = gain;
                     osc.type = 'sine';
                     osc.frequency.value = 425;
                     gain.gain.value = 0.4;
@@ -165,7 +169,20 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             clearInterval(ringbackOscRef.current);
             ringbackOscRef.current = null;
         }
+        if (ringbackGainRef.current) {
+            try {
+                ringbackGainRef.current.gain.setValueAtTime(0, audioCtxRef.current?.currentTime || 0);
+            } catch (e) {}
+            ringbackGainRef.current = null;
+        }
     };
+
+    // Safety net: ensure ringback is ALWAYS killed whenever not actively calling
+    useEffect(() => {
+        if (callState !== 'calling') {
+            stopRingback();
+        }
+    }, [callState]);
 
     const playRejectedBeeps = () => {
         try {
@@ -647,8 +664,12 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     const onInboundReady = () => console.log('[SIP] Inbound Telnyx WebRTC ready');
                     const onInboundError = (e: any) => console.warn('[SIP] Inbound Telnyx WebRTC error:', e);
                     const onInboundNotification = (n: any) => {
-                        console.log('[SIP][TELNYX RAW]', JSON.stringify(n).slice(0, 400));
-                        handleNotificationRef.current?.(n, 'telnyx');
+                        console.log('[SIP][TELNYX NOTIFICATION]', n?.type, n?.call?.state);
+                        try {
+                            handleNotificationRef.current?.(n, 'telnyx');
+                        } catch (err) {
+                            console.error('[SIP][TELNYX] Notification handler error:', err);
+                        }
                     };
 
                     telnyx.on('telnyx.ready', onInboundReady);
@@ -684,8 +705,12 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
                 const _provider = provider;
                 const onNotification = (n: any) => {
-                    console.log(`[SIP][${_provider} RAW NOTIFICATION]`, JSON.stringify(n).slice(0, 400));
-                    handleNotificationRef.current?.(n, _provider);
+                    console.log(`[SIP][${_provider} NOTIFICATION]`, n?.type, n?.call?.state, n?.call?.id);
+                    try {
+                        handleNotificationRef.current?.(n, _provider);
+                    } catch (err) {
+                        console.error(`[SIP][${_provider}] Notification handler error:`, err);
+                    }
                 };
                 client.on('telnyx.notification', onNotification);
 
@@ -764,6 +789,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const hangup = () => {
+        stopRingback();
         if (activeCallRef.current) {
             try { activeCallRef.current.hangup(); } catch (e) {}
         } else if (activeCall) {

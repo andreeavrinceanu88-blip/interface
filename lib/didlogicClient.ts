@@ -198,10 +198,25 @@ class DidlogicClientWrapper {
             };
         }
 
+        let cancelledBeforeVoiceCall = false;
+        wrappedCall.hangup = () => {
+            cancelledBeforeVoiceCall = true;
+            if (wrappedCall.voiceCall) {
+                try { wrappedCall.voiceCall.hangup(); } catch (e) { console.warn('[DIDLogic] Hangup error:', e); }
+            }
+        };
+
         // Initiate call asynchronously
         this.device.call(dest).then((voiceCall: any) => {
             if (restoreUaCall) restoreUaCall();
             wrappedCall.voiceCall = voiceCall;
+            if (cancelledBeforeVoiceCall) {
+                try { voiceCall.hangup(); } catch (e) {}
+                wrappedCall.state = 'destroy';
+                wrappedCall.cause = 'NORMAL_CLEARING';
+                this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
+                return;
+            }
             this.bindCallEvents(voiceCall, wrappedCall);
         }).catch((err: any) => {
             if (restoreUaCall) restoreUaCall();
@@ -217,6 +232,13 @@ class DidlogicClientWrapper {
 
     private bindCallEvents(voiceCall: any, wrappedCall: DidlogicCallWrapper) {
         if (voiceCall.session) {
+            voiceCall.session.on('progress', () => {
+                console.log('[DIDLogic] 📞 Session progress / early media');
+                wrappedCall.state = 'early';
+                wrappedCall.remoteStream = voiceCall.getRemoteStream();
+                this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
+            });
+
             voiceCall.session.on('failed', (e: any) => {
                 const status = e?.message?.status_code;
                 const reason = e?.message?.reason_phrase;
