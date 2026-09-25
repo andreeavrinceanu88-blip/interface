@@ -795,6 +795,12 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         } else if (activeCall) {
             try { activeCall.hangup(); } catch (e) {}
         }
+        if (clientRef.current) {
+            try {
+                clientRef.current.activeCall = null;
+                if (clientRef.current.device) clientRef.current.device.currentCall = null;
+            } catch (e) {}
+        }
         // Do not hangup ringing calls automatically to avoid dropping queued calls!
         setCallState('idle');
     };

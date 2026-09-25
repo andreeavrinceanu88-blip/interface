@@ -69,6 +69,7 @@ class DidlogicClientWrapper {
     private device: any = null;
     private credsManager: any = null;
     provider = 'didlogic';
+    activeCall: DidlogicCallWrapper | null = null;
 
     constructor() {}
 
@@ -102,6 +103,23 @@ class DidlogicClientWrapper {
         });
 
         this.device = new Device();
+        this.device.on('incomingCall', (voiceCall: any) => {
+            const callId = 'dl_in_' + Date.now();
+            console.log('[DIDLogic] 📞 Inbound call from:', voiceCall.remoteIdentity, 'to DID:', voiceCall.calledNumber);
+
+            const wrappedCall = new DidlogicCallWrapper(callId, 'inbound', {
+                remoteCallerNumber: voiceCall.remoteIdentity || 'necunoscut',
+                destinationNumber: voiceCall.calledNumber || undefined,
+            });
+            wrappedCall.voiceCall = voiceCall;
+            wrappedCall.state = 'ringing';
+            this.activeCall = wrappedCall;
+
+            this.bindCallEvents(voiceCall, wrappedCall);
+            this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
+        });
+
+        console.log('[DIDLogic] Device initialized. hasListeners(incomingCall):', this.device.hasListeners('incomingCall'));
 
         this.device.on('registered', () => {
             console.log('[DIDLogic] ✅ SIP Registered & Ready');
@@ -123,21 +141,6 @@ class DidlogicClientWrapper {
             console.warn('[DIDLogic] ⚠️ Transport disconnected');
             this.connected = false;
             this.emit('telnyx.error', { cause: 'Disconnected' });
-        });
-
-        this.device.on('incomingCall', (voiceCall: any) => {
-            const callId = 'dl_in_' + Date.now();
-            console.log('[DIDLogic] 📞 Inbound call from:', voiceCall.remoteIdentity);
-
-            const wrappedCall = new DidlogicCallWrapper(callId, 'inbound', {
-                remoteCallerNumber: voiceCall.remoteIdentity || 'necunoscut',
-                destinationNumber: voiceCall.calledNumber || undefined,
-            });
-            wrappedCall.voiceCall = voiceCall;
-            wrappedCall.state = 'ringing';
-
-            this.bindCallEvents(voiceCall, wrappedCall);
-            this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
         });
 
         this.credsManager.onCredentials = (creds: any) => {
@@ -174,6 +177,7 @@ class DidlogicClientWrapper {
 
         const callId = 'dl_out_' + Date.now();
         const wrappedCall = new DidlogicCallWrapper(callId, 'outbound', options);
+        this.activeCall = wrappedCall;
 
         // Normalize destination for DIDLogic: international E.164 digits without '+' (e.g. 40735548486)
         const dest = normalizePhoneForProvider(options.destinationNumber, 'didlogic');
@@ -201,6 +205,12 @@ class DidlogicClientWrapper {
         let cancelledBeforeVoiceCall = false;
         wrappedCall.hangup = () => {
             cancelledBeforeVoiceCall = true;
+            if (this.activeCall === wrappedCall) {
+                this.activeCall = null;
+            }
+            if (this.device) {
+                this.device.currentCall = null;
+            }
             if (wrappedCall.voiceCall) {
                 try { wrappedCall.voiceCall.hangup(); } catch (e) { console.warn('[DIDLogic] Hangup error:', e); }
             }
@@ -214,6 +224,8 @@ class DidlogicClientWrapper {
                 try { voiceCall.hangup(); } catch (e) {}
                 wrappedCall.state = 'destroy';
                 wrappedCall.cause = 'NORMAL_CLEARING';
+                if (this.activeCall === wrappedCall) this.activeCall = null;
+                if (this.device) this.device.currentCall = null;
                 this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
                 return;
             }
@@ -224,6 +236,8 @@ class DidlogicClientWrapper {
             wrappedCall.state = 'destroy';
             wrappedCall.cause = err.message || 'Call failed';
             wrappedCall.hangupCause = err.message;
+            if (this.activeCall === wrappedCall) this.activeCall = null;
+            if (this.device) this.device.currentCall = null;
             this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
         });
 
@@ -258,20 +272,27 @@ class DidlogicClientWrapper {
             this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
         });
 
-        voiceCall.on('ended', ({ cause }: any) => {
-            console.log('[DIDLogic] Call ended. Cause:', cause);
+        const finishCall = (cause: any, defaultMsg: string) => {
+            if (this.activeCall === wrappedCall) {
+                this.activeCall = null;
+            }
+            if (this.device) {
+                this.device.currentCall = null;
+            }
             wrappedCall.state = 'destroy';
-            wrappedCall.cause = wrappedCall.cause || cause || 'NORMAL_CLEARING';
+            wrappedCall.cause = wrappedCall.cause || cause || defaultMsg;
             wrappedCall.hangupCause = wrappedCall.hangupCause || cause;
             this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
+        };
+
+        voiceCall.on('ended', ({ cause }: any) => {
+            console.log('[DIDLogic] Call ended. Cause:', cause);
+            finishCall(cause, 'NORMAL_CLEARING');
         });
 
         voiceCall.on('failed', ({ cause }: any) => {
             console.log('[DIDLogic] Call failed. Cause:', cause);
-            wrappedCall.state = 'destroy';
-            wrappedCall.cause = wrappedCall.cause || cause || 'Call Failed';
-            wrappedCall.hangupCause = wrappedCall.hangupCause || cause;
-            this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
+            finishCall(cause, 'Call Failed');
         });
     }
 
@@ -299,6 +320,21 @@ class DidlogicClientWrapper {
                     xDid: typeof request.getHeader === 'function' ? request.getHeader('X-DID') : undefined,
                     ruri: request.ruri?.toString()
                 });
+
+                // Crucial fix for 486 Busy Here:
+                // Voice SDK's Device.ts automatically terminates inbound INVITE with 486 if this.currentCall != null.
+                // If the app is idle or the existing call is already ended/terminated, reset device.currentCall to null
+                // so the incoming call is GUARANTEED to be accepted and delivered to the inboundCall listener!
+                if (this.device) {
+                    const cur = this.device.currentCall;
+                    const hasListener = this.device.hasListeners('incomingCall');
+                    console.log(`[DIDLogic] 🔍 Inbound INVITE check — hasListeners(incomingCall): ${hasListener} | currentCall: ${!!cur} | activeCall: ${!!this.activeCall}`);
+
+                    if (cur && (!this.activeCall || cur.terminated || cur._terminated || cur.session?.isEnded?.())) {
+                        console.warn('[DIDLogic] ⚠️ Clearing stale device.currentCall before accepting incoming INVITE');
+                        this.device.currentCall = null;
+                    }
+                }
             }
 
             // DIDLogic sends incoming SIP requests (INVITE, CANCEL, ACK, etc.) to the DID or destination extension.
@@ -313,7 +349,7 @@ class DidlogicClientWrapper {
         };
 
         ua.on('newRTCSession', (e: any) => {
-            console.log('[DIDLogic] 🔔 JsSIP newRTCSession fired:', e.originator, e.session?.direction);
+            console.log(`[DIDLogic] 🔔 JsSIP newRTCSession fired: originator=${e.originator}, direction=${e.session?.direction}, device.currentCall=${!!this.device?.currentCall}`);
         });
     }
 
