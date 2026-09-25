@@ -18,6 +18,7 @@ class DidlogicCallWrapper {
     cause?: string;
     causeMessage?: string;
     hangupCause?: string;
+    logger?: (msg: string) => void;
 
     constructor(id: string, direction: 'inbound' | 'outbound', options: any) {
         this.id = id;
@@ -27,18 +28,21 @@ class DidlogicCallWrapper {
     }
 
     hangup() {
+        this.logger?.('📴 Comandă de închidere apel...');
         if (this.voiceCall) {
             try { this.voiceCall.hangup(); } catch (e) { console.warn('[DIDLogic] Hangup error:', e); }
         }
     }
 
     answer() {
+        this.logger?.('📞 Comandă de răspuns apel...');
         if (this.voiceCall) {
             try { this.voiceCall.answer(); } catch (e) { console.warn('[DIDLogic] Answer error:', e); }
         }
     }
 
     reject() {
+        this.logger?.('❌ Comandă de respingere apel (486 Busy)...');
         if (this.voiceCall) {
             try {
                 if (typeof this.voiceCall.reject === 'function') {
@@ -73,6 +77,21 @@ class DidlogicClientWrapper {
 
     constructor() {}
 
+    log(msg: string, ...extra: any[]) {
+        console.log(`%c[DIDLogic] ${msg}`, 'color: #06b6d4; font-weight: bold;', ...extra);
+        this.emit('telnyx.log', msg);
+    }
+
+    warn(msg: string, ...extra: any[]) {
+        console.warn(`[DIDLogic ⚠️] ${msg}`, ...extra);
+        this.emit('telnyx.log', `⚠️ ${msg}`);
+    }
+
+    error(msg: string, ...extra: any[]) {
+        console.error(`[DIDLogic ❌] ${msg}`, ...extra);
+        this.emit('telnyx.log', `❌ ${msg}`);
+    }
+
     on(event: string, handler: Function) {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, new Set());
@@ -91,7 +110,7 @@ class DidlogicClientWrapper {
     }
 
     async init() {
-        console.log('[DIDLogic] Initializing Voice SDK client...');
+        this.log('Inițializare client Voice SDK...');
         const { Device, CallCredentialsManager } = await import('@didlogic/voice-sdk');
 
         // Credentials manager points to our serverless proxy / local dev proxy
@@ -103,14 +122,22 @@ class DidlogicClientWrapper {
         });
 
         this.device = new Device();
+
+        this.device.on('transportConnected', () => {
+            this.log('🟢 Conexiune WebSocket WSS stabilită cu serverul DIDLogic');
+        });
+
         this.device.on('incomingCall', (voiceCall: any) => {
             const callId = 'dl_in_' + Date.now();
-            console.log('[DIDLogic] 📞 Inbound call from:', voiceCall.remoteIdentity, 'to DID:', voiceCall.calledNumber);
+            const fromNum = voiceCall.remoteIdentity || 'necunoscut';
+            const toDid = voiceCall.calledNumber || 'N/A';
+            this.log(`📞 APEL DE INTRARE detectat de la: ${fromNum} | DID apelat: ${toDid}`);
 
             const wrappedCall = new DidlogicCallWrapper(callId, 'inbound', {
-                remoteCallerNumber: voiceCall.remoteIdentity || 'necunoscut',
-                destinationNumber: voiceCall.calledNumber || undefined,
+                remoteCallerNumber: fromNum,
+                destinationNumber: toDid,
             });
+            wrappedCall.logger = (msg: string) => this.log(msg);
             wrappedCall.voiceCall = voiceCall;
             wrappedCall.state = 'ringing';
             this.activeCall = wrappedCall;
@@ -119,11 +146,12 @@ class DidlogicClientWrapper {
             this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
         });
 
-        console.log('[DIDLogic] Device initialized. hasListeners(incomingCall):', this.device.hasListeners('incomingCall'));
+        this.log(`Device instanțiat. hasListeners(incomingCall): ${this.device.hasListeners('incomingCall')}`);
 
         this.device.on('registered', () => {
-            console.log('[DIDLogic] ✅ SIP Registered & Ready');
             const creds = this.credsManager?.getCredentials?.();
+            const user = creds?.sipUser || 'ok';
+            this.log(`✅ SIP Înregistrat & Pregătit (User: ${user})`);
             if (creds?.sipUser) {
                 this.patchUa(creds.sipUser);
             }
@@ -132,37 +160,39 @@ class DidlogicClientWrapper {
         });
 
         this.device.on('registrationFailed', (e: any) => {
-            console.error('[DIDLogic] ❌ Registration failed:', e?.cause);
+            this.error(`Înregistrare SIP eșuată: ${e?.cause || 'necunoscut'}`);
             this.connected = false;
             this.emit('telnyx.error', e);
         });
 
         this.device.on('transportDisconnected', () => {
-            console.warn('[DIDLogic] ⚠️ Transport disconnected');
+            this.warn('Conexiune WebSocket întreruptă');
             this.connected = false;
             this.emit('telnyx.error', { cause: 'Disconnected' });
         });
 
         this.credsManager.onCredentials = (creds: any) => {
-            console.log('[DIDLogic] Applying refreshed credentials (user:', creds.sipUser, ')');
+            this.log(`Reînnoire credențiale SIP primite (User: ${creds.sipUser})`);
             this.device.applyCredentials(creds);
             this.patchUa(creds.sipUser);
         };
 
         this.credsManager.onError = (err: any) => {
-            console.error('[DIDLogic] Credentials error:', err);
+            this.error(`Eroare credențiale SIP: ${err?.message || JSON.stringify(err)}`);
             this.emit('telnyx.error', err);
         };
 
         // Fetch initial credentials to kick off registration
         try {
+            this.log('Preluare credențiale inițiale prin proxy...');
             await this.credsManager.fetch();
             const currentCreds = this.credsManager.getCredentials?.();
+            this.log(`Credențiale inițiale obținute cu succes (WSS: ${currentCreds?.wssUrl})`);
             if (currentCreds?.sipUser) {
                 this.patchUa(currentCreds.sipUser);
             }
         } catch (err) {
-            console.error('[DIDLogic] Initial credentials fetch error:', err);
+            this.error(`Preluarea inițială a credențialelor a eșuat: ${err}`);
             this.emit('telnyx.error', err);
             throw err;
         }
@@ -177,15 +207,16 @@ class DidlogicClientWrapper {
 
         const callId = 'dl_out_' + Date.now();
         const wrappedCall = new DidlogicCallWrapper(callId, 'outbound', options);
+        wrappedCall.logger = (msg: string) => this.log(msg);
         this.activeCall = wrappedCall;
 
         // Normalize destination for DIDLogic: international E.164 digits without '+' (e.g. 40735548486)
         const dest = normalizePhoneForProvider(options.destinationNumber, 'didlogic');
+        const callerNum = options.callerNumber ? (options.callerNumber.startsWith('+') ? options.callerNumber : '+' + options.callerNumber) : null;
 
-        console.log('[DIDLogic] Dialing destination:', dest, '(digits only, no plus)', 'callerId:', options.callerNumber);
+        this.log(`Inițiere apel ieșire către: ${dest} | Caller ID: ${callerNum || 'Default'}`);
 
         // Inject Caller ID headers into JsSIP session if callerNumber is provided
-        const callerNum = options.callerNumber ? (options.callerNumber.startsWith('+') ? options.callerNumber : '+' + options.callerNumber) : null;
         let restoreUaCall: (() => void) | null = null;
         if (this.device?.ua && callerNum) {
             const origUaCall = this.device.ua.call.bind(this.device.ua);
@@ -205,6 +236,7 @@ class DidlogicClientWrapper {
         let cancelledBeforeVoiceCall = false;
         wrappedCall.hangup = () => {
             cancelledBeforeVoiceCall = true;
+            this.log('📴 Solicitare închidere apel (operator)...');
             if (this.activeCall === wrappedCall) {
                 this.activeCall = null;
             }
@@ -232,7 +264,7 @@ class DidlogicClientWrapper {
             this.bindCallEvents(voiceCall, wrappedCall);
         }).catch((err: any) => {
             if (restoreUaCall) restoreUaCall();
-            console.error('[DIDLogic] Call failed to initiate:', err);
+            this.error(`Eșec la inițierea apelului: ${err.message || err}`);
             wrappedCall.state = 'destroy';
             wrappedCall.cause = err.message || 'Call failed';
             wrappedCall.hangupCause = err.message;
@@ -247,7 +279,7 @@ class DidlogicClientWrapper {
     private bindCallEvents(voiceCall: any, wrappedCall: DidlogicCallWrapper) {
         if (voiceCall.session) {
             voiceCall.session.on('progress', () => {
-                console.log('[DIDLogic] 📞 Session progress / early media');
+                this.log('📞 Semnal progres sesiune (Early media / Ton apelare)');
                 wrappedCall.state = 'early';
                 wrappedCall.remoteStream = voiceCall.getRemoteStream();
                 this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
@@ -256,7 +288,7 @@ class DidlogicClientWrapper {
             voiceCall.session.on('failed', (e: any) => {
                 const status = e?.message?.status_code;
                 const reason = e?.message?.reason_phrase;
-                console.error(`[DIDLogic] ❌ Raw SIP Failure: Status=${status}, Reason="${reason}", Cause=${e?.cause}`);
+                this.error(`Semnal SIP eșuat: Status=${status}, Reason="${reason}", Cause=${e?.cause}`);
                 if (status) {
                     wrappedCall.cause = `${status} ${reason || e?.cause || ''}`.trim();
                     wrappedCall.causeMessage = reason;
@@ -266,7 +298,7 @@ class DidlogicClientWrapper {
         }
 
         voiceCall.on('accepted', () => {
-            console.log('[DIDLogic] Call answered / active');
+            this.log('✅ Apel conectat / Răspuns primit (Convorbire activă)');
             wrappedCall.state = 'active';
             wrappedCall.remoteStream = voiceCall.getRemoteStream();
             this.emit('telnyx.notification', { type: 'callUpdate', call: wrappedCall });
@@ -279,6 +311,8 @@ class DidlogicClientWrapper {
             if (this.device) {
                 this.device.currentCall = null;
             }
+            const finalCause = cause || defaultMsg;
+            this.log(`📴 Apel încheiat. Cauză: ${finalCause}`);
             wrappedCall.state = 'destroy';
             wrappedCall.cause = wrappedCall.cause || cause || defaultMsg;
             wrappedCall.hangupCause = wrappedCall.hangupCause || cause;
@@ -286,12 +320,10 @@ class DidlogicClientWrapper {
         };
 
         voiceCall.on('ended', ({ cause }: any) => {
-            console.log('[DIDLogic] Call ended. Cause:', cause);
             finishCall(cause, 'NORMAL_CLEARING');
         });
 
         voiceCall.on('failed', ({ cause }: any) => {
-            console.log('[DIDLogic] Call failed. Cause:', cause);
             finishCall(cause, 'Call Failed');
         });
     }
@@ -310,16 +342,13 @@ class DidlogicClientWrapper {
             const configUser = ua._configuration?.uri?.user || sipUser;
             const contactUser = ua._contact?.uri?.user;
 
-            console.log(`[DIDLogic] 📨 Incoming SIP message: ${method} | RURI: "${ruriUser}" | Config: "${configUser}" | Contact: "${contactUser}"`);
-
             if (method === 'INVITE') {
-                console.log('[DIDLogic] 📞 Inbound INVITE intercepted:', {
-                    from: request.from?.toString(),
-                    to: request.to?.toString(),
-                    callId: request.call_id,
-                    xDid: typeof request.getHeader === 'function' ? request.getHeader('X-DID') : undefined,
-                    ruri: request.ruri?.toString()
-                });
+                const fromHeader = request.from?.toString();
+                const toHeader = request.to?.toString();
+                const callId = request.call_id;
+                const xDid = typeof request.getHeader === 'function' ? request.getHeader('X-DID') : undefined;
+
+                this.log(`📨 Pachet SIP INVITE primit de la ${fromHeader} | DID apelat: ${xDid || toHeader} | Call-ID: ${callId}`);
 
                 // Crucial fix for 486 Busy Here:
                 // Voice SDK's Device.ts automatically terminates inbound INVITE with 486 if this.currentCall != null.
@@ -328,20 +357,26 @@ class DidlogicClientWrapper {
                 if (this.device) {
                     const cur = this.device.currentCall;
                     const hasListener = this.device.hasListeners('incomingCall');
-                    console.log(`[DIDLogic] 🔍 Inbound INVITE check — hasListeners(incomingCall): ${hasListener} | currentCall: ${!!cur} | activeCall: ${!!this.activeCall}`);
+                    this.log(`🔍 Verificare stare apel: hasListeners=${hasListener} | currentCall=${!!cur} | activeCall=${!!this.activeCall}`);
 
                     if (cur && (!this.activeCall || cur.terminated || cur._terminated || cur.session?.isEnded?.())) {
-                        console.warn('[DIDLogic] ⚠️ Clearing stale device.currentCall before accepting incoming INVITE');
+                        this.warn('Curățare stare apel reziduală pentru a garanta preluarea apelului');
                         this.device.currentCall = null;
                     }
                 }
+            } else if (method === 'CANCEL') {
+                this.log('📨 Pachet SIP CANCEL primit (apelantul a anulat apelul)');
+            } else if (method === 'BYE') {
+                this.log('📨 Pachet SIP BYE primit (partenerul de convorbire a închis)');
+            } else if (method !== 'ACK') {
+                console.log(`[DIDLogic] 📨 Mesaj SIP: ${method} | RURI: "${ruriUser}"`);
             }
 
             // DIDLogic sends incoming SIP requests (INVITE, CANCEL, ACK, etc.) to the DID or destination extension.
             // JsSIP strictly drops requests where ruri.user !== _configuration.uri.user with a 404 Not Found.
             // Normalizing request.ruri.user to match configUser guarantees that JsSIP accepts the call and emits newRTCSession.
             if (request?.ruri && request.ruri.user && request.ruri.user !== configUser && request.ruri.user !== contactUser) {
-                console.log(`[DIDLogic] 🔄 Normalizing ${method} RURI user "${ruriUser}" -> "${configUser}" for JsSIP acceptance`);
+                this.log(`Normalizare RURI SIP user "${ruriUser}" -> "${configUser}"`);
                 request.ruri.user = configUser;
             }
 
@@ -349,7 +384,7 @@ class DidlogicClientWrapper {
         };
 
         ua.on('newRTCSession', (e: any) => {
-            console.log(`[DIDLogic] 🔔 JsSIP newRTCSession fired: originator=${e.originator}, direction=${e.session?.direction}, device.currentCall=${!!this.device?.currentCall}`);
+            this.log(`🔔 Sesiune WebRTC JsSIP creată: originator=${e.originator}, direction=${e.session?.direction}`);
         });
     }
 

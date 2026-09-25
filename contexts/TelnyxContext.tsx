@@ -301,6 +301,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 .limit(2);
             
             if (data && data.length > 0 && !error) {
+                addLog(`🔍 Client identificat: ${data[0].name} (${data.length} comenzi în sistem)`);
                 setCallerInfos(prev => ({
                     ...prev,
                     [callId]: {
@@ -320,6 +321,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     }
                 }));
             } else {
+                addLog(`🔍 Număr necunoscut (fără comenzi în sistem)`);
                 setCallerInfos(prev => ({ ...prev, [callId]: { number: phoneNumber } }));
             }
         } catch (err) {
@@ -340,6 +342,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             const tracks = stream.getAudioTracks ? stream.getAudioTracks() : [];
             if (tracks.length > 0 && audioRef.current.srcObject !== stream) {
                 console.log('[SIP] ▶ Attaching remote audio — tracks:', tracks.length, tracks.map((t: any) => `${t.label} (${t.readyState})`));
+                addLog(`🔊 Canal audio conectat (${tracks.length} track audio)`);
                 audioRef.current.srcObject = stream;
                 audioRef.current.volume = 1.0;
                 audioRef.current.play().catch(e => console.error('[SIP] Audio play error:', e));
@@ -704,6 +707,11 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 const onError = () => setIsReady(false);
 
                 const _provider = provider;
+                const onLog = (msg: string) => {
+                    addLog(msg);
+                };
+                client.on('telnyx.log', onLog);
+
                 const onNotification = (n: any) => {
                     console.log(`[SIP][${_provider} NOTIFICATION]`, n?.type, n?.call?.state, n?.call?.id);
                     try {
@@ -720,6 +728,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 outboundCleanupRef.current = () => {
                     client.off('telnyx.ready', onReady);
                     client.off('telnyx.error', onError);
+                    client.off('telnyx.log', onLog);
                     if (onNotification) {
                         client.off('telnyx.notification', onNotification);
                     }
@@ -811,6 +820,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 ? prev.find(c => (c.id || c.options?.callSessionId) === callId) 
                 : prev[0];
             if (call) {
+                const callerNum = call.options?.remoteCallerNumber || call.options?.callerNumber || 'Client';
+                addLog(`📞 Răspund la apelul de la ${callerNum}...`);
                 stopIncomingRingtone();
                 try {
                     console.log('[SIP] Answering call:', call.id || call.options?.callSessionId);
@@ -829,6 +840,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 ? prev.find(c => (c.id || c.options?.callSessionId) === callId) 
                 : prev[0];
             if (call) {
+                const callerNum = call.options?.remoteCallerNumber || call.options?.callerNumber || 'Client';
+                addLog(`❌ Apel respins de la ${callerNum}`);
                 try {
                     if (typeof call.reject === 'function') {
                         call.reject();
