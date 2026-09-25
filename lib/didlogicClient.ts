@@ -335,12 +335,32 @@ class DidlogicClientWrapper {
         if ((ua as any)._didlogicPatched) return;
         (ua as any)._didlogicPatched = true;
 
+        // Raw WebSocket interceptor — runs before ANY parsing or SIP logic
+        try {
+            const ws = (ua as any)._transport?.socket?._ws;
+            if (ws && !(ws as any)._wireLogAttached) {
+                (ws as any)._wireLogAttached = true;
+                ws.addEventListener('message', (evt: MessageEvent) => {
+                    const raw = typeof evt.data === 'string' ? evt.data : '';
+                    if (raw.includes('SIP/2.0')) {
+                        const firstLine = raw.split('\r\n')[0] || raw.split('\n')[0] || '';
+                        console.log(`%c[DIDLogic WSS WIRE] 📥 Primit pe WebSocket: ${firstLine}`, 'background: #0891b2; color: #ffffff; font-weight: bold; padding: 2px 6px; border-radius: 4px;');
+                        if (raw.startsWith('INVITE')) {
+                            console.log(`%c[DIDLogic WSS WIRE INVITE]\n${raw}`, 'color: #d946ef; font-family: monospace;');
+                        }
+                    }
+                });
+            }
+        } catch (e) {}
+
         const origReceiveRequest = ua.receiveRequest.bind(ua);
         ua.receiveRequest = (request: any) => {
             const method = request?.method;
             const ruriUser = request?.ruri?.user;
             const configUser = ua._configuration?.uri?.user || sipUser;
             const contactUser = ua._contact?.uri?.user;
+
+            console.log(`[DIDLogic SIP WIRE] 📡 Pachet SIP recepționat: ${method} | RURI: "${ruriUser}" | Call-ID: ${request?.call_id || 'N/A'}`);
 
             if (method === 'INVITE') {
                 const fromHeader = request.from?.toString();
