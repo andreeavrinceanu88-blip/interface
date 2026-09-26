@@ -94,8 +94,36 @@ interface ProduseItem {
     price: string;
     sku: string;
     admin_graphql_api_id: string;
+    manual_discount?: number;
     [key: string]: any;
 }
+
+const calculateItemDiscount = (item: any, discountMap: Record<string, string>) => {
+    const qty = Number(item.quantity) || 1;
+    const price = parseFloat(item.price) || 0;
+    const discountArrayStr = discountMap[item.sku];
+    let autoDiscount = 0;
+    if (discountArrayStr && qty > 1) {
+        const parts = discountArrayStr.split(',').map((n: string) => parseFloat(n?.trim()) || 0);
+        if (parts.length > 0) {
+            autoDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
+        }
+    }
+    const manualDiscount = Math.max(0, parseFloat(item.manual_discount) || 0);
+    const rawTotalDiscount = autoDiscount + manualDiscount;
+    const maxDiscount = price * qty;
+    const totalDiscount = Math.min(maxDiscount, rawTotalDiscount);
+    const perUnitDiscount = qty > 0 ? totalDiscount / qty : 0;
+    const finalPrice = Math.max(0, maxDiscount - totalDiscount);
+
+    return {
+        autoDiscount,
+        manualDiscount,
+        totalDiscount,
+        perUnitDiscount,
+        finalPrice
+    };
+};
 
 const parseProduse = (produse: string): ProduseItem[] => {
     if (!produse) return [];
@@ -227,6 +255,21 @@ const Drafturi = () => {
     const [availableProducts, setAvailableProducts] = useState<any[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [productSearchQuery, setProductSearchQuery] = useState('');
+
+    // ── Quick Discount modal
+    const [quickDiscountModal, setQuickDiscountModal] = useState<{
+        isOpen: boolean;
+        itemIndex: number;
+        item: ProduseItem | null;
+        discountValue: string;
+        isSaving: boolean;
+    }>({
+        isOpen: false,
+        itemIndex: -1,
+        item: null,
+        discountValue: '',
+        isSaving: false
+    });
 
     // ── Dialer
     const [dialerOpen, setDialerOpen] = useState(false);
@@ -787,29 +830,21 @@ const Drafturi = () => {
                         }
 
                         const lineItemsWithDiscount = items.map(item => {
-                            const qty = item.quantity;
-                            const discountArrayStr = productsDiscountMap[item.sku];
-                            let totalDiscount = 0;
-                            if (discountArrayStr && qty > 1) {
-                                const parts = discountArrayStr.split(',').map((n: string) => parseFloat(n.trim()) || 0);
-                                if (parts.length > 0) {
-                                    totalDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
-                                }
-                            }
-                            // discountCode conține discount-ul TOTAL pentru linia întreagă
-                            const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
+                            const qty = Number(item.quantity) || 1;
+                            const { autoDiscount, manualDiscount, totalDiscount, perUnitDiscount } = calculateItemDiscount(item, productsDiscountMap);
                             const basePrice = parseFloat(item.price) || 0;
                             
                             console.log(`[Drafturi] DISCOUNT LOG for ${item.title}:`);
                             console.log(`- Qty: ${qty}`);
-                            console.log(`- DB Discount Code String: "${discountArrayStr || ''}"`);
+                            console.log(`- Auto Discount: ${autoDiscount}`);
+                            console.log(`- Manual Discount: ${manualDiscount}`);
                             console.log(`- Computed Total Discount for line: ${totalDiscount}`);
                             console.log(`- Computed Per-Unit Discount: ${perUnitDiscount}`);
                             console.log(`- Base price from frontend state: ${basePrice}`);
 
-                            if (discountArrayStr) {
+                            if (totalDiscount > 0) {
                                 showShopifyNotif(
-                                    `💰 Discount ${item.title}: code="${discountArrayStr}", qty=${qty}\nDiscount Per Unitate: ${perUnitDiscount.toFixed(2)}`,
+                                    `💰 Discount ${item.title}: auto=${autoDiscount.toFixed(2)}, manual=${manualDiscount.toFixed(2)}\nTotal: ${totalDiscount.toFixed(2)} lei (${perUnitDiscount.toFixed(2)} / unitate)`,
                                     'info'
                                 );
                             }
@@ -820,6 +855,7 @@ const Drafturi = () => {
                                 title: item.title,
                                 sku: item.sku,
                                 price: item.price,
+                                manual_discount: manualDiscount > 0 ? manualDiscount : undefined,
                                 appliedDiscount: perUnitDiscount > 0 ? perUnitDiscount : undefined
                             };
                         });
@@ -959,6 +995,96 @@ const Drafturi = () => {
             showToast('Eroare la salvarea adresei');
         }
         setSavingAddress(false);
+    };
+
+    // ── Quick Discount Save
+    const handleSaveQuickDiscount = async () => {
+        if (!selectedOrder || quickDiscountModal.itemIndex < 0) return;
+        const itemIdx = quickDiscountModal.itemIndex;
+        const rawVal = parseFloat(quickDiscountModal.discountValue.replace(',', '.'));
+        const manualVal = isNaN(rawVal) ? 0 : Math.max(0, rawVal);
+
+        setQuickDiscountModal(prev => ({ ...prev, isSaving: true }));
+
+        try {
+            const items = parseProduse(selectedOrder.produse);
+            if (!items[itemIdx]) return;
+
+            items[itemIdx].manual_discount = manualVal;
+
+            // Recalculate product subtotal
+            let newProductTotal = 0;
+            items.forEach(it => {
+                const { finalPrice } = calculateItemDiscount(it, productsDiscountMap);
+                newProductTotal += finalPrice;
+            });
+
+            // Calculate shipping
+            let shippingCost = 0;
+            const transportProduct = items.find((it: any) => productsTransportMap[it.sku]);
+            if (transportProduct) {
+                const transportQty = Number(transportProduct.quantity) || 1;
+                const transportArr = productsTransportMap[transportProduct.sku];
+                const qtyIdx = Math.min(Math.max(0, transportQty - 1), transportArr.length - 1);
+                const transportVal = transportArr[qtyIdx];
+                const isGratuit = !transportVal || /^gratu/i.test(transportVal.trim());
+                if (!isGratuit) {
+                    const parsed = parseFloat(transportVal.replace(',', '.'));
+                    if (!isNaN(parsed) && parsed > 0) shippingCost = parsed;
+                }
+            }
+
+            const newTotalValue = (newProductTotal + shippingCost).toFixed(2);
+            const newProduse = JSON.stringify(items);
+
+            // Save to Supabase
+            const { error: dbErr } = await buildUpdateQuery({ produse: newProduse, value: newTotalValue }, selectedOrder);
+            if (dbErr) {
+                console.error('[Drafturi] Quick discount Supabase error:', dbErr);
+                showToast('Eroare la salvare în baza de date');
+                return;
+            }
+
+            // Update local React state
+            setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, produse: newProduse, value: newTotalValue } : o));
+            setSelectedOrder((prev: any) => prev ? { ...prev, produse: newProduse, value: newTotalValue } : prev);
+
+            // Sync to Shopify if draft
+            if (selectedOrder.type === 'draft') {
+                const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
+                const storeName = selectedOrder.store_name || selectedBrand || 'Tamtrend';
+
+                const shopifyItems = items.map((it: any) => {
+                    const qty = Number(it.quantity) || 1;
+                    const { perUnitDiscount } = calculateItemDiscount(it, productsDiscountMap);
+                    return {
+                        variant_id: it.variant_id || it.variantId || it.id,
+                        quantity: qty,
+                        title: it.title,
+                        sku: it.sku,
+                        price: it.price,
+                        manual_discount: it.manual_discount > 0 ? it.manual_discount : undefined,
+                        appliedDiscount: perUnitDiscount > 0 ? perUnitDiscount : undefined
+                    };
+                });
+
+                showShopifyNotif(`🔄 Sincronizare discount manual (${manualVal.toFixed(2)} lei) cu Shopify...`, 'info');
+                const syncRes = await updateShopifyLineItemsBulk(storeName, shopifyId, shopifyItems, shippingCost);
+                if (syncRes && syncRes.errorMsg) {
+                    showShopifyNotif(`Eroare Shopify: ${syncRes.errorMsg}`, 'error');
+                } else if (syncRes) {
+                    showShopifyNotif(`✅ Discount sincronizat cu Shopify!`, 'success');
+                }
+            }
+
+            showToast(manualVal > 0 ? `Discount manual de ${manualVal.toFixed(2)} lei aplicat!` : 'Discount manual resetat!');
+            setQuickDiscountModal(prev => ({ ...prev, isOpen: false }));
+        } catch (err: any) {
+            console.error('[Drafturi] Quick discount error:', err);
+            showToast('Eroare la salvarea discountului');
+        } finally {
+            setQuickDiscountModal(prev => ({ ...prev, isSaving: false }));
+        }
     };
 
     // ── Dialer actions
@@ -2047,23 +2173,8 @@ const Drafturi = () => {
                                                             let newShippingCost = 0;
                                                             
                                                             editedProductsList.forEach((item: any) => {
-                                                                const qty = Number(item.quantity) || 1;
-                                                                const discountArrayStr = productsDiscountMap[item.sku];
-                                                                let totalDiscount = 0;
-                                                                if (discountArrayStr && qty > 1) {
-                                                                    const parts = discountArrayStr.split(',').map(n => parseFloat(n?.toString().trim()) || 0);
-                                                                    if (parts.length > 0) {
-                                                                        totalDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
-                                                                    }
-                                                                }
-                                                                const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
-                                                                const basePrice = parseFloat(item.price) || 0;
-                                                                let finalPrice = basePrice;
-                                                                if (basePrice > 0 && perUnitDiscount > 0) {
-                                                                    finalPrice -= perUnitDiscount;
-                                                                    if (finalPrice < 0) finalPrice = 0;
-                                                                }
-                                                                newProductTotal += finalPrice * qty;
+                                                                const { finalPrice } = calculateItemDiscount(item, productsDiscountMap);
+                                                                newProductTotal += finalPrice;
                                                             });
 
                                                             let finalShippingPriceForShopify: number | undefined = undefined;
@@ -2112,6 +2223,7 @@ const Drafturi = () => {
                                                             }
                                                             console.log('[Drafturi] Supabase saved successfully.');
                                                             setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, produse: newProduse, value: newTotalValue } : o));
+                                                            setSelectedOrder((prev: any) => prev ? { ...prev, produse: newProduse, value: newTotalValue } : prev);
                                                             
                                                             // Sync to Shopify
                                                             const shopifyId = selectedOrder.order_id || selectedOrder.id.toString();
@@ -2119,25 +2231,13 @@ const Drafturi = () => {
                                                             
                                                             const shopifyItems = editedProductsList.map((item: any) => {
                                                                 const qty = Number(item.quantity) || 1;
-                                                                const discountArrayStr = productsDiscountMap[item.sku];
-                                                                let totalDiscount = 0;
-                                                                if (discountArrayStr && qty > 1) {
-                                                                    const parts = discountArrayStr.split(',').map(n => parseFloat(n?.toString().trim()) || 0);
-                                                                    if (parts.length > 0) {
-                                                                        totalDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
-                                                                    }
-                                                                }
-                                                                const perUnitDiscount = totalDiscount > 0 ? totalDiscount / qty : 0;
+                                                                const { autoDiscount, manualDiscount, totalDiscount, perUnitDiscount } = calculateItemDiscount(item, productsDiscountMap);
                                                                 
-                                                                console.log(`[Drafturi] EDIT DISCOUNT LOG for item ID ${item.variant_id || item.variantId || item.id}:`);
-                                                                console.log(`- Qty: ${qty}`);
-                                                                console.log(`- DB Discount Code String: "${discountArrayStr || ''}"`);
-                                                                console.log(`- Computed Total Discount for line: ${totalDiscount}`);
-                                                                console.log(`- Computed Per-Unit Discount: ${perUnitDiscount}`);
+                                                                console.log(`[Drafturi] EDIT DISCOUNT LOG for item ID ${item.variant_id || item.variantId || item.id}: auto=${autoDiscount}, manual=${manualDiscount}, total=${totalDiscount}, perUnit=${perUnitDiscount}`);
 
-                                                                if (discountArrayStr) {
+                                                                if (totalDiscount > 0) {
                                                                     showShopifyNotif(
-                                                                        `💰 Editare Discount ${item.title}: code="${discountArrayStr}", qty=${qty}\nDiscount Per Unitate: ${perUnitDiscount.toFixed(2)}`,
+                                                                        `💰 Editare Discount ${item.title}:\nAuto: ${autoDiscount.toFixed(2)} lei | Manual: ${manualDiscount.toFixed(2)} lei\nTotal: ${totalDiscount.toFixed(2)} lei (${perUnitDiscount.toFixed(2)} / unitate)`,
                                                                         'info'
                                                                     );
                                                                 }
@@ -2148,6 +2248,7 @@ const Drafturi = () => {
                                                                     title: item.title,
                                                                     sku: item.sku,
                                                                     price: item.price,
+                                                                    manual_discount: manualDiscount > 0 ? manualDiscount : undefined,
                                                                     appliedDiscount: perUnitDiscount > 0 ? perUnitDiscount : undefined
                                                                 };
                                                             });
@@ -2227,94 +2328,203 @@ const Drafturi = () => {
                                             return (
                                                 <div className="space-y-3">
                                                     {items.map((item, idx) => {
-                                                        const qty = item.quantity;
-                                                        const price = parseFloat(item.price);
+                                                        const qty = Number(item.quantity) || 1;
+                                                        const price = parseFloat(item.price) || 0;
                                                         const canRemove = editedProductsList.length > 1;
+                                                        const { autoDiscount, manualDiscount, totalDiscount, finalPrice } = calculateItemDiscount(item, productsDiscountMap);
+
                                                         return (
-                                                            <div key={item.id || idx} className="flex items-center gap-4 bg-[#1a1b23] rounded-xl p-4 border border-white/5">
-                                                                {/* Product Image */}
-                                                                <div className="w-16 h-16 rounded-lg bg-[#13141a] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
-                                                                    {productImages[String(item.product_id)] ? (
-                                                                        <img 
-                                                                            src={productImages[String(item.product_id)]!} 
-                                                                            alt={item.title}
-                                                                            className="w-full h-full object-cover"
-                                                                        />
-                                                                    ) : (
-                                                                        <span className="material-icons-round text-gray-300 text-2xl">inventory_2</span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-base font-semibold text-white truncate">{item.title}</p>
-                                                                    <p className="text-sm text-gray-500">{price.toFixed(2)} lei / buc{item.sku ? ` · ${item.sku}` : ''}</p>
-                                                                </div>
-                                                                {editingProducts ? (
-                                                                    <div className="flex items-center gap-4 shrink-0">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <button 
-                                                                                onClick={() => {
-                                                                                    if (qty > 1) {
-                                                                                        const newList = [...editedProductsList];
-                                                                                        newList[idx] = { ...newList[idx], quantity: qty - 1 };
-                                                                                        setEditedProductsList(newList);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#13141a] border border-white/10 text-gray-400 hover:bg-[#13141a]/5 transition-colors font-bold text-lg"
-                                                                            >
-                                                                                −
-                                                                            </button>
-                                                                            <input 
-                                                                                type="number" 
-                                                                                min={1}
-                                                                                value={qty}
-                                                                                onChange={(e) => {
-                                                                                    const val = parseInt(e.target.value);
-                                                                                    if (!isNaN(val) && val >= 1) {
-                                                                                        const newList = [...editedProductsList];
-                                                                                        newList[idx] = { ...newList[idx], quantity: val };
-                                                                                        setEditedProductsList(newList);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-14 h-10 text-center text-base font-bold text-white bg-[#1a1b23] border border-white/10 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                                                            <div key={item.id || idx} className="bg-[#1a1b23] rounded-xl p-4 border border-white/5 flex flex-col gap-3">
+                                                                {/* Top Row: Image, Title, Price, Qty controls / count, Subtotal */}
+                                                                <div className="flex items-center gap-4">
+                                                                    {/* Product Image */}
+                                                                    <div className="w-16 h-16 rounded-lg bg-[#13141a] border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
+                                                                        {productImages[String(item.product_id)] ? (
+                                                                            <img 
+                                                                                src={productImages[String(item.product_id)]!} 
+                                                                                alt={item.title}
+                                                                                className="w-full h-full object-cover"
                                                                             />
+                                                                        ) : (
+                                                                            <span className="material-icons-round text-gray-300 text-2xl">inventory_2</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-base font-semibold text-white truncate">{item.title}</p>
+                                                                        <p className="text-sm text-gray-500">{price.toFixed(2)} lei / buc{item.sku ? ` · ${item.sku}` : ''}</p>
+                                                                    </div>
+                                                                    {editingProducts ? (
+                                                                        <div className="flex items-center gap-4 shrink-0">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <button 
+                                                                                    onClick={() => {
+                                                                                        if (qty > 1) {
+                                                                                            const newList = [...editedProductsList];
+                                                                                            newList[idx] = { ...newList[idx], quantity: qty - 1 };
+                                                                                            setEditedProductsList(newList);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#13141a] border border-white/10 text-gray-400 hover:bg-[#13141a]/5 transition-colors font-bold text-lg"
+                                                                                >
+                                                                                    −
+                                                                                </button>
+                                                                                <input 
+                                                                                    type="number" 
+                                                                                    min={1}
+                                                                                    value={qty}
+                                                                                    onChange={(e) => {
+                                                                                        const val = parseInt(e.target.value);
+                                                                                        if (!isNaN(val) && val >= 1) {
+                                                                                            const newList = [...editedProductsList];
+                                                                                            newList[idx] = { ...newList[idx], quantity: val };
+                                                                                            setEditedProductsList(newList);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-14 h-10 text-center text-base font-bold text-white bg-[#1a1b23] border border-white/10 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                                                                                />
+                                                                                <button 
+                                                                                    onClick={() => {
+                                                                                        const newList = [...editedProductsList];
+                                                                                        newList[idx] = { ...newList[idx], quantity: qty + 1 };
+                                                                                        setEditedProductsList(newList);
+                                                                                    }}
+                                                                                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#13141a] border border-white/10 text-gray-400 hover:bg-[#13141a]/5 transition-colors font-bold text-lg"
+                                                                                >
+                                                                                    +
+                                                                                </button>
+                                                                            </div>
                                                                             <button 
                                                                                 onClick={() => {
-                                                                                    const newList = [...editedProductsList];
-                                                                                    newList[idx] = { ...newList[idx], quantity: qty + 1 };
-                                                                                    setEditedProductsList(newList);
+                                                                                    if (!canRemove) return;
+                                                                                    setEditedProductsList(prev => prev.filter((_, i) => i !== idx));
                                                                                 }}
-                                                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#13141a] border border-white/10 text-gray-400 hover:bg-[#13141a]/5 transition-colors font-bold text-lg"
+                                                                                disabled={!canRemove}
+                                                                                className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors ${canRemove ? 'bg-red-500/20 text-red-600 border-red-500/30 hover:bg-red-100' : 'bg-[#1a1b23] text-gray-300 border-white/5 cursor-not-allowed'}`}
                                                                             >
-                                                                                +
+                                                                                <span className="material-icons-round text-[20px]">delete</span>
                                                                             </button>
                                                                         </div>
-                                                                        <button 
-                                                                            onClick={() => {
-                                                                                if (!canRemove) return;
-                                                                                setEditedProductsList(prev => prev.filter((_, i) => i !== idx));
-                                                                            }}
-                                                                            disabled={!canRemove}
-                                                                            className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors ${canRemove ? 'bg-red-500/20 text-red-600 border-red-500/30 hover:bg-red-100' : 'bg-[#1a1b23] text-gray-300 border-white/5 cursor-not-allowed'}`}
-                                                                        >
-                                                                            <span className="material-icons-round text-[20px]">delete</span>
-                                                                        </button>
+                                                                    ) : (
+                                                                        <span className="text-base font-semibold text-gray-400 shrink-0 px-2">x{qty}</span>
+                                                                    )}
+                                                                    <div className="flex flex-col items-end shrink-0 min-w-[90px]">
+                                                                        <span className="text-base font-bold text-indigo-400">
+                                                                            {finalPrice.toFixed(2)} lei
+                                                                        </span>
+                                                                        {totalDiscount > 0 && (
+                                                                            <span className="text-xs text-gray-500 line-through">
+                                                                                {(price * qty).toFixed(2)} lei
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Bottom Row: Discounts and Manual Discount Option */}
+                                                                {editingProducts ? (
+                                                                    <div className="pt-2.5 border-t border-white/5 flex items-center justify-between gap-3 flex-wrap">
+                                                                        <div className="flex items-center gap-2 text-xs flex-wrap">
+                                                                            <span className="material-icons-round text-amber-400 text-sm">local_offer</span>
+                                                                            {autoDiscount > 0 ? (
+                                                                                <span className="text-gray-400">
+                                                                                    Discount auto: <span className="text-emerald-400 font-semibold">-{autoDiscount.toFixed(2)} lei</span>
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-gray-500">Fără discount auto</span>
+                                                                            )}
+                                                                            {manualDiscount > 0 && (
+                                                                                <>
+                                                                                    <span className="text-gray-600">+</span>
+                                                                                    <span className="text-gray-400">
+                                                                                        Manual: <span className="text-amber-400 font-semibold">-{manualDiscount.toFixed(2)} lei</span>
+                                                                                    </span>
+                                                                                </>
+                                                                            )}
+                                                                            {totalDiscount > 0 && (
+                                                                                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20 text-[11px]">
+                                                                                    Total reducere: -{totalDiscount.toFixed(2)} lei
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        <div className="flex items-center gap-2 shrink-0">
+                                                                            <label className="text-xs text-gray-400 font-medium whitespace-nowrap">
+                                                                                + Discount manual:
+                                                                            </label>
+                                                                            <div className="relative flex items-center">
+                                                                                <input
+                                                                                    type="number"
+                                                                                    min="0"
+                                                                                    step="any"
+                                                                                    placeholder="0"
+                                                                                    value={item.manual_discount !== undefined && item.manual_discount !== null ? item.manual_discount : ''}
+                                                                                    onChange={(e) => {
+                                                                                        const raw = e.target.value;
+                                                                                        const val = raw === '' ? '' : parseFloat(raw);
+                                                                                        const newList = [...editedProductsList];
+                                                                                        newList[idx] = {
+                                                                                            ...newList[idx],
+                                                                                            manual_discount: val === '' ? 0 : (isNaN(val as number) ? 0 : val)
+                                                                                        };
+                                                                                        setEditedProductsList(newList);
+                                                                                    }}
+                                                                                    className="w-20 h-8 px-2 pr-6 text-right font-bold text-white bg-[#13141a] border border-amber-500/40 rounded-lg outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-xs"
+                                                                                />
+                                                                                <span className="absolute right-2 text-gray-500 text-[10px] pointer-events-none">lei</span>
+                                                                            </div>
+                                                                            {Number(item.manual_discount) > 0 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const newList = [...editedProductsList];
+                                                                                        newList[idx] = { ...newList[idx], manual_discount: 0 };
+                                                                                        setEditedProductsList(newList);
+                                                                                    }}
+                                                                                    title="Șterge discount manual"
+                                                                                    className="w-7 h-7 flex items-center justify-center rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                                                                                >
+                                                                                    <span className="material-icons-round text-xs">close</span>
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-base font-semibold text-gray-400 shrink-0 px-2">x{qty}</span>
+                                                                    <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-3 text-xs flex-wrap">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="material-icons-round text-amber-400 text-sm">local_offer</span>
+                                                                            {totalDiscount > 0 ? (
+                                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                    <span className="text-emerald-400 font-bold">
+                                                                                        Reducere: -{totalDiscount.toFixed(2)} lei
+                                                                                    </span>
+                                                                                    <span className="text-gray-500 text-[11px]">
+                                                                                        ({autoDiscount > 0 ? `${autoDiscount.toFixed(2)} auto` : ''}{autoDiscount > 0 && manualDiscount > 0 ? ' + ' : ''}{manualDiscount > 0 ? `${manualDiscount.toFixed(2)} manual` : ''})
+                                                                                    </span>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-gray-500">Fără reducere</span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {selectedOrder.type === 'draft' && selectedOrder.order_state !== 'completed' && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setQuickDiscountModal({
+                                                                                        isOpen: true,
+                                                                                        itemIndex: idx,
+                                                                                        item: item,
+                                                                                        discountValue: item.manual_discount ? String(item.manual_discount) : '',
+                                                                                        isSaving: false
+                                                                                    });
+                                                                                }}
+                                                                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/25 transition-colors text-xs font-semibold"
+                                                                            >
+                                                                                <span className="material-icons-round text-xs">discount</span>
+                                                                                {manualDiscount > 0 ? `Modifică discount manual (${manualDiscount.toFixed(2)} lei)` : '+ Adaugă discount manual'}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
                                                                 )}
-                                                                <span className="text-base font-bold text-indigo-400 w-24 text-right">
-                                                                    {(() => {
-                                                                        const discountArrayStr = productsDiscountMap[item.sku];
-                                                                        let discountAmount = 0;
-                                                                        if (discountArrayStr && qty > 1) {
-                                                                            const parts = discountArrayStr.split(',').map(n => parseFloat(n.trim()) || 0);
-                                                                            if (parts.length > 0) {
-                                                                                discountAmount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
-                                                                            }
-                                                                        }
-                                                                        return ((price * qty) - discountAmount).toFixed(2);
-                                                                    })()} lei
-                                                                </span>
                                                             </div>
                                                         );
                                                     })}
@@ -2395,19 +2605,17 @@ const Drafturi = () => {
                                             const items = editingProducts ? editedProductsList : parseProduse(selectedOrder.produse);
                                             if (items.length === 0) return null;
                                             
-                                            let productTotal = 0;
+                                            let productGrossTotal = 0;
+                                            let totalDiscountSum = 0;
+                                            let productNetTotal = 0;
+
                                             items.forEach(item => {
-                                                const qty = item.quantity;
-                                                const price = parseFloat(item.price);
-                                                const discountArrayStr = productsDiscountMap[item.sku];
-                                                let discountAmount = 0;
-                                                if (discountArrayStr && qty > 1) {
-                                                    const parts = discountArrayStr.split(',').map(n => parseFloat(n.trim()) || 0);
-                                                    if (parts.length > 0) {
-                                                        discountAmount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
-                                                    }
-                                                }
-                                                productTotal += (price * qty) - discountAmount;
+                                                const qty = Number(item.quantity) || 1;
+                                                const price = parseFloat(item.price) || 0;
+                                                const { totalDiscount, finalPrice } = calculateItemDiscount(item, productsDiscountMap);
+                                                productGrossTotal += price * qty;
+                                                totalDiscountSum += totalDiscount;
+                                                productNetTotal += finalPrice;
                                             });
 
                                             let shippingCost = 0;
@@ -2427,11 +2635,29 @@ const Drafturi = () => {
                                             }
 
                                             return (
-                                                <div className="pt-4 mt-4 border-t border-white/5 flex justify-between items-center">
-                                                    <span className="font-bold text-white text-sm">Total comandă</span>
-                                                    <span className="font-bold text-indigo-400 text-base">
-                                                        {money(productTotal + shippingCost)}
-                                                    </span>
+                                                <div className="pt-4 mt-4 border-t border-white/5 space-y-2">
+                                                    {totalDiscountSum > 0 && (
+                                                        <div className="flex justify-between items-center text-xs text-gray-400">
+                                                            <span>Subtotal produse (fără reduceri):</span>
+                                                            <span className="font-medium text-gray-300">{money(productGrossTotal)}</span>
+                                                        </div>
+                                                    )}
+                                                    {totalDiscountSum > 0 && (
+                                                        <div className="flex justify-between items-center text-xs text-emerald-400 font-semibold">
+                                                            <span>Total reduceri (automat + manual):</span>
+                                                            <span>-{money(totalDiscountSum)}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex justify-between items-center text-xs text-gray-400">
+                                                        <span>Transport:</span>
+                                                        <span className="font-medium text-gray-300">{shippingCost > 0 ? money(shippingCost) : 'Gratuit'}</span>
+                                                    </div>
+                                                    <div className="pt-2 border-t border-white/5 flex justify-between items-center">
+                                                        <span className="font-bold text-white text-sm">Total comandă</span>
+                                                        <span className="font-bold text-indigo-400 text-base">
+                                                            {money(productNetTotal + shippingCost)}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             );
                                         })()}
@@ -2773,6 +2999,145 @@ const Drafturi = () => {
                     </div>
                 </div>
             )}
+            {/* ── Quick Manual Discount Modal ─────────────────────────── */}
+            {quickDiscountModal.isOpen && quickDiscountModal.item && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-[#13141a] rounded-2xl shadow-2xl border border-white/10 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-5 border-b border-white/5 bg-[#1a1b23]/50">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
+                                    <span className="material-icons-round text-lg">discount</span>
+                                </div>
+                                <div>
+                                    <h2 className="text-base font-bold text-white">Discount manual produs</h2>
+                                    <p className="text-xs text-gray-400 truncate max-w-[260px]">{quickDiscountModal.item.title}</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setQuickDiscountModal(prev => ({ ...prev, isOpen: false }))}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
+                            >
+                                <span className="material-icons-round text-[20px]">close</span>
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            {(() => {
+                                const it = quickDiscountModal.item;
+                                const qty = Number(it.quantity) || 1;
+                                const price = parseFloat(it.price) || 0;
+                                const discountArrayStr = productsDiscountMap[it.sku];
+                                let autoDiscount = 0;
+                                if (discountArrayStr && qty > 1) {
+                                    const parts = discountArrayStr.split(',').map((n: string) => parseFloat(n?.trim()) || 0);
+                                    if (parts.length > 0) {
+                                        autoDiscount = parts[Math.min(Math.max(0, qty - 2), parts.length - 1)] || 0;
+                                    }
+                                }
+                                const parsedManual = parseFloat(quickDiscountModal.discountValue.replace(',', '.'));
+                                const currentManualVal = isNaN(parsedManual) ? 0 : Math.max(0, parsedManual);
+                                const grossLinePrice = price * qty;
+                                const totalDisc = Math.min(grossLinePrice, autoDiscount + currentManualVal);
+                                const netLinePrice = Math.max(0, grossLinePrice - totalDisc);
+
+                                return (
+                                    <>
+                                        {/* Product Info Summary Box */}
+                                        <div className="bg-[#1a1b23] rounded-xl p-3.5 border border-white/5 space-y-2 text-xs">
+                                            <div className="flex justify-between items-center text-gray-400">
+                                                <span>Preț catalog ({qty} buc × {price.toFixed(2)} lei):</span>
+                                                <span className="font-semibold text-white">{grossLinePrice.toFixed(2)} lei</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-gray-400">
+                                                <span>Discount automat existent (din cantitate):</span>
+                                                <span className={autoDiscount > 0 ? "text-emerald-400 font-semibold" : "text-gray-500"}>
+                                                    {autoDiscount > 0 ? `-${autoDiscount.toFixed(2)} lei` : '0.00 lei'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Manual Discount Input Box */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-semibold text-gray-300 flex items-center justify-between">
+                                                <span>Discount manual suplimentar (peste cel existent)</span>
+                                                {autoDiscount > 0 && (
+                                                    <span className="text-[11px] text-amber-400/90 font-normal">se adaugă peste discountul auto</span>
+                                                )}
+                                            </label>
+                                            <div className="relative flex items-center">
+                                                <span className="absolute left-3.5 text-amber-400 font-bold text-sm">+</span>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="any"
+                                                    placeholder="0.00"
+                                                    value={quickDiscountModal.discountValue}
+                                                    onChange={(e) => setQuickDiscountModal(prev => ({ ...prev, discountValue: e.target.value }))}
+                                                    autoFocus
+                                                    className="w-full pl-8 pr-12 py-2.5 bg-[#1a1b23] text-white font-bold text-base border border-amber-500/40 rounded-xl outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all placeholder:text-gray-600"
+                                                />
+                                                <span className="absolute right-3.5 text-gray-400 text-xs font-medium pointer-events-none">RON</span>
+                                            </div>
+                                            <p className="text-[11px] text-gray-500">
+                                                Introduceți valoarea în lei pe care doriți să o scădeți suplimentar din prețul acestui produs.
+                                            </p>
+                                        </div>
+
+                                        {/* Calculation Preview */}
+                                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 space-y-1.5 text-xs">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-gray-300">Total reducere pe această linie:</span>
+                                                <span className="text-amber-400 font-bold text-sm">
+                                                    -{totalDisc.toFixed(2)} lei
+                                                    {autoDiscount > 0 && currentManualVal > 0 && (
+                                                        <span className="text-xs text-gray-400 font-normal ml-1">
+                                                            ({autoDiscount.toFixed(2)} auto + {currentManualVal.toFixed(2)} manual)
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="pt-1.5 border-t border-amber-500/20 flex justify-between items-center">
+                                                <span className="text-white font-semibold">Preț final produs:</span>
+                                                <span className="text-white font-bold text-sm">{netLinePrice.toFixed(2)} lei</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2.5 p-4 border-t border-white/5 bg-[#1a1b23]/50">
+                            <button
+                                type="button"
+                                onClick={() => setQuickDiscountModal(prev => ({ ...prev, isOpen: false }))}
+                                disabled={quickDiscountModal.isSaving}
+                                className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+                            >
+                                Anulează
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSaveQuickDiscount}
+                                disabled={quickDiscountModal.isSaving}
+                                className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center gap-1.5 shadow-lg shadow-indigo-600/30"
+                            >
+                                {quickDiscountModal.isSaving ? (
+                                    <>
+                                        <span className="material-icons-round text-sm animate-spin">autorenew</span>
+                                        Se salvează...
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="material-icons-round text-sm">save</span>
+                                        Aplică și Salvează
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ── Customer History Modal ────────────────────────────────────── */}
             {showCustomerHistory && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

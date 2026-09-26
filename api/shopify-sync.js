@@ -643,7 +643,7 @@ export default async function handler(req, res) {
             // ── Apply discount at ORDER level (like n8n does) ──
             if (totalOrderDiscount > 0) {
                 input.appliedDiscount = {
-                    title: `Reducere ${totalOrderDiscount.toFixed(0)} lei`,
+                    title: `Reducere ${totalOrderDiscount % 1 === 0 ? totalOrderDiscount.toFixed(0) : totalOrderDiscount.toFixed(2)} lei`,
                     description: 'Reducere aplicata din dashboard',
                     value: totalOrderDiscount,
                     valueType: 'FIXED_AMOUNT'
