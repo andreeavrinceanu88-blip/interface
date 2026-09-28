@@ -88,20 +88,94 @@ export default function App() {
 }
 
 function AuthPage() {
+    const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
+    const [otpStep, setOtpStep] = useState<'request' | 'verify'>('request');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [otpCode, setOtpCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
 
-    const handleAuth = async (e: React.FormEvent) => {
+    // Resend countdown timer
+    useEffect(() => {
+        if (resendCooldown <= 0) return;
+        const interval = setInterval(() => {
+            setResendCooldown(prev => (prev > 0 ? prev - 1 : 0));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [resendCooldown]);
+
+    // Detect magic link / session tokens in URL (if user clicked email link)
+    useEffect(() => {
+        const checkUrlForAuth = async () => {
+            try {
+                // Check hash tokens (#access_token=...&refresh_token=...)
+                const rawHash = window.location.hash;
+                if (rawHash.includes('access_token=') && rawHash.includes('refresh_token=')) {
+                    const cleanHash = rawHash.replace(/^#\/?/, '');
+                    const params = new URLSearchParams(cleanHash);
+                    const accessToken = params.get('access_token');
+                    const refreshToken = params.get('refresh_token');
+
+                    if (accessToken && refreshToken) {
+                        setLoading(true);
+                        const { error } = await supabase.auth.setSession({
+                            access_token: accessToken,
+                            refresh_token: refreshToken,
+                        });
+                        if (error) throw error;
+                        window.history.replaceState(null, '', window.location.pathname + '#/');
+                        return;
+                    }
+                }
+
+                // Check query params (?token_hash=... or ?code=...)
+                const searchParams = new URLSearchParams(window.location.search);
+                const tokenHash = searchParams.get('token_hash');
+                const authType = (searchParams.get('type') as any) || 'email';
+                const code = searchParams.get('code');
+
+                if (tokenHash) {
+                    setLoading(true);
+                    const { error } = await supabase.auth.verifyOtp({
+                        token_hash: tokenHash,
+                        type: authType,
+                    });
+                    if (error) throw error;
+                    window.history.replaceState(null, '', window.location.pathname + '#/');
+                    return;
+                }
+
+                if (code) {
+                    setLoading(true);
+                    const { error } = await supabase.auth.exchangeCodeForSession(code);
+                    if (error) throw error;
+                    window.history.replaceState(null, '', window.location.pathname + '#/');
+                    return;
+                }
+            } catch (err: any) {
+                console.error("Auth URL processing error:", err);
+                setError(err.message || "Eroare la procesarea link-ului de autentificare.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        checkUrlForAuth();
+    }, []);
+
+    // 1. Password sign-in
+    const handlePasswordAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
         try {
             const { error } = await supabase.auth.signInWithPassword({
-                email,
+                email: email.trim(),
                 password,
             });
             if (error) throw error;
@@ -118,6 +192,79 @@ function AuthPage() {
         }
     };
 
+    // 2. Request OTP code via email
+    const handleSendOtp = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!email.trim()) {
+            setError("Introduceți adresa de email pentru a primi codul OTP.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setSuccessMsg(null);
+
+        try {
+            const { error } = await supabase.auth.signInWithOtp({
+                email: email.trim(),
+                options: {
+                    shouldCreateUser: false,
+                    emailRedirectTo: window.location.origin + window.location.pathname,
+                },
+            });
+
+            if (error) {
+                if (error.message?.includes('Signups not allowed') || error.message?.includes('User not found')) {
+                    throw new Error(`Nu a fost găsit niciun cont activ asociat cu adresa ${email.trim()}.`);
+                }
+                if (error.status === 429 || error.message?.includes('rate')) {
+                    throw new Error("Ați trimis prea multe solicitări. Vă rugăm să așteptați 60 de secunde înainte de a reîncerca.");
+                }
+                throw error;
+            }
+
+            setOtpStep('verify');
+            setOtpCode('');
+            setSuccessMsg(`Am trimis un cod de verificare la ${email.trim()}. Verifică căsuța de email.`);
+            setResendCooldown(60);
+        } catch (err: any) {
+            setError(err.message || "Eroare la trimiterea codului OTP.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 3. Verify OTP code
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!otpCode.trim()) {
+            setError("Introduceți codul de verificare din email.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const { error } = await supabase.auth.verifyOtp({
+                email: email.trim(),
+                token: otpCode.trim(),
+                type: 'email',
+            });
+
+            if (error) {
+                if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+                    throw new Error("Codul OTP este incorect sau a expirat. Verificați codul sau solicitați altul.");
+                }
+                throw error;
+            }
+        } catch (err: any) {
+            setError(err.message || "Eroare la verificarea codului OTP.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="h-screen w-full bg-[#0a0b14] flex items-center justify-center relative overflow-hidden">
             {/* Background Effects */}
@@ -129,77 +276,312 @@ function AuthPage() {
 
             <div className="w-full max-w-md p-8 relative z-10">
                 <div className="glass-panel-3d rounded-2xl p-8 border border-white/5 shadow-2xl">
-                    <div className="text-center mb-8">
+                    <div className="text-center mb-6">
                         <h1 className="text-4xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-[#00d2ff] via-[#00b0ff] to-[#008cff] drop-shadow-[0_0_15px_rgba(0,176,255,0.3)] font-mono mb-2" style={{ fontFamily: '"Space Grotesk", sans-serif' }}>
                             NANOASSIST
                         </h1>
                         <p className="text-gray-400 text-sm font-light">
-                            Autentificare
+                            {authMode === 'password'
+                                ? 'Autentificare cu parolă'
+                                : otpStep === 'request'
+                                ? 'Autentificare cu cod pe email'
+                                : 'Introducere cod de securitate'}
                         </p>
                     </div>
 
-                    <form onSubmit={handleAuth} className="space-y-5">
-                        <div className="space-y-1">
-                            <label className="text-xs text-gray-500 font-medium ml-1">Email</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 material-icons-round text-lg">mail</span>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-[#00d2ff] text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-[#00d2ff] transition-all shadow-none"
-                                    placeholder="nume@companie.ro"
-                                    required
-                                />
-                            </div>
-                        </div>
+                    {/* Mode Tabs */}
+                    <div className="flex bg-[#121422] p-1 rounded-xl mb-6 border border-white/5">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAuthMode('password');
+                                setError(null);
+                                setSuccessMsg(null);
+                            }}
+                            className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                authMode === 'password'
+                                    ? 'bg-[#00d2ff]/15 text-[#00d2ff] border border-[#00d2ff]/30 shadow-[0_0_12px_rgba(0,210,255,0.2)]'
+                                    : 'text-gray-400 hover:text-gray-200'
+                            }`}
+                        >
+                            <span className="material-icons-round text-base">key</span>
+                            Parolă
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAuthMode('otp');
+                                setError(null);
+                                setSuccessMsg(null);
+                            }}
+                            className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                authMode === 'otp'
+                                    ? 'bg-[#00d2ff]/15 text-[#00d2ff] border border-[#00d2ff]/30 shadow-[0_0_12px_rgba(0,210,255,0.2)]'
+                                    : 'text-gray-400 hover:text-gray-200'
+                            }`}
+                        >
+                            <span className="material-icons-round text-base">mark_email_read</span>
+                            Cod OTP Email
+                        </button>
+                    </div>
 
-                        <div className="space-y-1">
-                            <label className="text-xs text-gray-500 font-medium ml-1">Parolă</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 material-icons-round text-lg">lock</span>
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-10 pr-12 py-3 rounded-xl bg-white border border-[#a855f7] text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-[#a855f7] transition-all shadow-none"
-                                    placeholder="••••••••"
-                                    required
-                                />
+                    {/* PASSWORD MODE */}
+                    {authMode === 'password' && (
+                        <form onSubmit={handlePasswordAuth} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs text-gray-400 font-medium ml-1">Email</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 material-icons-round text-lg">mail</span>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-[#00d2ff] text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-[#00d2ff] transition-all shadow-none"
+                                        placeholder="nume@companie.ro"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs text-gray-400 font-medium ml-1">Parolă</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 material-icons-round text-lg">lock</span>
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full pl-10 pr-12 py-3 rounded-xl bg-white border border-[#a855f7] text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-[#a855f7] transition-all shadow-none"
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+                                    >
+                                        <span className="material-icons-round text-xl">
+                                            {showPassword ? 'visibility_off' : 'visibility'}
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Forgot password link switching to OTP */}
+                            <div className="flex justify-end pt-0.5">
                                 <button
                                     type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+                                    onClick={() => {
+                                        setAuthMode('otp');
+                                        setOtpStep('request');
+                                        setError(null);
+                                        setSuccessMsg(null);
+                                    }}
+                                    className="text-xs text-[#00d2ff] hover:text-[#00b0ff] hover:underline transition-colors flex items-center gap-1"
                                 >
-                                    <span className="material-icons-round text-xl">
-                                        {showPassword ? 'visibility_off' : 'visibility'}
-                                    </span>
+                                    <span className="material-icons-round text-xs">vpn_key_off</span>
+                                    Nu știi parola? Conectează-te cu cod pe email
                                 </button>
                             </div>
-                        </div>
 
-                        {error && (
-                            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2 animate-pulse">
-                                <span className="material-icons-round text-sm">error_outline</span>
-                                {error}
-                            </div>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full btn-3d-primary py-3 rounded-xl text-white font-medium text-sm tracking-wide mt-4 flex items-center justify-center gap-2"
-                        >
-                            {loading ? (
-                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                            ) : (
-                                <>
-                                    AUTENTIFICARE
-                                    <span className="material-icons-round text-lg">arrow_forward</span>
-                                </>
+                            {error && (
+                                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                                    <span className="material-icons-round text-sm flex-shrink-0">error_outline</span>
+                                    <span>{error}</span>
+                                </div>
                             )}
-                        </button>
-                    </form>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full btn-3d-primary py-3 rounded-xl text-white font-medium text-sm tracking-wide mt-2 flex items-center justify-center gap-2"
+                            >
+                                {loading ? (
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                ) : (
+                                    <>
+                                        AUTENTIFICARE
+                                        <span className="material-icons-round text-lg">arrow_forward</span>
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    )}
+
+                    {/* OTP MODE */}
+                    {authMode === 'otp' && (
+                        <div className="space-y-4">
+                            {otpStep === 'request' ? (
+                                <form onSubmit={handleSendOtp} className="space-y-4">
+                                    <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs text-cyan-200/90 flex items-start gap-2.5">
+                                        <span className="material-icons-round text-cyan-400 text-lg flex-shrink-0 mt-0.5">mail</span>
+                                        <div>
+                                            <p className="font-semibold text-cyan-300 mb-0.5">Autentificare fără parolă</p>
+                                            <p className="text-gray-400 text-[11px] leading-relaxed">
+                                                Introdu adresa de email a contului tău. Vei primi un cod de securitate unic pentru a te conecta direct.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-gray-400 font-medium ml-1">Email</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 material-icons-round text-lg">mail</span>
+                                            <input
+                                                type="email"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-[#00d2ff] text-gray-900 placeholder-gray-500 text-sm focus:outline-none focus:ring-1 focus:ring-[#00d2ff] transition-all shadow-none"
+                                                placeholder="nume@companie.ro"
+                                                required
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {error && (
+                                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                                            <span className="material-icons-round text-sm flex-shrink-0">error_outline</span>
+                                            <span>{error}</span>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="submit"
+                                        disabled={loading || !email.trim()}
+                                        className="w-full btn-3d-primary py-3 rounded-xl text-white font-medium text-sm tracking-wide mt-2 flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        {loading ? (
+                                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                        ) : (
+                                            <>
+                                                TRIMITE CODUL PE EMAIL
+                                                <span className="material-icons-round text-lg">send</span>
+                                            </>
+                                        )}
+                                    </button>
+
+                                    <div className="text-center pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setAuthMode('password');
+                                                setError(null);
+                                            }}
+                                            className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                                        >
+                                            Știi parola? <span className="text-[#00d2ff] underline">Autentifică-te cu parolă</span>
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                                    <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-xs flex items-center justify-between">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <span className="material-icons-round text-emerald-400 text-base flex-shrink-0">mark_email_read</span>
+                                            <span className="text-gray-300 truncate text-[11px]">
+                                                Cod trimis la <strong className="text-white">{email}</strong>
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setOtpStep('request');
+                                                setError(null);
+                                                setSuccessMsg(null);
+                                            }}
+                                            className="text-[11px] text-cyan-400 hover:text-cyan-300 underline font-semibold flex-shrink-0 ml-2"
+                                        >
+                                            Schimbă
+                                        </button>
+                                    </div>
+
+                                    {successMsg && (
+                                        <div className="p-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs flex items-start gap-2">
+                                            <span className="material-icons-round text-sm flex-shrink-0 mt-0.5">info</span>
+                                            <span>{successMsg}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs text-gray-400 font-medium ml-1 flex justify-between">
+                                            <span>Cod de verificare (OTP)</span>
+                                            <span className="text-gray-500 text-[11px]">6 caractere din email</span>
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 material-icons-round text-lg">pin</span>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                autoComplete="one-time-code"
+                                                maxLength={8}
+                                                value={otpCode}
+                                                onChange={(e) => setOtpCode(e.target.value.replace(/\s+/g, ''))}
+                                                className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-[#00d2ff] text-gray-900 font-mono font-bold text-center tracking-[0.4em] text-xl placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00d2ff] transition-all"
+                                                placeholder="123456"
+                                                required
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {error && (
+                                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                                            <span className="material-icons-round text-sm flex-shrink-0">error_outline</span>
+                                            <span>{error}</span>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="submit"
+                                        disabled={loading || !otpCode.trim()}
+                                        className="w-full btn-3d-primary py-3 rounded-xl text-white font-medium text-sm tracking-wide mt-2 flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        {loading ? (
+                                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                        ) : (
+                                            <>
+                                                VERIFICĂ CODUL ȘI INTRĂ
+                                                <span className="material-icons-round text-lg">login</span>
+                                            </>
+                                        )}
+                                    </button>
+
+                                    <div className="pt-2 text-center text-xs">
+                                        {resendCooldown > 0 ? (
+                                            <span className="text-gray-500">
+                                                Poți solicita alt cod în <strong className="text-cyan-400 font-mono">{resendCooldown}s</strong>
+                                            </span>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSendOtp()}
+                                                disabled={loading}
+                                                className="text-[#00d2ff] hover:text-[#00b0ff] hover:underline font-semibold transition-colors inline-flex items-center gap-1"
+                                            >
+                                                <span className="material-icons-round text-sm">refresh</span>
+                                                Nu ai primit codul? Retrimite
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="text-center pt-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setAuthMode('password');
+                                                setError(null);
+                                                setSuccessMsg(null);
+                                            }}
+                                            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                                        >
+                                            Înapoi la autentificare cu parolă
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
