@@ -112,8 +112,20 @@ function AuthPage() {
     useEffect(() => {
         const checkUrlForAuth = async () => {
             try {
-                // Check hash tokens (#access_token=...&refresh_token=...)
+                // Check if Supabase returned an error in the hash (#error=...&error_description=...)
                 const rawHash = window.location.hash;
+                if (rawHash.includes('error=')) {
+                    const cleanHash = rawHash.replace(/^#\/?/, '');
+                    const params = new URLSearchParams(cleanHash);
+                    const errorDesc = params.get('error_description') || params.get('error');
+                    if (errorDesc) {
+                        setError(decodeURIComponent(errorDesc.replace(/\+/g, ' ')));
+                        window.history.replaceState(null, '', window.location.pathname + '#/');
+                        return;
+                    }
+                }
+
+                // Check hash tokens (#access_token=...&refresh_token=...)
                 if (rawHash.includes('access_token=') && rawHash.includes('refresh_token=')) {
                     const cleanHash = rawHash.replace(/^#\/?/, '');
                     const params = new URLSearchParams(cleanHash);
@@ -134,8 +146,15 @@ function AuthPage() {
 
                 // Check query params (?token_hash=... or ?code=...)
                 const searchParams = new URLSearchParams(window.location.search);
-                const tokenHash = searchParams.get('token_hash');
-                const authType = (searchParams.get('type') as any) || 'email';
+                const searchError = searchParams.get('error_description') || searchParams.get('error');
+                if (searchError) {
+                    setError(decodeURIComponent(searchError.replace(/\+/g, ' ')));
+                    window.history.replaceState(null, '', window.location.pathname + '#/');
+                    return;
+                }
+
+                const tokenHash = searchParams.get('token_hash') || searchParams.get('token');
+                const authType = (searchParams.get('type') as any) || 'magiclink';
                 const code = searchParams.get('code');
 
                 if (tokenHash) {
@@ -225,7 +244,7 @@ function AuthPage() {
 
             setOtpStep('verify');
             setOtpCode('');
-            setSuccessMsg(`Am trimis un cod de verificare la ${email.trim()}. Verifică căsuța de email.`);
+            setSuccessMsg(`Am trimis mesajul de verificare la ${email.trim()}. Verifică căsuța de email.`);
             setResendCooldown(60);
         } catch (err: any) {
             setError(err.message || "Eroare la trimiterea codului OTP.");
@@ -234,11 +253,12 @@ function AuthPage() {
         }
     };
 
-    // 3. Verify OTP code
+    // 3. Verify OTP code or pasted link/token
     const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!otpCode.trim()) {
-            setError("Introduceți codul de verificare din email.");
+        const rawInput = otpCode.trim();
+        if (!rawInput) {
+            setError("Introduceți codul sau link-ul de verificare din email.");
             return;
         }
 
@@ -246,15 +266,61 @@ function AuthPage() {
         setError(null);
 
         try {
+            // Case A: User pasted the full magic link URL or query string with token=...
+            if (rawInput.includes('http://') || rawInput.includes('https://') || rawInput.includes('token=')) {
+                let extractedToken = '';
+                try {
+                    const urlObj = new URL(rawInput);
+                    extractedToken = urlObj.searchParams.get('token') || urlObj.searchParams.get('token_hash') || '';
+                } catch {
+                    const match = rawInput.match(/token=([a-zA-Z0-9_-]+)/);
+                    if (match) extractedToken = match[1];
+                }
+
+                if (extractedToken) {
+                    const { error: hashErr } = await supabase.auth.verifyOtp({
+                        token_hash: extractedToken,
+                        type: 'magiclink',
+                    });
+                    if (!hashErr) return;
+
+                    const { error: emailHashErr } = await supabase.auth.verifyOtp({
+                        token_hash: extractedToken,
+                        type: 'email',
+                    });
+                    if (!emailHashErr) return;
+
+                    throw hashErr || emailHashErr;
+                }
+            }
+
+            // Case B: User pasted a long token hash directly (> 10 chars)
+            if (rawInput.length > 10) {
+                const { error: hashErr } = await supabase.auth.verifyOtp({
+                    token_hash: rawInput,
+                    type: 'magiclink',
+                });
+                if (!hashErr) return;
+
+                const { error: emailHashErr } = await supabase.auth.verifyOtp({
+                    token_hash: rawInput,
+                    type: 'email',
+                });
+                if (!emailHashErr) return;
+
+                throw hashErr || emailHashErr;
+            }
+
+            // Case C: Standard 6-digit numeric OTP code
             const { error } = await supabase.auth.verifyOtp({
                 email: email.trim(),
-                token: otpCode.trim(),
+                token: rawInput,
                 type: 'email',
             });
 
             if (error) {
                 if (error.message?.includes('expired') || error.message?.includes('invalid')) {
-                    throw new Error("Codul OTP este incorect sau a expirat. Verificați codul sau solicitați altul.");
+                    throw new Error("Codul introdus este incorect sau a expirat. Verificați codul sau solicitați altul nou.");
                 }
                 throw error;
             }
@@ -505,24 +571,37 @@ function AuthPage() {
 
                                     <div className="space-y-1.5">
                                         <label className="text-xs text-gray-400 font-medium ml-1 flex justify-between">
-                                            <span>Cod de verificare (OTP)</span>
-                                            <span className="text-gray-500 text-[11px]">6 caractere din email</span>
+                                            <span>Cod de verificare (OTP) sau Link</span>
+                                            <span className="text-gray-500 text-[11px]">6 cifre sau link</span>
                                         </label>
                                         <div className="relative">
                                             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 material-icons-round text-lg">pin</span>
                                             <input
                                                 type="text"
-                                                inputMode="numeric"
                                                 autoComplete="one-time-code"
-                                                maxLength={8}
                                                 value={otpCode}
-                                                onChange={(e) => setOtpCode(e.target.value.replace(/\s+/g, ''))}
-                                                className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-[#00d2ff] text-gray-900 font-mono font-bold text-center tracking-[0.4em] text-xl placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00d2ff] transition-all"
-                                                placeholder="123456"
+                                                onChange={(e) => setOtpCode(e.target.value.trim())}
+                                                className={`w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-[#00d2ff] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00d2ff] transition-all ${
+                                                    otpCode.length > 8
+                                                        ? 'text-xs font-mono tracking-normal text-left'
+                                                        : 'font-mono font-bold text-center tracking-[0.4em] text-xl'
+                                                }`}
+                                                placeholder={otpCode.length > 8 ? '' : '123456'}
                                                 required
                                                 autoFocus
                                             />
                                         </div>
+                                    </div>
+
+                                    {/* Helpful hint for magic link vs 6-digit code */}
+                                    <div className="p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/20 text-[11px] text-gray-300 space-y-1">
+                                        <div className="flex items-center gap-1.5 text-cyan-400 font-medium">
+                                            <span className="material-icons-round text-sm">touch_app</span>
+                                            <span>Ai primit link în loc de cod?</span>
+                                        </div>
+                                        <p className="text-gray-400 leading-relaxed text-[11px]">
+                                            Poți da click direct pe link-ul <strong>[Sign in]</strong> din email pentru conectare automată, sau lipește link-ul direct în câmpul de mai sus!
+                                        </p>
                                     </div>
 
                                     {error && (
