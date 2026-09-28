@@ -31,7 +31,15 @@ export default function Operatori() {
     const [callLogs, setCallLogs] = useState<CallLog[]>([]);
     const [orderStats, setOrderStats] = useState<OrderStat[]>([]);
     const [loading, setLoading] = useState(true);
-    const [dateRange, setDateRange] = useState<'today' | '7days' | '30days' | 'all'>('7days');
+    const [dateRange, setDateRange] = useState<'today' | '7days' | '30days' | 'custom' | 'all'>('7days');
+    const [customStartDate, setCustomStartDate] = useState<string>(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        return d.toISOString().split('T')[0];
+    });
+    const [customEndDate, setCustomEndDate] = useState<string>(() => {
+        return new Date().toISOString().split('T')[0];
+    });
     const [selectedStore, setSelectedStore] = useState<string>('all');
     const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false);
 
@@ -43,7 +51,7 @@ export default function Operatori() {
 
     useEffect(() => {
         fetchData();
-    }, [dateRange, selectedStore]);
+    }, [dateRange, selectedStore, customStartDate, customEndDate]);
 
     const fetchAllRows = async <T,>(
         fetchPage: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>,
@@ -97,13 +105,43 @@ export default function Operatori() {
                 let callsQuery = supabaseAdmin
                     .from('call_logs')
                     .select('id, operator_id, order_id, duration_secs, status, caller_id, created_at');
+
                 if (dateRange !== 'all') {
-                    const now = new Date();
-                    const past = new Date();
-                    if (dateRange === 'today') past.setHours(0, 0, 0, 0);
-                    else if (dateRange === '7days') past.setDate(now.getDate() - 7);
-                    else if (dateRange === '30days') past.setDate(now.getDate() - 30);
-                    callsQuery = callsQuery.gte('created_at', past.toISOString());
+                    let startIso: string;
+                    let endIso: string;
+
+                    if (dateRange === 'today') {
+                        const start = new Date();
+                        start.setHours(0, 0, 0, 0);
+                        const end = new Date();
+                        end.setHours(23, 59, 59, 999);
+                        startIso = start.toISOString();
+                        endIso = end.toISOString();
+                    } else if (dateRange === '7days') {
+                        const start = new Date();
+                        start.setDate(start.getDate() - 7);
+                        start.setHours(0, 0, 0, 0);
+                        const end = new Date();
+                        end.setHours(23, 59, 59, 999);
+                        startIso = start.toISOString();
+                        endIso = end.toISOString();
+                    } else if (dateRange === '30days') {
+                        const start = new Date();
+                        start.setDate(start.getDate() - 30);
+                        start.setHours(0, 0, 0, 0);
+                        const end = new Date();
+                        end.setHours(23, 59, 59, 999);
+                        startIso = start.toISOString();
+                        endIso = end.toISOString();
+                    } else {
+                        // custom interval
+                        const start = new Date(customStartDate + 'T00:00:00');
+                        const end = new Date(customEndDate + 'T23:59:59.999');
+                        startIso = isNaN(start.getTime()) ? new Date(0).toISOString() : start.toISOString();
+                        endIso = isNaN(end.getTime()) ? new Date().toISOString() : end.toISOString();
+                    }
+
+                    callsQuery = callsQuery.gte('created_at', startIso).lte('created_at', endIso);
                 }
                 return callsQuery.order('id', { ascending: false }).range(from, to);
             });
@@ -207,7 +245,15 @@ export default function Operatori() {
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
                     <h2 className="text-2xl md:text-3xl font-light dark:text-white tracking-tight">Performanță Operatori</h2>
-                    <p className="text-gray-400 font-light mt-1 text-sm md:text-base">Monitorizează eficiența echipei tale în preluarea drafturilor și apeluri.</p>
+                    <p className="text-gray-400 font-light mt-1 text-sm md:text-base flex items-center flex-wrap gap-2">
+                        <span>Monitorizează eficiența echipei tale în preluarea drafturilor și apeluri.</span>
+                        {dateRange === 'custom' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium">
+                                <span className="material-icons-round text-xs">event</span>
+                                {customStartDate} — {customEndDate}
+                            </span>
+                        )}
+                    </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
@@ -254,12 +300,56 @@ export default function Operatori() {
                     </div>
 
                     {/* Date Range Buttons */}
-                    <div className="flex bg-[#1a1b23] border border-white/10 rounded-xl overflow-hidden p-1">
-                        <button onClick={() => setDateRange('today')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === 'today' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>Azi</button>
-                        <button onClick={() => setDateRange('7days')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === '7days' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>7 Zile</button>
-                        <button onClick={() => setDateRange('30days')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === '30days' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>30 Zile</button>
-                        <button onClick={() => setDateRange('all')} className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${dateRange === 'all' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>All-time</button>
+                    <div className="flex bg-[#1a1b23] border border-white/10 rounded-xl overflow-hidden p-1 shadow-sm">
+                        <button onClick={() => setDateRange('today')} className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${dateRange === 'today' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>Azi</button>
+                        <button onClick={() => setDateRange('7days')} className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${dateRange === '7days' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>7 Zile</button>
+                        <button onClick={() => setDateRange('30days')} className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${dateRange === '30days' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>30 Zile</button>
+                        <button onClick={() => setDateRange('custom')} className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${dateRange === 'custom' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>
+                            <span className="material-icons-round text-sm">date_range</span>
+                            Custom
+                        </button>
+                        <button onClick={() => setDateRange('all')} className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${dateRange === 'all' ? 'bg-cyan-500/20 text-cyan-400 font-semibold' : 'text-gray-400 hover:text-white'}`}>All-time</button>
                     </div>
+
+                    {/* Custom Date Range Picker */}
+                    {dateRange === 'custom' && (
+                        <div className="flex items-center gap-2.5 bg-[#1a1b23] border border-cyan-500/40 rounded-xl px-3 py-1.5 text-xs md:text-sm shadow-[0_0_15px_rgba(0,210,255,0.15)] animate-in fade-in zoom-in-95 duration-150">
+                            <span className="material-icons-round text-cyan-400 text-base">calendar_today</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">De la</span>
+                                <input
+                                    type="date"
+                                    value={customStartDate}
+                                    max={customEndDate || undefined}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setCustomStartDate(val);
+                                        if (val && customEndDate && val > customEndDate) {
+                                            setCustomEndDate(val);
+                                        }
+                                    }}
+                                    className="bg-transparent text-gray-200 text-xs md:text-sm border-none focus:ring-0 cursor-pointer outline-none font-medium p-0"
+                                />
+                            </div>
+                            <span className="text-cyan-400/50 font-bold">-</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">Până la</span>
+                                <input
+                                    type="date"
+                                    value={customEndDate}
+                                    min={customStartDate || undefined}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setCustomEndDate(val);
+                                        if (val && customStartDate && val < customStartDate) {
+                                            setCustomStartDate(val);
+                                        }
+                                    }}
+                                    className="bg-transparent text-gray-200 text-xs md:text-sm border-none focus:ring-0 cursor-pointer outline-none font-medium p-0"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
