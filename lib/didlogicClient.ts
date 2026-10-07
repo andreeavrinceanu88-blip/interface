@@ -41,6 +41,57 @@ class DidlogicCallWrapper {
         }
     }
 
+    /**
+     * Answer the call using a silent synthetic audio stream so the browser
+     * never captures the real microphone (no red recording dot).
+     */
+    answerWithSilentStream(botStream?: MediaStream | null) {
+        this.logger?.('📞 Răspund cu stream silențios (fără microfon)...');
+        if (!this.voiceCall) return;
+        try {
+            // Build a silent 1-channel stream via AudioContext (no mic access needed)
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            const silentCtx = new AudioContextClass();
+            const dest = silentCtx.createMediaStreamDestination();
+            // Oscillator at volume 0 — keeps the track "alive" for WebRTC but silent
+            const osc = silentCtx.createOscillator();
+            const gain = silentCtx.createGain();
+            gain.gain.value = 0;
+            osc.connect(gain);
+            gain.connect(dest);
+            osc.start();
+
+            const silentStream = dest.stream;
+
+            // If we have a real bot audio stream, merge its track into the silent stream
+            // so WebRTC sends the voice message audio over the call
+            if (botStream) {
+                const botTrack = botStream.getAudioTracks()[0];
+                if (botTrack) {
+                    silentStream.addTrack(botTrack);
+                }
+            }
+
+            // Pass mediaStream directly to JsSIP answer — bypasses getUserMedia entirely
+            this.voiceCall.session.answer({
+                mediaStream: silentStream,
+                pcConfig: { iceServers: [] }
+            });
+
+            this.logger?.('✅ Răspuns cu stream silențios — microfon real NU este capturat');
+
+            // Stop silent oscillator after call ends (cleanup)
+            const cleanup = () => { try { osc.stop(); silentCtx.close(); } catch (_) {} };
+            if (typeof this.voiceCall.on === 'function') {
+                this.voiceCall.on('ended', cleanup);
+                this.voiceCall.on('failed', cleanup);
+            }
+        } catch (e) {
+            console.warn('[DIDLogic] answerWithSilentStream error, falling back to normal answer:', e);
+            try { this.voiceCall.answer(); } catch (_) {}
+        }
+    }
+
     reject() {
         this.logger?.('❌ Comandă de respingere apel (486 Busy)...');
         if (this.voiceCall) {

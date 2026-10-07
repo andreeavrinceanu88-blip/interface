@@ -524,24 +524,22 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
                         setTimeout(() => {
                             try {
-                                console.log(`[SIP][${source}][ROBOT] 📞 Răspund automat la apel...`);
-                                call.answer();
+                                console.log(`[SIP][${source}][ROBOT] 📞 Răspund automat (fără microfon real)...`);
 
+                                // Use silent stream answer to avoid capturing real microphone
+                                // botStream track is embedded directly → no getUserMedia triggered → no red dot
+                                if (typeof (call as any).answerWithSilentStream === 'function') {
+                                    (call as any).answerWithSilentStream(botStream);
+                                } else {
+                                    call.answer();
+                                }
+
+                                // Also try replaceTrack after connection for redundancy
                                 if (botStream) {
                                     const botTrack = botStream.getAudioTracks()[0];
-                                    if (botTrack) {
-                                        if (typeof call.sendCustomAudioTrack === 'function') {
-                                            call.sendCustomAudioTrack(botTrack);
-                                        } else {
-                                            const pc = call.peerConnection || call.peer?.instance || call.voiceCall?.session?.connection;
-                                            if (pc) {
-                                                const senders = pc.getSenders ? pc.getSenders() : [];
-                                                const audioSender = senders.find((s: any) => s.track && s.track.kind === 'audio');
-                                                if (audioSender) {
-                                                    audioSender.replaceTrack(botTrack).catch((e: any) => console.warn('[ROBOT] replaceTrack error:', e));
-                                                }
-                                            }
-                                        }
+                                    if (botTrack && typeof call.sendCustomAudioTrack === 'function') {
+                                        setTimeout(() => call.sendCustomAudioTrack(botTrack), 500);
+                                        setTimeout(() => call.sendCustomAudioTrack(botTrack), 1200);
                                     }
                                 }
 
