@@ -608,7 +608,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
             }
             else if (call.state === 'active') {
                 if (call._isAfterHoursBot) {
-                    console.log(`[SIP][${source}][ROBOT] 🤖 Apel activ preluat de robot — suprim afișarea în UI pentru operator.`);
+                    console.log(`[SIP][${source}][ROBOT] 🤖 Apel activ preluat de robot — suprim afișarea și audio-ul pentru operator.`);
                     // Inject audio track again upon active state to ensure it is sent over peer connection
                     if (call._botStream) {
                         const botTrack = call._botStream.getAudioTracks()[0];
@@ -627,6 +627,39 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             }
                         }
                     }
+
+                    // ── SUPPRESS ALL REMOTE AUDIO so operator does NOT hear caller through speakers ──
+                    // 1. Mute remote stream tracks (prevents SDK audio.attachRemoteStream from working)
+                    const muteRemote = () => {
+                        try {
+                            const rs = call.remoteStream || call.voiceCall?.getRemoteStream?.();
+                            if (rs) {
+                                rs.getAudioTracks().forEach((t: any) => {
+                                    t.enabled = false;
+                                    console.log(`[SIP][${source}][ROBOT] 🔇 Remote audio track muted: ${t.label || t.id}`);
+                                });
+                            }
+                        } catch (e) {}
+                        // 2. Mute all <audio> elements except our own audioRef (SDK creates hidden ones)
+                        try {
+                            document.querySelectorAll('audio').forEach((el: HTMLAudioElement) => {
+                                if (el !== audioRef.current && el.srcObject) {
+                                    el.muted = true;
+                                    el.volume = 0;
+                                    el.pause();
+                                }
+                            });
+                        } catch (e) {}
+                        // 3. Ensure our own audio element doesn't play remote stream
+                        if (audioRef.current && audioRef.current.srcObject) {
+                            audioRef.current.srcObject = null;
+                        }
+                    };
+                    muteRemote();
+                    setTimeout(muteRemote, 200);
+                    setTimeout(muteRemote, 600);
+                    setTimeout(muteRemote, 1500);
+
                     return;
                 }
 
