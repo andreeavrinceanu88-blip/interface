@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer';
 
 const EMAIL = process.env.ROBOT_EMAIL || 'contact@whimlets.com';
-const PASSWORD = process.env.ROBOT_PASSWORD || '';
+const PASSWORD = process.env.ROBOT_PASSWORD || 'Robotel2026!';
 const BOT_MODE = process.env.ROBOT_MODE || 'auto'; // 'auto' (activ dupa ora 18:00) sau 'on' (activ mereu)
 const TARGET_URL = process.env.ROBOT_URL || 'https://comenzi.whimlets.com';
 
@@ -60,7 +60,7 @@ async function run() {
     await page.goto(TARGET_URL, { waitUntil: 'networkidle2', timeout: 60000 });
 
     // Check if login form is present
-    await page.waitForTimeout ? page.waitForTimeout(2000) : new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 2000));
     const emailInput = await page.$('input[type="email"]');
     
     if (emailInput && PASSWORD) {
@@ -68,7 +68,7 @@ async function run() {
         await page.type('input[type="email"]', EMAIL);
         await page.type('input[type="password"]', PASSWORD);
         await page.click('button[type="submit"]');
-        await (page.waitForTimeout ? page.waitForTimeout(3000) : new Promise(r => setTimeout(r, 3000)));
+        await new Promise(r => setTimeout(r, 5000));
         console.log('✅ Autentificare realizată!');
     }
 
