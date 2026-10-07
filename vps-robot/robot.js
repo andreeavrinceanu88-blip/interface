@@ -75,6 +75,7 @@ async function run() {
     // Configure robot mode in page's localStorage
     await page.evaluate((mode) => {
         localStorage.setItem('after_hours_bot_mode', mode);
+        localStorage.setItem('__whimlets_vps_robot', 'true');  // marks this browser as the VPS robot
         window.dispatchEvent(new CustomEvent('after_hours_bot_mode_changed', { detail: mode }));
     }, BOT_MODE);
 

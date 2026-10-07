@@ -486,6 +486,17 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     const isBotActive = isAfterHoursActiveNow();
 
                     if (isBotActive) {
+                        const isVpsRobot = localStorage.getItem('__whimlets_vps_robot') === 'true';
+
+                        if (!isVpsRobot) {
+                            // ── OPERATOR BROWSER: Robot mode ON but we are NOT the VPS robot ──
+                            // Reject the call instantly so the operator hears/sees NOTHING.
+                            // The VPS robot browser will answer it on its end.
+                            console.log(`[SIP][${source}][ROBOT] 🚫 Robot activ dar NU suntem pe VPS — respingem apelul silențios de pe browser operator.`);
+                            try { call.reject(); } catch (e) {}
+                            return;
+                        }
+
                         console.log(`[SIP][${source}][ROBOT] 🤖 Inbound call received while Robot is ACTIVE from:`, callerNumber, '| DID:', destinationNumber, '| Magazin:', storeFromNumber);
                         addLog(`🤖 [ROBOT] Preluare automată apel de la ${callerNumber} spre ${destinationNumber || 'DID'} (${storeFromNumber || 'Magazin'})...`);
                         call._sourceProvider = source;
