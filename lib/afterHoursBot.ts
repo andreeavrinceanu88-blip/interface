@@ -80,6 +80,7 @@ class BotAudioPlayer {
 
             this.audioEl = new Audio('/audio/after-hours.wav');
             this.audioEl.crossOrigin = 'anonymous';
+            this.audioEl.preload = 'auto';
             this.audioEl.loop = false;
 
             this.sourceNode = this.audioCtx.createMediaElementSource(this.audioEl);
@@ -92,7 +93,9 @@ class BotAudioPlayer {
                     await this.audioCtx.resume();
                 }
                 if (this.audioEl) {
+                    this.audioEl.currentTime = 0;
                     await this.audioEl.play().catch(e => console.warn('[BotAudioPlayer] Play error:', e));
+                    console.log('[BotAudioPlayer] 🎵 Audio player started playing /audio/after-hours.wav');
                 }
             };
 

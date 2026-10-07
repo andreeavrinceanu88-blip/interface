@@ -68,34 +68,48 @@ class DidlogicCallWrapper {
 
     sendCustomAudioTrack(track: MediaStreamTrack) {
         if (!this.voiceCall) return;
-        const tryReplace = () => {
-            const pc = this.voiceCall?.session?.connection;
-            if (pc) {
-                const senders = pc.getSenders ? pc.getSenders() : [];
-                const audioSender = senders.find((s: any) => s.track && s.track.kind === 'audio');
-                if (audioSender) {
-                    audioSender.replaceTrack(track).then(() => {
-                        this.logger?.('🎵 [Robot] Piesa audio a fost injectată în stream-ul apelantului');
-                    }).catch((e: any) => {
-                        console.warn('[DIDLogic] replaceTrack error:', e);
-                    });
-                    return true;
-                }
+        const replaceOnConnection = (pc: any) => {
+            const senders = pc.getSenders ? pc.getSenders() : [];
+            const audioSender = senders.find((s: any) => s.track && s.track.kind === 'audio');
+            if (audioSender) {
+                audioSender.replaceTrack(track).then(() => {
+                    this.logger?.('🎵 [Robot] Piesa audio a fost injectată în stream-ul apelantului');
+                }).catch((e: any) => {
+                    console.warn('[DIDLogic] replaceTrack error:', e);
+                });
+                return true;
             }
             return false;
         };
 
-        if (!tryReplace()) {
-            if (this.voiceCall.session && typeof this.voiceCall.session.once === 'function') {
-                this.voiceCall.session.once('peerconnection', () => {
-                    setTimeout(tryReplace, 200);
-                });
+        const tryReplace = () => {
+            const pc = this.voiceCall?.session?.connection || this.voiceCall?.session?._connection;
+            if (pc) {
+                return replaceOnConnection(pc);
             }
-            if (typeof this.voiceCall.once === 'function') {
-                this.voiceCall.once('accepted', () => {
-                    setTimeout(tryReplace, 100);
-                });
-            }
+            return false;
+        };
+
+        tryReplace();
+        setTimeout(tryReplace, 200);
+        setTimeout(tryReplace, 600);
+        setTimeout(tryReplace, 1200);
+        setTimeout(tryReplace, 2000);
+
+        if (this.voiceCall.session && typeof this.voiceCall.session.on === 'function') {
+            this.voiceCall.session.on('peerconnection', (e: any) => {
+                const pc = e?.peerconnection || this.voiceCall?.session?.connection;
+                if (pc) {
+                    setTimeout(() => replaceOnConnection(pc), 100);
+                    setTimeout(() => replaceOnConnection(pc), 500);
+                }
+            });
+        }
+        if (typeof this.voiceCall.on === 'function') {
+            this.voiceCall.on('accepted', () => {
+                setTimeout(tryReplace, 100);
+                setTimeout(tryReplace, 500);
+            });
         }
     }
 }

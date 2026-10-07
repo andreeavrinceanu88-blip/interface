@@ -143,7 +143,7 @@ const parseOrderProducts = (rawProducts?: string): string => {
 export default function IncomingCallBanner() {
     const { incomingCalls, callerInfos, answerIncoming, rejectIncoming, callState, hangup, activeCall, toggleMute, isMuted, markForCallback } = useTelnyx();
 
-    const showActiveInbound = callState === 'active' && activeCall && (activeCall.direction === 'inbound' || activeCall.direction !== 'outbound');
+    const showActiveInbound = callState === 'active' && activeCall && (activeCall.direction === 'inbound' || activeCall.direction !== 'outbound') && !activeCall._isAfterHoursBot;
     
     // For active call we can use the callerInfos map if it was inbound
     const activeCallId = activeCall ? (activeCall.id || activeCall.options?.callSessionId) : null;

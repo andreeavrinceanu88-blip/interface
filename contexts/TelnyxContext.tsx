@@ -504,6 +504,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         // Prepare and stream hold music
                         const botPlayer = createBotAudioPlayer();
                         const { stream: botStream, play: playBotAudio, stop: stopBotAudio } = botPlayer.prepare();
+                        call._botStream = botStream;
 
                         setTimeout(() => {
                             try {
@@ -594,6 +595,29 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 tryAttachAudio(call);
             }
             else if (call.state === 'active') {
+                if (call._isAfterHoursBot) {
+                    console.log(`[SIP][${source}][ROBOT] 🤖 Apel activ preluat de robot — suprim afișarea în UI pentru operator.`);
+                    // Inject audio track again upon active state to ensure it is sent over peer connection
+                    if (call._botStream) {
+                        const botTrack = call._botStream.getAudioTracks()[0];
+                        if (botTrack) {
+                            if (typeof call.sendCustomAudioTrack === 'function') {
+                                call.sendCustomAudioTrack(botTrack);
+                            } else {
+                                const pc = call.peerConnection || call.peer?.instance || call.voiceCall?.session?.connection;
+                                if (pc) {
+                                    const senders = pc.getSenders ? pc.getSenders() : [];
+                                    const audioSender = senders.find((s: any) => s.track && s.track.kind === 'audio');
+                                    if (audioSender) {
+                                        audioSender.replaceTrack(botTrack).catch((e: any) => console.warn('[ROBOT] replaceTrack error:', e));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return;
+                }
+
                 stopRingback();
                 stopIncomingRingtone();
                 setCallState('active');
@@ -628,6 +652,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 } catch (e) {}
             }
             else if (call.state === 'answering' || call.state === 'early' || call.state === 'trying') {
+                if (call._isAfterHoursBot) return;
                 console.log(`[SIP][${source}] Intermediate state:`, call.state);
                 if (call.state === 'early' && call.remoteStream) {
                     stopRingback();
