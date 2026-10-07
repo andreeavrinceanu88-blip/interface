@@ -1,0 +1,13 @@
+{
+  "name": "whimlets-vps-robot",
+  "version": "1.0.0",
+  "description": "24/7 After-Hours Call Robot Worker for VPS",
+  "main": "robot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node robot.js"
+  },
+  "dependencies": {
+    "puppeteer": "^24.0.0"
+  }
+}
