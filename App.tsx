@@ -21,6 +21,7 @@ import SetariCont from "./pages/SetariCont";
 import Operatori from "./pages/Operatori";
 import { TelnyxProvider } from './contexts/TelnyxContext';
 import IncomingCallBanner from './components/IncomingCallBanner';
+import AfterHoursBotToggle from './components/AfterHoursBotToggle';
 
 export default function App() {
     const { session, loading: authLoading } = useAuth();
@@ -690,7 +691,8 @@ function Header({ userEmail }: { userEmail?: string }) {
                 </span>
                 <h1 className="hidden md:block text-2xl font-light tracking-tight dark:text-white drop-shadow-sm bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">Statistici</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+                <AfterHoursBotToggle />
                 <button className="w-9 h-9 md:w-12 md:h-12 btn-3d-secondary rounded-xl flex items-center justify-center relative hover:text-white transition-colors">
                     <span className="material-icons-round text-lg md:text-xl">notifications</span>
                     <span className="absolute top-2 right-2 md:top-3 md:right-3.5 w-2 h-2 md:w-2.5 md:h-2.5 bg-red-500 rounded-full border-2 border-surface-dark shadow-[0_0_10px_rgba(239,68,68,0.6)]"></span>

@@ -4,6 +4,7 @@ import { useTelnyx } from '../contexts/TelnyxContext';
 import { normalizePhoneForProvider } from '../lib/sipClient';
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { syncOrderStatusWithShopify, syncOrderAddressWithShopify, syncOrderNoteWithShopify, updateShopifyLineItemQuantity, getProductImages, getAllProducts, updateShopifyLineItemsBulk, checkDraftStatus } from '../services/shopify';
+import AfterHoursBotToggle from '../components/AfterHoursBotToggle';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type CallStatus = 'ON' | 'OFF';
@@ -1364,9 +1365,12 @@ const Drafturi = () => {
                     </div>
                 </div>
 
-                <div className="flex flex-wrap gap-4 items-center justify-end">
+                <div className="flex flex-wrap gap-3 items-center justify-end">
+                    {/* After-Hours Robot Toggle */}
+                    <AfterHoursBotToggle />
+
                     {/* Status indicator */}
-                    <div className="flex items-center gap-3 mr-4">
+                    <div className="flex items-center gap-3">
                         {isReady ? (
                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20 uppercase tracking-wider">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ON

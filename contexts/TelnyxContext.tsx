@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { supabase, supabaseAdmin } from '../lib/supabaseClient';
 import { useAuth } from './AuthContext';
 import { getSipClient, getInboundClient, getSipProvider, setSipProvider, normalizePhoneForProvider, SipProviderType } from '../lib/sipClient';
+import { AfterHoursMode, getAfterHoursMode, setAfterHoursMode, isAfterHoursActiveNow, createBotAudioPlayer } from '../lib/afterHoursBot';
 
 export type CallState = 'idle' | 'calling' | 'active' | 'ringing' | 'rejected';
 
@@ -64,6 +65,9 @@ interface TelnyxContextType {
     setRingtoneVolume: (vol: number) => void;
     activeProvider: SipProviderType;
     switchProvider: (provider: SipProviderType) => void;
+    afterHoursMode: AfterHoursMode;
+    setAfterHoursMode: (mode: AfterHoursMode) => void;
+    isRobotActive: boolean;
 }
 
 const TelnyxContext = createContext<TelnyxContextType | null>(null);
@@ -95,14 +99,35 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
         setProvider(newProvider);
     };
 
+    const [afterHoursMode, setAfterHoursModeState] = useState<AfterHoursMode>(() => getAfterHoursMode());
+    const [isRobotActive, setIsRobotActive] = useState<boolean>(() => isAfterHoursActiveNow());
+
+    const updateAfterHoursMode = (newMode: AfterHoursMode) => {
+        console.log(`[SIP][ROBOT] Comutare mod robot apeluri la: ${newMode}`);
+        setAfterHoursMode(newMode);
+        setAfterHoursModeState(newMode);
+        setIsRobotActive(isAfterHoursActiveNow());
+        addLog(`🤖 Mod Robot Apeluri: ${newMode === 'on' ? 'ACTIV (Manual)' : newMode === 'auto' ? 'AUTOMAT (18:00+)' : 'INACTIV (Operator)'}`);
+    };
+
     useEffect(() => {
-        const handleProviderChange = (e: any) => {
-            if (e.detail && (e.detail === 'didlogic' || e.detail === 'telnyx')) {
-                setProvider(e.detail);
+        const handleBotModeChange = (e: any) => {
+            if (e.detail) {
+                setAfterHoursModeState(e.detail);
+                setIsRobotActive(isAfterHoursActiveNow());
             }
         };
-        window.addEventListener('sip_provider_changed', handleProviderChange);
-        return () => window.removeEventListener('sip_provider_changed', handleProviderChange);
+        window.addEventListener('after_hours_bot_mode_changed', handleBotModeChange);
+
+        // Periodically re-evaluate isRobotActive (e.g. at 18:00 when clock advances in auto mode)
+        const botTimer = setInterval(() => {
+            setIsRobotActive(isAfterHoursActiveNow());
+        }, 15000);
+
+        return () => {
+            window.removeEventListener('after_hours_bot_mode_changed', handleBotModeChange);
+            clearInterval(botTimer);
+        };
     }, []);
 
     const clientRef = useRef<any>(null);
@@ -458,6 +483,75 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 if (call.direction !== 'outbound') {
                     // Inbound call
                     const storeFromNumber = detectStoreFromNumber(destinationNumber);
+                    const isBotActive = isAfterHoursActiveNow();
+
+                    if (isBotActive) {
+                        console.log(`[SIP][${source}][ROBOT] 🤖 Inbound call received while Robot is ACTIVE from:`, callerNumber, '| DID:', destinationNumber, '| Magazin:', storeFromNumber);
+                        addLog(`🤖 [ROBOT] Preluare automată apel de la ${callerNumber} spre ${destinationNumber || 'DID'} (${storeFromNumber || 'Magazin'})...`);
+                        call._sourceProvider = source;
+                        call._isAfterHoursBot = true;
+
+                        setCallerInfos(prev => ({
+                            ...prev,
+                            [callId]: {
+                                number: callerNumber,
+                                calledNumber: destinationNumber || null,
+                                store: storeFromNumber || null,
+                                recentOrders: []
+                            }
+                        }));
+
+                        // Prepare and stream hold music
+                        const botPlayer = createBotAudioPlayer();
+                        const { stream: botStream, play: playBotAudio, stop: stopBotAudio } = botPlayer.prepare();
+
+                        setTimeout(() => {
+                            try {
+                                console.log(`[SIP][${source}][ROBOT] 📞 Răspund automat la apel...`);
+                                call.answer();
+
+                                if (botStream) {
+                                    const botTrack = botStream.getAudioTracks()[0];
+                                    if (botTrack) {
+                                        if (typeof call.sendCustomAudioTrack === 'function') {
+                                            call.sendCustomAudioTrack(botTrack);
+                                        } else {
+                                            const pc = call.peerConnection || call.peer?.instance || call.voiceCall?.session?.connection;
+                                            if (pc) {
+                                                const senders = pc.getSenders ? pc.getSenders() : [];
+                                                const audioSender = senders.find((s: any) => s.track && s.track.kind === 'audio');
+                                                if (audioSender) {
+                                                    audioSender.replaceTrack(botTrack).catch((e: any) => console.warn('[ROBOT] replaceTrack error:', e));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                playBotAudio();
+
+                                const autoHangupTimer = setTimeout(() => {
+                                    console.log(`[SIP][${source}][ROBOT] Mesajul audio s-a terminat. Închid apelul.`);
+                                    addLog('🤖 [ROBOT] Mesajul s-a terminat. Apel încheiat automat.');
+                                    try {
+                                        call.hangup();
+                                    } catch (e) {}
+                                    stopBotAudio();
+                                }, 21000);
+
+                                call._botCleanup = () => {
+                                    clearTimeout(autoHangupTimer);
+                                    stopBotAudio();
+                                };
+                            } catch (err) {
+                                console.error('[SIP][ROBOT] Error answering call:', err);
+                                stopBotAudio();
+                            }
+                        }, 500);
+
+                        return;
+                    }
+
                     console.log(`[SIP][${source}] 📞 Inbound call detected from:`, callerNumber, '| DID apelat:', destinationNumber, '| Magazin:', storeFromNumber, '| Call ID:', callId);
                     addLog(`📞 APEL INTRARE de la ${callerNumber} spre ${destinationNumber || 'DID'} (${storeFromNumber || 'Magazin necunoscut'})`);
                     call._sourceProvider = source;
@@ -541,6 +635,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 tryAttachAudio(call);
             }
             else if (call.state === 'destroy' || call.state === 'hangup' || call.state === 'purge') {
+                if (call._botCleanup) {
+                    try { call._botCleanup(); } catch (e) {}
+                }
                 const isEndingIncoming = incomingCallsRef.current.some(c => getCallId(c) === callId);
 
                 setIncomingCalls(prev => {
@@ -598,10 +695,12 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 };
                 const friendlyReason = reasonMap[String(rawReason).toUpperCase()] || reasonMap[String(sipCode)] || (rawReason ? String(rawReason) : null);
 
-                const wasActive = callStartTimeRef.current !== null;
-                const duration = wasActive ? Math.round((Date.now() - callStartTimeRef.current!) / 1000) : 0;
-                const callStatus = wasActive ? 'completed' : 'rejected';
-                const finalStatus = call.direction === 'inbound' && !wasActive ? 'missed' : callStatus;
+                const wasActive = callStartTimeRef.current !== null || Boolean(call._isAfterHoursBot);
+                const duration = callStartTimeRef.current !== null 
+                    ? Math.round((Date.now() - callStartTimeRef.current!) / 1000) 
+                    : (call._isAfterHoursBot ? 21 : 0);
+                const callStatus = call._isAfterHoursBot ? 'completed' : (wasActive ? 'completed' : 'rejected');
+                const finalStatus = call.direction === 'inbound' && !wasActive && !call._isAfterHoursBot ? 'missed' : callStatus;
 
                 const logOrderId = call.direction === 'inbound'
                     ? `INBOUND:${callerNumber || 'necunoscut'}`
@@ -626,7 +725,7 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         duration_secs: duration,
                         status: finalStatus,
                         error_code: rawReason || null,
-                        error_message: friendlyReason || null,
+                        error_message: call._isAfterHoursBot ? 'Robot automat (După program)' : (friendlyReason || null),
                         destination_number: destinationNumber || callerNumber || null,
                         caller_id: call.options?.callerNumber || null,
                         call_direction: call.direction || (isEndingIncoming ? 'inbound' : 'outbound'),
@@ -960,7 +1059,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 isReady, callState, activeCall, incomingCalls, callerInfos, lastHangupReason,
                 makeCall, hangup, answerIncoming, rejectIncoming, markForCallback, toggleMute, isMuted,
                 audioRef, ringtoneVolume, setRingtoneVolume,
-                activeProvider: provider, switchProvider
+                activeProvider: provider, switchProvider,
+                afterHoursMode, setAfterHoursMode: updateAfterHoursMode, isRobotActive
             }}
         >
             {children}

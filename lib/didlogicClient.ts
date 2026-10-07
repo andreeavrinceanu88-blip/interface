@@ -65,6 +65,39 @@ class DidlogicCallWrapper {
             try { this.voiceCall.mute(false); } catch (e) {}
         }
     }
+
+    sendCustomAudioTrack(track: MediaStreamTrack) {
+        if (!this.voiceCall) return;
+        const tryReplace = () => {
+            const pc = this.voiceCall?.session?.connection;
+            if (pc) {
+                const senders = pc.getSenders ? pc.getSenders() : [];
+                const audioSender = senders.find((s: any) => s.track && s.track.kind === 'audio');
+                if (audioSender) {
+                    audioSender.replaceTrack(track).then(() => {
+                        this.logger?.('🎵 [Robot] Piesa audio a fost injectată în stream-ul apelantului');
+                    }).catch((e: any) => {
+                        console.warn('[DIDLogic] replaceTrack error:', e);
+                    });
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (!tryReplace()) {
+            if (this.voiceCall.session && typeof this.voiceCall.session.once === 'function') {
+                this.voiceCall.session.once('peerconnection', () => {
+                    setTimeout(tryReplace, 200);
+                });
+            }
+            if (typeof this.voiceCall.once === 'function') {
+                this.voiceCall.once('accepted', () => {
+                    setTimeout(tryReplace, 100);
+                });
+            }
+        }
+    }
 }
 
 class DidlogicClientWrapper {

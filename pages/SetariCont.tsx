@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabaseAdmin } from '../lib/supabaseClient';
 import { useTelnyx } from '../contexts/TelnyxContext';
@@ -13,7 +13,27 @@ interface TeamMember {
 
 export default function SetariCont() {
     const { profile, session } = useAuth();
-    const { activeProvider, switchProvider, isReady } = useTelnyx();
+    const { activeProvider, switchProvider, isReady, afterHoursMode, setAfterHoursMode, isRobotActive } = useTelnyx();
+    const [isPlayingAudioTest, setIsPlayingAudioTest] = useState(false);
+    const audioTestRef = useRef<HTMLAudioElement | null>(null);
+
+    const handleToggleAudioTest = () => {
+        if (isPlayingAudioTest) {
+            if (audioTestRef.current) {
+                audioTestRef.current.pause();
+                audioTestRef.current.currentTime = 0;
+            }
+            setIsPlayingAudioTest(false);
+        } else {
+            if (!audioTestRef.current) {
+                audioTestRef.current = new Audio('/audio/after-hours.wav');
+                audioTestRef.current.onended = () => setIsPlayingAudioTest(false);
+            }
+            audioTestRef.current.play().then(() => {
+                setIsPlayingAudioTest(true);
+            }).catch(() => setIsPlayingAudioTest(false));
+        }
+    };
     const [members, setMembers] = useState<TeamMember[]>([]);
     const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
@@ -247,6 +267,77 @@ export default function SetariCont() {
                     <div className="flex items-center gap-2 text-xs text-gray-300">
                         <span className="material-icons-round text-gray-400 text-sm">info</span>
                         <span>Comutarea provider-ului reconectează automat softphone-ul fără reîncărcarea paginii.</span>
+                    </div>
+                </div>
+
+                {/* Robot În Afara Programului Card */}
+                <div className="mt-6 p-5 bg-[#0a0b14] rounded-2xl border border-white/10 shadow-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-white/10">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="material-icons-round text-cyan-400 text-xl">smart_toy</span>
+                                <h4 className="text-base font-medium text-white">Robot Apeluri "În Afara Programului" (After-Hours)</h4>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1 max-w-xl">
+                                Preia automat apelurile inbound, redă muzica de fundal / mesajul vocal clientului și închide apelul politicos, fără a deranja operatorii cu sonerii sau ferestre pop-up.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handleToggleAudioTest}
+                                className={`px-3 py-2 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-colors ${isPlayingAudioTest ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' : 'bg-white/5 border-white/10 text-gray-300 hover:text-white'}`}
+                            >
+                                <span className="material-icons-round text-base">{isPlayingAudioTest ? 'stop' : 'volume_up'}</span>
+                                {isPlayingAudioTest ? 'Oprește Melodia' : 'Ascultă Melodia Mock'}
+                            </button>
+                            <span className={`text-xs font-mono px-3 py-1.5 rounded-full border ${isRobotActive ? 'bg-purple-500/10 border-purple-500/30 text-purple-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'}`}>
+                                {isRobotActive ? '● Robot Activ Acum' : '○ Operatori Activi'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div
+                            onClick={() => setAfterHoursMode('off')}
+                            className={`cursor-pointer rounded-xl p-4 border transition-all ${afterHoursMode === 'off' ? 'bg-emerald-500/10 border-emerald-500 ring-1 ring-emerald-500' : 'bg-white/5 border-white/5 hover:border-white/15'}`}
+                        >
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-semibold text-white flex items-center gap-1.5">
+                                    <span className="material-icons-round text-emerald-400 text-base">support_agent</span>
+                                    Inactiv (Operator)
+                                </span>
+                                {afterHoursMode === 'off' && <span className="material-icons-round text-emerald-400 text-lg">check_circle</span>}
+                            </div>
+                            <p className="text-xs text-gray-400">Normal. Operatorii răspund manual la toate apelurile primite.</p>
+                        </div>
+
+                        <div
+                            onClick={() => setAfterHoursMode('on')}
+                            className={`cursor-pointer rounded-xl p-4 border transition-all ${afterHoursMode === 'on' ? 'bg-purple-500/10 border-purple-500 ring-1 ring-purple-500' : 'bg-white/5 border-white/5 hover:border-white/15'}`}
+                        >
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-semibold text-white flex items-center gap-1.5">
+                                    <span className="material-icons-round text-purple-400 text-base">smart_toy</span>
+                                    Activ (Manual ON)
+                                </span>
+                                {afterHoursMode === 'on' && <span className="material-icons-round text-purple-400 text-lg">check_circle</span>}
+                            </div>
+                            <p className="text-xs text-gray-400">Forțează robotul să răspundă acum tuturor apelurilor cu muzică de fundal.</p>
+                        </div>
+
+                        <div
+                            onClick={() => setAfterHoursMode('auto')}
+                            className={`cursor-pointer rounded-xl p-4 border transition-all ${afterHoursMode === 'auto' ? 'bg-cyan-500/10 border-cyan-500 ring-1 ring-cyan-500' : 'bg-white/5 border-white/5 hover:border-white/15'}`}
+                        >
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-semibold text-white flex items-center gap-1.5">
+                                    <span className="material-icons-round text-cyan-400 text-base">schedule</span>
+                                    Automat (18:00+)
+                                </span>
+                                {afterHoursMode === 'auto' && <span className="material-icons-round text-cyan-400 text-lg">check_circle</span>}
+                            </div>
+                            <p className="text-xs text-gray-400">Preia apelurile automat între 18:00 - 09:00 și pe toată durata weekend-ului.</p>
+                        </div>
                     </div>
                 </div>
             </div>
