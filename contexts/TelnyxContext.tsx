@@ -744,6 +744,8 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                 if (opId && callId && effectiveOrderId && !loggedCallsRef.current.has(callId)) {
                     loggedCallsRef.current.add(callId);
 
+                    const isIncoming = call.direction === 'inbound' || isEndingIncoming;
+
                     const logPayload: any = {
                         operator_id: opId,
                         order_id: effectiveOrderId,
@@ -751,9 +753,9 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                         status: finalStatus,
                         error_code: rawReason || null,
                         error_message: call._isAfterHoursBot ? 'Robot automat (După program)' : (friendlyReason || null),
-                        destination_number: destinationNumber || callerNumber || null,
-                        caller_id: call.options?.callerNumber || null,
-                        call_direction: call.direction || (isEndingIncoming ? 'inbound' : 'outbound'),
+                        destination_number: isIncoming ? (destinationNumber || null) : (destinationNumber || callerNumber || null),
+                        caller_id: isIncoming ? (callerNumber || null) : (call.options?.callerNumber || null),
+                        call_direction: isIncoming ? 'inbound' : (call.direction || 'outbound'),
                         needs_callback: needsCallbackRef.current,
                         raw_sip_data: {
                             sipCode,

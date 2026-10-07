@@ -386,7 +386,10 @@ const Drafturi = () => {
                 const phoneNumbersToLookup = Array.from(new Set(
                     data
                         .map(d => {
-                            const raw = d.destination_number || (d.order_id?.toString().includes(':') ? d.order_id.toString().split(':')[1] : null);
+                            const isInbound = d.call_direction === 'inbound' || (d.order_id && d.order_id.toString().startsWith('INBOUND:'));
+                            const raw = isInbound
+                                ? (d.caller_id || (d.order_id?.toString().includes(':') ? d.order_id.toString().split(':')[1] : null) || d.destination_number)
+                                : (d.destination_number || (d.order_id?.toString().includes(':') ? d.order_id.toString().split(':')[1] : null));
                             if (!raw) return null;
                             const digits = raw.replace(/\D/g, '');
                             return digits.length >= 7 ? digits.slice(-7) : null;
@@ -447,25 +450,27 @@ const Drafturi = () => {
                 
                 enrichedData.forEach(log => {
                     const orderStr = log.order_id?.toString() || '';
+                    const isInbound = log.call_direction === 'inbound' || orderStr.startsWith('INBOUND:');
                     let matchedOrder: any = null;
 
                     if (orderStr && !orderStr.startsWith('INBOUND:') && !orderStr.startsWith('ERR:') && !orderStr.startsWith('OUTBOUND:')) {
                         matchedOrder = orderMap[orderStr];
                     }
 
-                    if (!matchedOrder) {
-                        const rawPhone = log.destination_number || (orderStr.includes(':') ? orderStr.split(':')[1] : null);
-                        if (rawPhone) {
-                            const last7 = rawPhone.replace(/\D/g, '').slice(-7);
-                            if (last7) {
-                                matchedOrder = phoneOrdersMap[last7];
-                            }
+                    const customerPhone = isInbound
+                        ? (log.caller_id || (orderStr.includes(':') ? orderStr.split(':')[1] : null) || log.destination_number)
+                        : (log.destination_number || (orderStr.includes(':') ? orderStr.split(':')[1] : null));
+
+                    if (!matchedOrder && customerPhone) {
+                        const last7 = customerPhone.replace(/\D/g, '').slice(-7);
+                        if (last7) {
+                            matchedOrder = phoneOrdersMap[last7];
                         }
                     }
 
                     if (matchedOrder) {
                         log.enriched_store_name = matchedOrder.store_name;
-                        log.enriched_phone = matchedOrder.phone_number || log.destination_number;
+                        log.enriched_phone = matchedOrder.phone_number || customerPhone;
                         log.enriched_client_name = matchedOrder.name;
                         log.enriched_order_number = matchedOrder.client_personal_id || `#${matchedOrder.id || matchedOrder.order_id}`;
                         log.enriched_order_id = matchedOrder.order_id || matchedOrder.id;
@@ -477,8 +482,7 @@ const Drafturi = () => {
                         log.enriched_oras = matchedOrder.oras;
                         log.enriched_judet = matchedOrder.judet;
                     } else {
-                        const rawPhone = log.destination_number || (orderStr.includes(':') ? orderStr.split(':')[1] : null);
-                        log.enriched_phone = rawPhone;
+                        log.enriched_phone = customerPhone;
                     }
                 });
                 
@@ -1514,7 +1518,9 @@ const Drafturi = () => {
                                                     if (callHistorySearch.trim()) {
                                                         const query = callHistorySearch.toLowerCase().trim();
                                                         const clientName = (log.enriched_client_name || '').toLowerCase();
-                                                        const phone = (log.enriched_phone || log.destination_number || '').replace(/\D/g, '');
+                                                        const phone = (log.enriched_phone || (log.call_direction === 'inbound' || log.order_id?.toString().startsWith('INBOUND:')
+                                                            ? (log.caller_id || (log.order_id?.toString().includes(':') ? log.order_id.toString().split(':')[1] : null) || log.destination_number)
+                                                            : log.destination_number) || '').replace(/\D/g, '');
                                                         const orderNum = (log.enriched_order_number || String(log.order_id || '')).toLowerCase();
                                                         const products = (log.enriched_produse_text || '').toLowerCase();
                                                         const match = clientName.includes(query) || phone.includes(query) || orderNum.includes(query) || products.includes(query);
@@ -1541,9 +1547,11 @@ const Drafturi = () => {
                                                             const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
                                                             const isInbound = log.call_direction === 'inbound' || (log.order_id && log.order_id.toString().startsWith('INBOUND:'));
                                                             const isManualDial = log.order_id && log.order_id.toString().startsWith('OUTBOUND:');
-                                                            const isOutbound = !isInbound || log.call_direction === 'outbound';
+                                                            const isOutbound = !isInbound;
 
-                                                            const phoneNum = log.enriched_phone || log.destination_number || ((isInbound || isManualDial) ? log.order_id.split(':')[1] : '');
+                                                            const phoneNum = log.enriched_phone || (isInbound 
+                                                                ? (log.caller_id || (log.order_id?.toString().includes(':') ? log.order_id.toString().split(':')[1] : null) || log.destination_number)
+                                                                : (log.destination_number || (isManualDial ? log.order_id.split(':')[1] : '')));
                                                             const storeName = log.enriched_store_name;
                                                             const clientName = log.enriched_client_name;
                                                             const orderLabel = isInbound 
