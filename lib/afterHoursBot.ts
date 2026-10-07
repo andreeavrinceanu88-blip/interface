@@ -72,16 +72,37 @@ class BotAudioPlayer {
     private mediaStream: MediaStream | null = null;
     private sourceNode: MediaElementAudioSourceNode | null = null;
 
-    prepare(): { stream: MediaStream | null; play: () => Promise<void>; stop: () => void } {
+    prepare(options?: { onEnded?: () => void }): { 
+        stream: MediaStream | null; 
+        play: () => Promise<void>; 
+        stop: () => void;
+        getDuration: () => number;
+    } {
         try {
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
             this.audioCtx = new AudioContextClass();
             const dest = this.audioCtx.createMediaStreamDestination();
 
-            this.audioEl = new Audio('/audio/after-hours.wav');
+            // Custom recorded voiceover MP3 (falls back to WAV if unavailable)
+            this.audioEl = new Audio('/audio/after-hours.mp3');
             this.audioEl.crossOrigin = 'anonymous';
             this.audioEl.preload = 'auto';
             this.audioEl.loop = false;
+
+            this.audioEl.onerror = () => {
+                console.warn('[BotAudioPlayer] /audio/after-hours.mp3 not found, falling back to /audio/after-hours.wav');
+                if (this.audioEl && this.audioEl.src.endsWith('.mp3')) {
+                    this.audioEl.src = '/audio/after-hours.wav';
+                    this.audioEl.load();
+                }
+            };
+
+            if (options?.onEnded) {
+                this.audioEl.onended = () => {
+                    console.log('[BotAudioPlayer] ⏹️ Mesaj audio vocal finalizat (onended)');
+                    options.onEnded?.();
+                };
+            }
 
             this.sourceNode = this.audioCtx.createMediaElementSource(this.audioEl);
             this.sourceNode.connect(dest);
@@ -95,7 +116,7 @@ class BotAudioPlayer {
                 if (this.audioEl) {
                     this.audioEl.currentTime = 0;
                     await this.audioEl.play().catch(e => console.warn('[BotAudioPlayer] Play error:', e));
-                    console.log('[BotAudioPlayer] 🎵 Audio player started playing /audio/after-hours.wav');
+                    console.log('[BotAudioPlayer] 🎵 Audio player pornit (/audio/after-hours.mp3)');
                 }
             };
 
@@ -111,13 +132,21 @@ class BotAudioPlayer {
                 } catch (e) {}
             };
 
-            return { stream: this.mediaStream, play, stop };
+            const getDuration = () => {
+                if (this.audioEl && !isNaN(this.audioEl.duration) && this.audioEl.duration > 0) {
+                    return Math.round(this.audioEl.duration);
+                }
+                return 25;
+            };
+
+            return { stream: this.mediaStream, play, stop, getDuration };
         } catch (err) {
             console.error('[BotAudioPlayer] Failed to initialize Web Audio player:', err);
             return {
                 stream: null,
                 play: async () => {},
-                stop: () => {}
+                stop: () => {},
+                getDuration: () => 25
             };
         }
     }

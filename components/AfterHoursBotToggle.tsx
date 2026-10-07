@@ -30,9 +30,15 @@ export default function AfterHoursBotToggle() {
             setIsPlayingPreview(false);
         } else {
             if (!audioPreviewRef.current) {
-                audioPreviewRef.current = new Audio('/audio/after-hours.wav');
+                audioPreviewRef.current = new Audio('/audio/after-hours.mp3');
+                audioPreviewRef.current.onerror = () => {
+                    if (audioPreviewRef.current && audioPreviewRef.current.src.endsWith('.mp3')) {
+                        audioPreviewRef.current.src = '/audio/after-hours.wav';
+                    }
+                };
                 audioPreviewRef.current.onended = () => setIsPlayingPreview(false);
             }
+            audioPreviewRef.current.currentTime = 0;
             audioPreviewRef.current.play().then(() => {
                 setIsPlayingPreview(true);
             }).catch(err => {

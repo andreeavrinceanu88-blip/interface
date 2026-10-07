@@ -501,9 +501,25 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                             }
                         }));
 
-                        // Prepare and stream hold music
+                        // Prepare and stream hold music / voice message
                         const botPlayer = createBotAudioPlayer();
-                        const { stream: botStream, play: playBotAudio, stop: stopBotAudio } = botPlayer.prepare();
+                        let botCallEnded = false;
+                        const finishBotCall = () => {
+                            if (botCallEnded) return;
+                            botCallEnded = true;
+                            console.log(`[SIP][${source}][ROBOT] Mesajul audio s-a terminat. Închid apelul.`);
+                            addLog('🤖 [ROBOT] Mesajul vocal s-a terminat. Apel încheiat automat.');
+                            try {
+                                call.hangup();
+                            } catch (e) {}
+                            stopBotAudio();
+                        };
+
+                        const { stream: botStream, play: playBotAudio, stop: stopBotAudio, getDuration } = botPlayer.prepare({
+                            onEnded: () => {
+                                setTimeout(finishBotCall, 1500);
+                            }
+                        });
                         call._botStream = botStream;
 
                         setTimeout(() => {
@@ -531,18 +547,14 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
                                 playBotAudio();
 
+                                const fallbackSecs = Math.max(getDuration() + 5, 30);
                                 const autoHangupTimer = setTimeout(() => {
-                                    console.log(`[SIP][${source}][ROBOT] Mesajul audio s-a terminat. Închid apelul.`);
-                                    addLog('🤖 [ROBOT] Mesajul s-a terminat. Apel încheiat automat.');
-                                    try {
-                                        call.hangup();
-                                    } catch (e) {}
-                                    stopBotAudio();
-                                }, 21000);
+                                    finishBotCall();
+                                }, fallbackSecs * 1000);
 
                                 call._botCleanup = () => {
                                     clearTimeout(autoHangupTimer);
-                                    stopBotAudio();
+                                    finishBotCall();
                                 };
                             } catch (err) {
                                 console.error('[SIP][ROBOT] Error answering call:', err);
