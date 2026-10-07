@@ -490,10 +490,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
 
                         if (!isVpsRobot) {
                             // ── OPERATOR BROWSER: Robot mode ON but we are NOT the VPS robot ──
-                            // Reject the call instantly so the operator hears/sees NOTHING.
-                            // The VPS robot browser will answer it on its end.
-                            console.log(`[SIP][${source}][ROBOT] 🚫 Robot activ dar NU suntem pe VPS — respingem apelul silențios de pe browser operator.`);
-                            try { call.reject(); } catch (e) {}
+                            // Do NOT reject (486 would kill the VPS branch too).
+                            // Just silently ignore — VPS robot will answer with 200 OK,
+                            // and the SIP server will send CANCEL to us automatically.
+                            console.log(`[SIP][${source}][ROBOT] 🔕 Robot activ — ignorăm apelul silențios pe browser operator (VPS-ul va prelua).`);
                             return;
                         }
 
