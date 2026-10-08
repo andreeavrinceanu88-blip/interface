@@ -300,7 +300,7 @@ const Drafturi = () => {
     const [showCallHistory, setShowCallHistory] = useState(false);
     const [callHistoryLogs, setCallHistoryLogs] = useState<any[]>([]);
     const [loadingCallHistory, setLoadingCallHistory] = useState(false);
-    const [callHistoryFilter, setCallHistoryFilter] = useState<'all' | 'called' | 'answered' | 'missed' | 'voicemail'>('all');
+    const [callHistoryFilter, setCallHistoryFilter] = useState<'all' | 'called' | 'inbound' | 'answered' | 'missed' | 'voicemail'>('all');
     const [callHistorySearch, setCallHistorySearch] = useState('');
     const [callHistoryDate, setCallHistoryDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [callHistoryPage, setCallHistoryPage] = useState(0);
@@ -372,7 +372,7 @@ const Drafturi = () => {
                 .limit(100);
 
             if (profile.role !== 'admin') {
-                query = query.or(`operator_id.eq.${profile.id},operator_id.is.null`);
+                query = query.or(`operator_id.eq.${profile.id},operator_id.is.null,call_direction.eq.inbound`);
             }
                 
             const { data, error } = await query;
@@ -1427,15 +1427,22 @@ const Drafturi = () => {
                                 </div>
                                 
                                 {(() => {
+                                    const isRobotOrVoicemail = (log: any) =>
+                                        log.status === 'voicemail' ||
+                                        log.error_message?.includes('Robot') ||
+                                        log.error_message?.includes('După program') ||
+                                        log.error_message?.includes('Voicemail');
+
                                     const counts = {
                                         all: callHistoryLogs.length,
                                         called: callHistoryLogs.filter(log => {
                                             const isInbound = log.call_direction === 'inbound' || (log.order_id && log.order_id.toString().startsWith('INBOUND:'));
                                             return !isInbound || log.call_direction === 'outbound';
                                         }).length,
-                                        answered: callHistoryLogs.filter(log => log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0).length,
-                                        missed: callHistoryLogs.filter(log => !(log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0) && log.status !== 'voicemail').length,
-                                        voicemail: callHistoryLogs.filter(log => log.status === 'voicemail').length,
+                                        inbound: callHistoryLogs.filter(log => log.call_direction === 'inbound' || (log.order_id && log.order_id.toString().startsWith('INBOUND:'))).length,
+                                        answered: callHistoryLogs.filter(log => (log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0) && !isRobotOrVoicemail(log)).length,
+                                        missed: callHistoryLogs.filter(log => !(log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0) && !isRobotOrVoicemail(log)).length,
+                                        voicemail: callHistoryLogs.filter(log => isRobotOrVoicemail(log)).length,
                                     };
 
                                     return (
@@ -1445,6 +1452,10 @@ const Drafturi = () => {
                                                 <button onClick={() => { setCallHistoryFilter('all'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1 ${callHistoryFilter === 'all' ? 'bg-indigo-500 text-white shadow-sm' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'}`}>
                                                     <span>Toate</span>
                                                     <span className={`text-[10px] px-1 rounded-full ${callHistoryFilter === 'all' ? 'bg-white/20' : 'bg-white/5 text-gray-400'}`}>{counts.all}</span>
+                                                </button>
+                                                <button onClick={() => { setCallHistoryFilter('inbound'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1 ${callHistoryFilter === 'inbound' ? 'bg-blue-500 text-white shadow-sm' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-blue-400'}`}>
+                                                    <span>Primite</span>
+                                                    <span className={`text-[10px] px-1 rounded-full ${callHistoryFilter === 'inbound' ? 'bg-white/20' : 'bg-white/5 text-gray-400'}`}>{counts.inbound}</span>
                                                 </button>
                                                 <button onClick={() => { setCallHistoryFilter('called'); setCallHistoryPage(0); }} className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all flex items-center gap-1 ${callHistoryFilter === 'called' ? 'bg-cyan-500 text-white shadow-sm' : 'bg-[#1a1b23] border border-white/10 text-gray-300 hover:bg-white/10 hover:text-cyan-400'}`}>
                                                     <span>Sunați</span>
@@ -1500,6 +1511,12 @@ const Drafturi = () => {
                                     ) : (
                                         <div className="flex flex-col gap-2">
                                             {(() => {
+                                                const isRobotOrVoicemail = (log: any) =>
+                                                    log.status === 'voicemail' ||
+                                                    log.error_message?.includes('Robot') ||
+                                                    log.error_message?.includes('După program') ||
+                                                    log.error_message?.includes('Voicemail');
+
                                                 const filtered = callHistoryLogs.filter(log => {
                                                     const isAnswered = log.status === 'answered' || log.status === 'completed' || log.duration_secs > 0;
                                                     const isInbound = log.call_direction === 'inbound' || (log.order_id && log.order_id.toString().startsWith('INBOUND:'));
@@ -1507,12 +1524,14 @@ const Drafturi = () => {
 
                                                     if (callHistoryFilter === 'called') {
                                                         if (!isOutbound) return false;
+                                                    } else if (callHistoryFilter === 'inbound') {
+                                                        if (!isInbound) return false;
                                                     } else if (callHistoryFilter === 'answered') {
-                                                        if (!isAnswered) return false;
+                                                        if (!isAnswered || isRobotOrVoicemail(log)) return false;
                                                     } else if (callHistoryFilter === 'missed') {
-                                                        if (isAnswered || log.status === 'voicemail') return false;
+                                                        if (isAnswered || isRobotOrVoicemail(log)) return false;
                                                     } else if (callHistoryFilter === 'voicemail') {
-                                                        if (log.status !== 'voicemail') return false;
+                                                        if (!isRobotOrVoicemail(log)) return false;
                                                     }
 
                                                     if (callHistorySearch.trim()) {

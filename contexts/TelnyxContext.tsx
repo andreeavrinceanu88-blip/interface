@@ -784,10 +784,10 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                     : null;
                 const effectiveOrderId = logOrderId || fallbackOrderId || manualDialOrderId;
 
-                if (opId && callId && effectiveOrderId && !loggedCallsRef.current.has(callId)) {
-                    loggedCallsRef.current.add(callId);
+                const isIncoming = call.direction === 'inbound' || isEndingIncoming;
 
-                    const isIncoming = call.direction === 'inbound' || isEndingIncoming;
+                if ((opId || isIncoming) && callId && effectiveOrderId && !loggedCallsRef.current.has(callId)) {
+                    loggedCallsRef.current.add(callId);
 
                     const logPayload: any = {
                         operator_id: opId,
