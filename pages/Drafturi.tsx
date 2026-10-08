@@ -312,6 +312,15 @@ const Drafturi = () => {
         }
     }, [callHistoryDate, showCallHistory]);
 
+    // Live refresh call history whenever a call is finished and saved
+    useEffect(() => {
+        const onCallLogSaved = () => {
+            fetchCallHistory();
+        };
+        window.addEventListener('call_log_saved', onCallLogSaved);
+        return () => window.removeEventListener('call_log_saved', onCallLogSaved);
+    }, [callHistoryDate]);
+
     const resolveCallback = async (logId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         const { error } = await supabaseAdmin.from('call_logs').update({ needs_callback: false }).eq('id', logId);
@@ -453,13 +462,20 @@ const Drafturi = () => {
                     const isInbound = log.call_direction === 'inbound' || orderStr.startsWith('INBOUND:');
                     let matchedOrder: any = null;
 
-                    if (orderStr && !orderStr.startsWith('INBOUND:') && !orderStr.startsWith('ERR:') && !orderStr.startsWith('OUTBOUND:')) {
-                        matchedOrder = orderMap[orderStr];
-                    }
-
                     const customerPhone = isInbound
                         ? (log.caller_id || (orderStr.includes(':') ? orderStr.split(':')[1] : null) || log.destination_number)
                         : (log.destination_number || (orderStr.includes(':') ? orderStr.split(':')[1] : null));
+
+                    if (orderStr && !orderStr.startsWith('INBOUND:') && !orderStr.startsWith('ERR:') && !orderStr.startsWith('OUTBOUND:')) {
+                        const candidate = orderMap[orderStr];
+                        if (candidate) {
+                            const candDigits = (candidate.phone_number || '').replace(/\D/g, '').slice(-7);
+                            const callDigits = (customerPhone || '').replace(/\D/g, '').slice(-7);
+                            if (!callDigits || !candDigits || candDigits === callDigits) {
+                                matchedOrder = candidate;
+                            }
+                        }
+                    }
 
                     if (!matchedOrder && customerPhone) {
                         const last7 = customerPhone.replace(/\D/g, '').slice(-7);
@@ -470,7 +486,7 @@ const Drafturi = () => {
 
                     if (matchedOrder) {
                         log.enriched_store_name = matchedOrder.store_name;
-                        log.enriched_phone = matchedOrder.phone_number || customerPhone;
+                        log.enriched_phone = customerPhone || matchedOrder.phone_number;
                         log.enriched_client_name = matchedOrder.name;
                         log.enriched_order_number = matchedOrder.client_personal_id || `#${matchedOrder.id || matchedOrder.order_id}`;
                         log.enriched_order_id = matchedOrder.order_id || matchedOrder.id;
@@ -1138,8 +1154,18 @@ const Drafturi = () => {
                 callerId = defaultTrunk;
             }
             const cleanDestination = normalizePhoneForProvider(targetNumber, activeProvider);
-            const orderIdStr = selectedId ? selectedId.toString() : undefined;
-            console.log(`[CallerID] Provider=${activeProvider}, Destination=${cleanDestination}, CallerId=${callerId}`, { callerIdMode, selectedBrand, overrideBrand, brandToUse, isVita });
+            let orderIdStr: string | undefined = undefined;
+            if (selectedId) {
+                const selectedOrder = orders.find(o => String(o.id) === String(selectedId) || String(o.order_id) === String(selectedId));
+                if (selectedOrder) {
+                    const orderDigits = (selectedOrder.phone_number || '').replace(/\D/g, '').slice(-7);
+                    const targetDigits = cleanDestination.replace(/\D/g, '').slice(-7);
+                    if (orderDigits && targetDigits && orderDigits === targetDigits) {
+                        orderIdStr = selectedId.toString();
+                    }
+                }
+            }
+            console.log(`[CallerID] Provider=${activeProvider}, Destination=${cleanDestination}, CallerId=${callerId}`, { callerIdMode, selectedBrand, overrideBrand, brandToUse, isVita, orderIdStr });
             makeCall(cleanDestination, callerId, orderIdStr);
         } else {
             hangup();

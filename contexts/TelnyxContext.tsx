@@ -824,10 +824,14 @@ export const TelnyxProvider = ({ children }: { children: React.ReactNode }) => {
                                 needs_callback: needsCallbackRef.current
                             }).then(({error: e2}) => {
                                 if (e2) console.error('[SIP] Error saving basic call log:', e2);
-                                else console.log('[SIP] ✅ Basic call log saved');
+                                else {
+                                    console.log('[SIP] ✅ Basic call log saved');
+                                    try { window.dispatchEvent(new CustomEvent('call_log_saved', { detail: logPayload })); } catch (_) {}
+                                }
                             });
                         } else {
                             console.log(`[SIP] ✅ Call log saved: status=${finalStatus}, duration=${duration}s, source=${source}`);
+                            try { window.dispatchEvent(new CustomEvent('call_log_saved', { detail: logPayload })); } catch (_) {}
                         }
                     });
 
